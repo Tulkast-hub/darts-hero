@@ -11,6 +11,8 @@ import ResultsPage from "./pages/ResultsPage";   // 👈 add this
 import LoginPage from "./pages/LoginPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import { useAuthStore } from "./auth/useAuthStore";
+import CreateUserPage from "./pages/CreateUserPage";
+
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const status = useAuthStore((s) => s.status);
@@ -44,7 +46,8 @@ function ErrorPage() {
 
 const router = createHashRouter([
   { path: "/login", element: <LoginPage /> },
-      { path: "/onboarding", element: <RequireAuth><OnboardingPage /></RequireAuth> },
+  { path: "/admin/create-user", element: <CreateUserPage /> }, // ✅ add
+  { path: "/onboarding", element: <RequireAuth><OnboardingPage /></RequireAuth> },
   {
     path: "/",
     element: (
@@ -57,7 +60,7 @@ const router = createHashRouter([
       { index: true, element: <HomePage /> },
       { path: "category/:slug", element: <CategoryPage /> },
       { path: "drill/:key", element: <DrillPage /> },
-      { path: "result/:key", element: <ResultsPage /> },   // 👈 new
+      { path: "result/:key", element: <ResultsPage /> },
       { path: "stats", element: <StatsPage /> },
       { path: "profile", element: <ProfilePage /> },
       { path: "rewards", element: <RewardsPage /> }
