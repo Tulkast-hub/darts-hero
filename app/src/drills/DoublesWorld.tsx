@@ -11,20 +11,22 @@ type Props = {
   disabled?: boolean;
   tier: Tier;
   level: number;
+  onDartsUsed?: (count: number) => void;
+  externalUndo?: { token: number; steps: number };
 };
 
 type HitMode = "wedge_any" | "fat_single" | "double_only";
 
 type RankConfig = {
   tier: Tier;
-  level: number;        // 1..5
+  level: number; // 1..5
   hitMode: HitMode;
   requiredHits: number; // 1..4
   baseSectionDarts: number; // 9 or 12
 };
 
 type SectionResult = {
-  number: number;        // 1..20
+  number: number; // 1..20
   phase: 1 | 2 | null;
   dartsUsed: number;
   hits: number;
@@ -35,12 +37,8 @@ type SectionResult = {
 type HistoryEvent = {
   sectionIndex: number;
   phase: 1 | 2;
-  kind: "hit" | "miss" | "miss3";
+  kind: "hit" | "miss" | "miss2" | "miss3";
 };
-
-// ---- TEMP RANK (later this will come from profile / XP system) -------------
-const CURRENT_TIER: Tier = "Gold";
-const CURRENT_LEVEL = 2;
 
 // ---- RANK CONFIG -----------------------------------------------------------
 
@@ -121,24 +119,24 @@ function getRankConfig(tier: Tier, level: number): RankConfig {
 
 // ---- COMPONENT -------------------------------------------------------------
 
-export default function DoublesWorld({ onFinish, disabled, tier, level }: Props) {
-  const rankConfig = useMemo(
-    () => getRankConfig(CURRENT_TIER, CURRENT_LEVEL),
-    []
-  );
+export default function DoublesWorld({
+  onFinish,
+  disabled,
+  tier,
+  level,
+  onDartsUsed,
+  externalUndo
+}: Props) {
+  const rankConfig = useMemo(() => getRankConfig(tier, level), [tier, level]);
 
   const TOTAL_SECTIONS = 20;
-  const INITIAL_TOTAL_DARTS =
-    rankConfig.baseSectionDarts * TOTAL_SECTIONS;
+  const INITIAL_TOTAL_DARTS = rankConfig.baseSectionDarts * TOTAL_SECTIONS;
 
   const [phase, setPhase] = useState<1 | 2>(1);
   const [currentIndex, setCurrentIndex] = useState(0); // 0..19
 
-  const [totalDartsLeft, setTotalDartsLeft] =
-    useState(INITIAL_TOTAL_DARTS);
-  const [sectionDartsLeft, setSectionDartsLeft] = useState(
-    rankConfig.baseSectionDarts
-  );
+  const [totalDartsLeft, setTotalDartsLeft] = useState(INITIAL_TOTAL_DARTS);
+  const [sectionDartsLeft, setSectionDartsLeft] = useState(rankConfig.baseSectionDarts);
 
   const [hitsThisSection, setHitsThisSection] = useState(0);
   const [totalHits, setTotalHits] = useState(0);
@@ -157,11 +155,36 @@ export default function DoublesWorld({ onFinish, disabled, tier, level }: Props)
   const [cleanupQueue, setCleanupQueue] = useState<number[]>([]);
   const [history, setHistory] = useState<HistoryEvent[]>([]);
   const [finished, setFinished] = useState(false);
+  // Reset when tier/level changes (so totals stay correct)
+  React.useEffect(() => {
+    const TOTAL_SECTIONS = 20;
+    const initialTotal = rankConfig.baseSectionDarts * TOTAL_SECTIONS;
+
+    setPhase(1);
+    setCurrentIndex(0);
+    setTotalDartsLeft(initialTotal);
+    setSectionDartsLeft(rankConfig.baseSectionDarts);
+    setHitsThisSection(0);
+    setTotalHits(0);
+    setCleanupQueue([]);
+    setHistory([]);
+    setFinished(false);
+    setSections(
+      Array.from({ length: TOTAL_SECTIONS }, (_, idx) => ({
+        number: idx + 1,
+        phase: null,
+        dartsUsed: 0,
+        hits: 0,
+        requiredHits: rankConfig.requiredHits,
+        success: null
+      }))
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rankConfig.tier, rankConfig.level, rankConfig.baseSectionDarts, rankConfig.requiredHits, rankConfig.hitMode]);
 
   const currentSection = sections[currentIndex];
   const dartsUsed = INITIAL_TOTAL_DARTS - totalDartsLeft;
-  const accuracy =
-    dartsUsed === 0 ? 0 : Math.round((totalHits / dartsUsed) * 100);
+  const accuracy = dartsUsed === 0 ? 0 : Math.round((totalHits / dartsUsed) * 100);
 
   const sectionsCompleted = sections.filter((s) => s.success === true).length;
   const sectionsFailed = sections.filter((s) => s.success === false).length;
@@ -182,36 +205,33 @@ export default function DoublesWorld({ onFinish, disabled, tier, level }: Props)
     const finalDartsUsed = INITIAL_TOTAL_DARTS - totalDartsLeft;
     const finalHits = finalSections.reduce((sum, s) => sum + s.hits, 0);
     const finalAccuracy =
-      finalDartsUsed === 0
-        ? 0
-        : Math.round((finalHits / finalDartsUsed) * 100);
+      finalDartsUsed === 0 ? 0 : Math.round((finalHits / finalDartsUsed) * 100);
 
     const payload = {
       game_key: "doubles_world",
       tier: rankConfig.tier,
       level: rankConfig.level,
 
-win,
-max_throws: INITIAL_TOTAL_DARTS,
-throws_used: finalDartsUsed,
-objective: {
-  label: "Complete sections",
-  target: TOTAL_SECTIONS,
-  progress: finalSections.filter((s) => s.success === true).length
-},
-stats: {
-  accuracy: finalAccuracy,
-  total_hits: finalHits,
-  avg_hits_per_dart:
-    finalDartsUsed === 0 ? 0 : Number((finalHits / finalDartsUsed).toFixed(2)),
-  sections_completed: finalSections.filter((s) => s.success === true).length,
-  sections_failed: finalSections.filter((s) => s.success === false).length,
-  cleanup_used: cleanupUsed
-},
+      win,
+      max_throws: INITIAL_TOTAL_DARTS,
+      throws_used: finalDartsUsed,
+      objective: {
+        label: "Complete sections",
+        target: TOTAL_SECTIONS,
+        progress: finalSections.filter((s) => s.success === true).length
+      },
+      stats: {
+        accuracy: finalAccuracy,
+        total_hits: finalHits,
+        avg_hits_per_dart:
+          finalDartsUsed === 0 ? 0 : Number((finalHits / finalDartsUsed).toFixed(2)),
+        sections_completed: finalSections.filter((s) => s.success === true).length,
+        sections_failed: finalSections.filter((s) => s.success === false).length,
+        cleanup_used: cleanupUsed
+      },
       total_darts_used: finalDartsUsed,
       total_hits: finalHits,
-      sections_completed: finalSections.filter((s) => s.success === true)
-        .length,
+      sections_completed: finalSections.filter((s) => s.success === true).length,
       sections_failed: finalSections.filter((s) => s.success === false).length,
       accuracy: finalAccuracy,
       cleanup_used: cleanupUsed,
@@ -268,9 +288,7 @@ stats: {
         setHitsThisSection(updatedSections[nextIndex].hits);
         setSectionDartsLeft(rankConfig.baseSectionDarts + carry);
       } else {
-        const missedExists = updatedSections.some(
-          (s) => s.success === false
-        );
+        const missedExists = updatedSections.some((s) => s.success === false);
 
         if (!missedExists) {
           finishGame(true, updatedSections);
@@ -299,12 +317,14 @@ stats: {
 
   // --- HIT / MISS HANDLERS --------------------------------------------------
 
-  function applyMisses(count: number, kind: "miss" | "miss3") {
+  function applyMisses(count: number, kind: "miss" | "miss2" | "miss3") {
     if (disabled || finished) return;
     if (totalDartsLeft <= 0) return;
 
     const actualCount = Math.min(count, totalDartsLeft);
     if (actualCount <= 0) return;
+
+    onDartsUsed?.(actualCount);
 
     const newTotal = totalDartsLeft - actualCount;
     let newSectionDarts = sectionDartsLeft;
@@ -324,16 +344,12 @@ stats: {
     setTotalDartsLeft(newTotal);
     if (phase === 1) setSectionDartsLeft(newSectionDarts);
 
-    setHistory((hist) => [
-      ...hist,
-      { sectionIndex: currentIndex, phase, kind }
-    ]);
+    setHistory((hist) => [...hist, { sectionIndex: currentIndex, phase, kind }]);
 
     const meetsRequirement = sec.hits >= sec.requiredHits;
 
     if (meetsRequirement) {
-      // Requirement was already met before these misses;
-      // treat as success and advance.
+      // Requirement was already met before these misses; treat as success and advance.
       sec.success = true;
       sec.phase = sec.phase ?? phase;
       advanceFromSection(sectionsCopy, newTotal, true);
@@ -357,6 +373,8 @@ stats: {
     if (disabled || finished) return;
     if (totalDartsLeft <= 0) return;
 
+    onDartsUsed?.(1);
+
     const newTotal = totalDartsLeft - 1;
     let newSectionDarts = sectionDartsLeft;
     if (phase === 1) {
@@ -379,10 +397,7 @@ stats: {
     setHitsThisSection((h) => h + 1);
     if (phase === 1) setSectionDartsLeft(newSectionDarts);
 
-    setHistory((hist) => [
-      ...hist,
-      { sectionIndex: currentIndex, phase, kind: "hit" }
-    ]);
+    setHistory((hist) => [...hist, { sectionIndex: currentIndex, phase, kind: "hit" }]);
 
     const meetsRequirement = newHits >= sec.requiredHits;
 
@@ -407,6 +422,10 @@ stats: {
 
   function recordMiss() {
     applyMisses(1, "miss");
+  }
+
+  function recordMissTwo() {
+    applyMisses(2, "miss2");
   }
 
   function recordMissThree() {
@@ -444,6 +463,9 @@ stats: {
     } else if (last.kind === "miss") {
       dartsToRestore = 1;
       sec.dartsUsed = Math.max(0, sec.dartsUsed - 1);
+    } else if (last.kind === "miss2") {
+      dartsToRestore = 2;
+      sec.dartsUsed = Math.max(0, sec.dartsUsed - 2);
     } else if (last.kind === "miss3") {
       dartsToRestore = 3;
       sec.dartsUsed = Math.max(0, sec.dartsUsed - 3);
@@ -456,6 +478,19 @@ stats: {
 
     setSections(sectionsCopy);
   }
+
+  // Allow Versus Mode to request undo externally (e.g. go back a hand)
+  React.useEffect(() => {
+    if (!externalUndo) return;
+    if (externalUndo.steps <= 0) return;
+    const t = window.setTimeout(() => {
+      for (let i = 0; i < externalUndo.steps; i++) {
+        handleUndo();
+      }
+    }, 0);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalUndo?.token]);
 
   // --- LABELS / UI MAPPINGS -------------------------------------------------
 
@@ -477,14 +512,13 @@ stats: {
       ? "Fat single hit"
       : "Double hit";
 
-  // --- RENDER ----------------------------------------------------------------
+  // --- RENDER ---------------------------------------------------------------
 
   return (
     <div className="bullout">
       {/* Header */}
       <div className="bullout-header">
         <div>
-          <div className="title-lg">Doubles Around the Board</div>
           <div className="muted">
             {phaseLabel} · Section {currentNumber} of {TOTAL_SECTIONS}
           </div>
@@ -497,14 +531,57 @@ stats: {
         </div>
       </div>
 
+      {/* Board */}
+      <DoublesBoard number={currentNumber} hitMode={rankConfig.hitMode} hits={hitsThisSection} />
+
       {/* Main layout */}
-      <div className="bullout-main">
-        {/* Board */}
-        <DoublesBoard
-          number={currentNumber}
-          hitMode={rankConfig.hitMode}
-          hits={hitsThisSection}
-        />
+      <div className="bullout-main aw-main">
+        <div className="bullout-controls" data-hotkeys="drill">
+          <button
+            className="btn success"
+            data-hotkey="1"
+              onClick={recordHit}
+            disabled={disabled || finished || totalDartsLeft <= 0}
+          >
+            {hitButtonLabel}
+          </button>
+
+          <button
+            className="btn outline"
+            data-hotkey="2"
+              onClick={recordMiss}
+            disabled={disabled || finished || totalDartsLeft <= 0}
+          >
+            Miss
+          </button>
+
+          <button
+            className="btn outline"
+            data-hotkey="3"
+              onClick={recordMissTwo}
+            disabled={disabled || finished || totalDartsLeft <= 0}
+          >
+            Miss 2 darts
+          </button>
+
+          <button
+            className="btn outline"
+            data-hotkey="4"
+              onClick={recordMissThree}
+            disabled={disabled || finished || totalDartsLeft <= 0}
+          >
+            Miss 3 darts
+          </button>
+
+          <button
+            className="btn outline"
+            data-hotkey="0"
+	            onClick={handleUndo}
+            disabled={disabled || finished || history.length === 0}
+	          >
+            Undo
+          </button>
+        </div>
 
         {/* Stats card */}
         <div className="bullout-stats card">
@@ -521,8 +598,10 @@ stats: {
                 <div className="muted">Hits this section</div>
               </div>
               <div style={{ textAlign: "center", flex: 1 }}>
-                <div className="title-lg">{sectionsCompleted}</div>
-                <div className="muted">Sections done</div>
+                <div className="title-lg">
+                  {currentNumber} / {TOTAL_SECTIONS}
+                </div>
+                <div className="muted">Current section</div>
               </div>
             </div>
           )}
@@ -557,48 +636,16 @@ stats: {
                 <div className="pill-value">{accuracy}%</div>
               </div>
               <div className="pill pill-stat">
-                <div className="pill-label">Current section</div>
-                <div className="pill-value">
-                  {currentNumber} / {TOTAL_SECTIONS}
-                </div>
+                <div className="pill-label">Sections done</div>
+                <div className="pill-value">{sectionsCompleted}</div>
+              </div>
+              <div className="pill pill-stat">
+                <div className="pill-label">Sections failed</div>
+                <div className="pill-value">{sectionsFailed}</div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Controls */}
-      <div className="bullout-controls">
-        <button
-          className="btn success"
-          onClick={recordHit}
-          disabled={disabled || finished || totalDartsLeft <= 0}
-        >
-          {hitButtonLabel}
-        </button>
-        <button
-          className="btn outline"
-          onClick={recordMiss}
-          disabled={disabled || finished || totalDartsLeft <= 0}
-        >
-          Miss
-        </button>
-        <button
-          className="btn outline"
-          onClick={recordMissThree}
-          disabled={disabled || finished || totalDartsLeft <= 0}
-        >
-          Miss 3 darts
-        </button>
-        <button
-          className="btn outline"
-          onClick={handleUndo}
-          disabled={
-            disabled || finished || history.length === 0
-          }
-        >
-          Undo last
-        </button>
       </div>
     </div>
   );
@@ -606,176 +653,162 @@ stats: {
 
 // --- Dartboard visual -------------------------------------------------------
 function DoublesBoard({
-    number,
-    hitMode,
-    hits
-  }: {
-    number: number;
-    hitMode: HitMode;
-    hits: number;
-  }) {
-    // Real dartboard numbering, clockwise from top (20)
-    const BOARD_ORDER = [
-      20, 1, 18, 4, 13, 6, 10, 15, 2, 17,
-      3, 19, 7, 16, 8, 11, 14, 9, 12, 5
-    ];
-  
-    const idx = BOARD_ORDER.indexOf(number);
-    const segmentIndex = idx === -1 ? 0 : idx;
-  
-    const rDouble = 52;
-    const rOuterSingle = 46;
-    const rInnerSingle = 32;
-  
-    const circDouble = 2 * Math.PI * rDouble;
-    const segDouble = circDouble / 20;
-    const dashDouble = `${segDouble} ${circDouble - segDouble}`;
-  
-    const circOuter = 2 * Math.PI * rOuterSingle;
-    const segOuter = circOuter / 20;
-    const dashOuter = `${segOuter} ${circOuter - segOuter}`;
-  
-    const circInner = 2 * Math.PI * rInnerSingle;
-    const segInner = circInner / 20;
-    const dashInner = `${segInner} ${circInner - segInner}`;
-  
-    // SVG 0° is at the RIGHT.
-    // We want the *center* of the 20 segment at the TOP.
-    const segmentAngle = 360 / 20;      // 18°
-    const baseOffset = -90 - segmentAngle / 2; // -90° - 9° = -99°
-    const rotationDeg = segmentIndex * segmentAngle + baseOffset;
-  
-    const highlightColor =
-      hitMode === "double_only"
-        ? "#00c46a"
-        : hitMode === "fat_single"
-        ? "#fbbf24"
-        : "#3b82f6";
-  
-    const modeLabel =
-      hitMode === "wedge_any"
-        ? "Any part"
-        : hitMode === "fat_single"
-        ? "Fat single"
-        : "Double ring";
-  
-    return (
-      <div className="bull-board-wrapper card">
-        <svg
-          viewBox="0 0 120 120"
-          className="bull-board"
-          aria-hidden="true"
-        >
-          {/* Board background */}
-          <circle cx="60" cy="60" r="58" fill="#020617" />
-          <circle cx="60" cy="60" r="50" fill="#020617" />
-          <circle cx="60" cy="60" r="40" fill="#020617" />
-  
-          {/* Neutral rings */}
-          <circle
-            cx="60"
-            cy="60"
-            r={rOuterSingle}
-            fill="none"
-            stroke="#0f172a"
-            strokeWidth="8"
-          />
-          <circle
-            cx="60"
-            cy="60"
-            r={rInnerSingle}
-            fill="none"
-            stroke="#020617"
-            strokeWidth="10"
-          />
-          <circle
-            cx="60"
-            cy="60"
-            r={rDouble}
-            fill="none"
-            stroke="#0b1120"
-            strokeWidth="8"
-          />
-  
-          {/* Highlighted segment */}
-          <g key={hits} className="bull-group">
-            {hitMode === "double_only" && (
-              <g transform={`rotate(${rotationDeg} 60 60)`}>
-                <circle
-                  cx="60"
-                  cy="60"
-                  r={rDouble}
-                  fill="none"
-                  stroke={highlightColor}
-                  strokeWidth="8"
-                  strokeDasharray={dashDouble}
-                />
-              </g>
-            )}
-  
-            {hitMode === "fat_single" && (
-              <g transform={`rotate(${rotationDeg} 60 60)`}>
-                <circle
-                  cx="60"
-                  cy="60"
-                  r={rOuterSingle}
-                  fill="none"
-                  stroke={highlightColor}
-                  strokeWidth="8"
-                  strokeDasharray={dashOuter}
-                />
-              </g>
-            )}
-  
-            {hitMode === "wedge_any" && (
-              <g transform={`rotate(${rotationDeg} 60 60)`}>
-                <circle
-                  cx="60"
-                  cy="60"
-                  r={rOuterSingle}
-                  fill="none"
-                  stroke={highlightColor}
-                  strokeWidth="8"
-                  strokeDasharray={dashOuter}
-                />
-                <circle
-                  cx="60"
-                  cy="60"
-                  r={rInnerSingle}
-                  fill="none"
-                  stroke={highlightColor}
-                  strokeWidth="10"
-                  strokeDasharray={dashInner}
-                />
-              </g>
-            )}
-  
-            {/* Center label */}
-            <circle cx="60" cy="60" r="22" fill="#020617" />
-            <text
-              x="60"
-              y="57"
-              textAnchor="middle"
-              fontSize="18"
-              fill="#f9fafb"
-              fontWeight="700"
-            >
-              D{number}
-            </text>
-            <text
-              x="60"
-              y="75"
-              textAnchor="middle"
-              fontSize="10"
-              fill="#9ca3af"
-            >
-              {modeLabel}
-            </text>
-          </g>
-        </svg>
-      </div>
-    );
-  }
-  
-  
-  
+  number,
+  hitMode,
+  hits
+}: {
+  number: number;
+  hitMode: HitMode;
+  hits: number;
+}) {
+  // Real dartboard numbering, clockwise from top (20)
+  const BOARD_ORDER = [
+    20, 1, 18, 4, 13, 6, 10, 15, 2, 17,
+    3, 19, 7, 16, 8, 11, 14, 9, 12, 5
+  ];
+
+  const idx = BOARD_ORDER.indexOf(number);
+  const segmentIndex = idx === -1 ? 0 : idx;
+
+  const rDouble = 52;
+  const rOuterSingle = 46;
+  const rInnerSingle = 32;
+
+  const circDouble = 2 * Math.PI * rDouble;
+  const segDouble = circDouble / 20;
+  const dashDouble = `${segDouble} ${circDouble - segDouble}`;
+
+  const circOuter = 2 * Math.PI * rOuterSingle;
+  const segOuter = circOuter / 20;
+  const dashOuter = `${segOuter} ${circOuter - segOuter}`;
+
+  const circInner = 2 * Math.PI * rInnerSingle;
+  const segInner = circInner / 20;
+  const dashInner = `${segInner} ${circInner - segInner}`;
+
+  // SVG 0° is at the RIGHT.
+  // We want the *center* of the 20 segment at the TOP.
+  const segmentAngle = 360 / 20; // 18°
+  const baseOffset = -90 - segmentAngle / 2; // -99°
+  const rotationDeg = segmentIndex * segmentAngle + baseOffset;
+
+  const highlightColor =
+    hitMode === "double_only"
+      ? "#00c46a"
+      : hitMode === "fat_single"
+      ? "#fbbf24"
+      : "#3b82f6";
+
+  const modeLabel =
+    hitMode === "wedge_any"
+      ? "Any part"
+      : hitMode === "fat_single"
+      ? "Fat single"
+      : "Double ring";
+
+  return (
+    <div className="bull-board-wrapper">
+      <svg viewBox="0 0 120 120" className="bull-board" aria-hidden="true">
+        {/* Board background */}
+        <circle cx="60" cy="60" r="58" fill="#020617" />
+        <circle cx="60" cy="60" r="50" fill="#020617" />
+        <circle cx="60" cy="60" r="40" fill="#020617" />
+
+        {/* Neutral rings */}
+        <circle cx="60" cy="60" r={rOuterSingle} fill="none" stroke="#0f172a" strokeWidth="8" />
+        <circle cx="60" cy="60" r={rInnerSingle} fill="none" stroke="#020617" strokeWidth="10" />
+        <circle cx="60" cy="60" r={rDouble} fill="none" stroke="#0b1120" strokeWidth="8" />
+
+        {/* Highlighted segment */}
+        <g key={hits} className="bull-group">
+          {hitMode === "double_only" && (
+            <g transform={`rotate(${rotationDeg} 60 60)`}>
+              <circle
+                cx="60"
+                cy="60"
+                r={rDouble}
+                fill="none"
+                stroke={highlightColor}
+                strokeWidth="8"
+                strokeDasharray={dashDouble}
+              />
+            </g>
+          )}
+
+          {hitMode === "fat_single" && (
+            <g transform={`rotate(${rotationDeg} 60 60)`}>
+              <circle
+                cx="60"
+                cy="60"
+                r={rOuterSingle}
+                fill="none"
+                stroke={highlightColor}
+                strokeWidth="8"
+                strokeDasharray={dashOuter}
+              />
+            </g>
+          )}
+
+          {hitMode === "wedge_any" && (
+            <g transform={`rotate(${rotationDeg} 60 60)`}>
+              <circle
+                cx="60"
+                cy="60"
+                r={rOuterSingle}
+                fill="none"
+                stroke={highlightColor}
+                strokeWidth="8"
+                strokeDasharray={dashOuter}
+              />
+              <circle
+                cx="60"
+                cy="60"
+                r={rInnerSingle}
+                fill="none"
+                stroke={highlightColor}
+                strokeWidth="10"
+                strokeDasharray={dashInner}
+              />
+            </g>
+          )}
+
+          {/* Center label */}
+          <circle cx="60" cy="60" r="22" fill="#020617" />
+
+          {hitMode === "double_only" && (
+            <g>
+              <text x="60" y="57" textAnchor="middle" fontSize="18" fill="#f9fafb" fontWeight="700">
+                D{number}
+              </text>
+              <text x="60" y="75" textAnchor="middle" fontSize="10" fill="#9ca3af">
+                {modeLabel}
+              </text>
+            </g>
+          )}
+
+          {hitMode === "fat_single" && (
+            <g>
+              <text x="60" y="57" textAnchor="middle" fontSize="18" fill="#f9fafb" fontWeight="700">
+                F{number}
+              </text>
+              <text x="60" y="75" textAnchor="middle" fontSize="10" fill="#9ca3af">
+                {modeLabel}
+              </text>
+            </g>
+          )}
+
+          {hitMode === "wedge_any" && (
+            <g>
+              <text x="60" y="57" textAnchor="middle" fontSize="18" fill="#f9fafb" fontWeight="700">
+                S{number}
+              </text>
+              <text x="60" y="75" textAnchor="middle" fontSize="10" fill="#9ca3af">
+                {modeLabel}
+              </text>
+            </g>
+          )}
+        </g>
+      </svg>
+    </div>
+  );
+}

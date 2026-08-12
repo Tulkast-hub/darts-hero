@@ -1,8 +1,11 @@
 import React, { useState } from "react";
+import { useI18n } from "../i18n/I18nProvider";
 import { useNavigate } from "react-router-dom";
 import { adminCreateUser } from "../api";
+import AuthCard from "../components/auth/AuthCard";
 
 export default function CreateUserPage() {
+  const { t } = useI18n();
   const nav = useNavigate();
 
   const [adminKey, setAdminKey] = useState("");
@@ -34,9 +37,8 @@ export default function CreateUserPage() {
         display_name: displayName.trim() || undefined,
       });
 
+      if (!res?.user?.id) throw new Error("Create user failed (no user returned).");
       setSuccess({ id: res.user.id, username: res.user.username });
-
-      // Optional: clear password after success
       setPassword("");
     } catch (err: any) {
       setError(err?.message || "Failed to create user.");
@@ -46,93 +48,52 @@ export default function CreateUserPage() {
   }
 
   return (
-    <div className="page">
-      <div className="card" style={{ maxWidth: 560, margin: "0 auto" }}>
-        <h1 style={{ marginTop: 0 }}>Create User (Staging)</h1>
-        <p style={{ opacity: 0.8 }}>
-          This page is for staging only. It requires an admin key.
-        </p>
+    <AuthCard
+      title="Create user (Staging)"
+      subtitle="This is for staging only. Requires an admin key."
+    >
+      <form onSubmit={onSubmit} className="auth-form">
+        <label className="auth-label">
+          Admin key
+          <input className="auth-input" value={adminKey} onChange={(e) => setAdminKey(e.target.value)} />
+        </label>
 
-        <form onSubmit={onSubmit}>
-          <label style={{ display: "block", marginTop: 12 }}>
-            Admin key
-            <input
-              value={adminKey}
-              onChange={(e) => setAdminKey(e.target.value)}
-              autoComplete="off"
-              style={{ width: "100%", marginTop: 6 }}
-            />
-          </label>
+        <label className="auth-label">
+          Username
+          <input className="auth-input" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" />
+        </label>
 
-          <label style={{ display: "block", marginTop: 12 }}>
-            Username
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-              style={{ width: "100%", marginTop: 6 }}
-            />
-          </label>
+        <label className="auth-label">
+          Password
+          <input className="auth-input" value={password} onChange={(e) => setPassword(e.target.value)} type="password" autoComplete="new-password" />
+        </label>
 
-          <label style={{ display: "block", marginTop: 12 }}>
-            Password
-            <input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              autoComplete="new-password"
-              style={{ width: "100%", marginTop: 6 }}
-            />
-          </label>
+        <label className="auth-label">
+          Email (optional)
+          <input className="auth-input" value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" />
+        </label>
 
-          <label style={{ display: "block", marginTop: 12 }}>
-            Email (optional)
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              type="email"
-              autoComplete="email"
-              style={{ width: "100%", marginTop: 6 }}
-            />
-          </label>
+        <label className="auth-label">
+          Display name (optional)
+          <input className="auth-input" value={displayName} onChange={(e) => setDisplayName(e.target.value)} autoComplete="name" />
+        </label>
 
-          <label style={{ display: "block", marginTop: 12 }}>
-            Display name (optional)
-            <input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              autoComplete="name"
-              style={{ width: "100%", marginTop: 6 }}
-            />
-          </label>
-
-          {error && (
-            <div style={{ marginTop: 12, color: "crimson" }}>
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div style={{ marginTop: 12 }}>
-              ✅ User created: <b>{success.username}</b> (ID: {success.id})
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-            <button type="submit" disabled={busy}>
-              {busy ? "Creating..." : "Create user"}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => nav("/login")}
-              disabled={busy}
-            >
-              Go to login
-            </button>
+        {error ? <div className="auth-error">{error}</div> : null}
+        {success ? (
+          <div className="auth-success">
+            ✅ User created: <b>{success.username}</b> (ID: {success.id})
           </div>
-        </form>
-      </div>
-    </div>
+        ) : null}
+
+        <div className="auth-actions">
+          <button className="btn" type="submit" disabled={busy}>
+            {busy ? "Creating..." : t("Create user")}
+          </button>
+          <button className="btn btn-secondary" type="button" onClick={() => nav("/login")} disabled={busy}>
+            Go to login
+          </button>
+        </div>
+      </form>
+    </AuthCard>
   );
 }

@@ -1,5 +1,6 @@
 // src/pages/DrillPage.tsx
 import React, { useEffect, useState } from "react";
+import { useI18n } from "../i18n/I18nProvider";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { getDrillDef } from "../drills/registry";
@@ -8,15 +9,25 @@ import { startSession, endSession } from "../api";
 import { getRankStateFromXp, XP_CAPS } from "../xp/rank";
 import { useXpStore } from "../xp/useXpStore";
 import { loadXpState, saveXpState } from "../xp/store";
-import type { DrillResult, Tier } from "../xp/types";
+import type { DrillResult, Tier, XpCategory } from "../xp/types";
 import { useAbortStore } from "../session/useAbortStore";
+import { useAuthStore } from "../auth/useAuthStore";
 
 type FinishResult = {
   payload: any;
   win: boolean;
 };
 
+const CATEGORY_LABELS: Record<string, string> = {
+  scoring: "Scoring",
+  finishing: "Finishing",
+  doubles: "Doubling",
+  bull: "Bull",
+  other: "Other",
+};
+
 export default function DrillPage() {
+  const { t } = useI18n();
   const { key } = useParams();
   const nav = useNavigate();
 
@@ -28,15 +39,35 @@ export default function DrillPage() {
   const [showRules, setShowRules] = useState(true);
   const [showAbortConfirm, setShowAbortConfirm] = useState(false);
   const setAbortHandler = useAbortStore((s) => s.setHandler);
+  const status = useAuthStore((s) => s.status);
 
   const drillKey = key || "";
 
   // While inside a drill, make the global back button behave like "Abort".
   useEffect(() => {
-    // Register: open the abort confirm modal.
-    setAbortHandler(() => () => setShowAbortConfirm(true));
-    return () => setAbortHandler(null);
-  }, [setAbortHandler]);
+    if (!drillKey) return;
+
+    // If not authed, go to login (this removes WP dependency)
+    if (status !== "authed") {
+      nav("/login", { replace: true });
+      return;
+    }
+
+    setSessionId(null);
+    setShowRules(true);
+    setLoading(true);
+
+    startSession(drillKey)
+      .then(({ id }) => setSessionId(id))
+      .catch((e) => {
+        // If session start fails due to auth/cookie issues, send to login
+        const msg = String(e?.message || "");
+        if (msg.toLowerCase().includes("not authenticated")) {
+          nav("/login", { replace: true });
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [drillKey, status, nav]);
 
   const drillDef = getDrillDef(drillKey);
 
@@ -87,9 +118,7 @@ export default function DrillPage() {
           other: 0,
           [cat]: res.xp,
         } as any,
-        breakdown: [
-          { label: "Session XP", xp: res.xp },
-        ],
+        breakdown: [{ label: "Session XP", xp: res.xp }],
         multiplier: 1,
       };
 
@@ -152,9 +181,7 @@ export default function DrillPage() {
           other: 0,
           [cat]: res.xp,
         } as any,
-        breakdown: [
-          { label: "Session XP", xp: res.xp },
-        ],
+        breakdown: [{ label: "Session XP", xp: res.xp }],
         multiplier: 1,
       };
 
@@ -174,7 +201,6 @@ export default function DrillPage() {
       setLoading(false);
     }
   }
-
 
   function toTier(v: any): Tier {
     if (v === "Bronze" || v === "Silver" || v === "Gold" || v === "Platinum" || v === "Diamond") return v;
@@ -237,9 +263,13 @@ export default function DrillPage() {
       if (typeof current === "number" && typeof target === "number") objective = { label: "Target points", current, target, unit: "pts" };
     }
 
+    // Force Bull Out into doubles (defensive: ensures XP category always matches registry intent)
+    const forcedCategory: XpCategory | undefined =
+      k === "bull_out" ? "doubles" : undefined;
+
     return {
       game_key: k,
-      category: drillDef?.category ?? "other",
+      category: forcedCategory ?? drillDef?.category ?? "other",
       tier,
       level,
       win,
@@ -266,7 +296,7 @@ export default function DrillPage() {
     return (
       <div className="page">
         <div className="card">
-          <p>Unknown drill.</p>
+          <p>{t("Unknown drill.")}</p>
         </div>
       </div>
     );
@@ -292,21 +322,35 @@ export default function DrillPage() {
         <div className="overlay open">
           <div className="overlay-inner">
             <div className="overlay-panel">
-              <h3>{title} – Rules</h3>
-              <div className="muted" style={{ marginBottom: 12 }}>
+              <div className="overlay-panel-head">
+                <div className="overlay-panel-title">
+                  <h3 style={{ margin: 0 }}>{t(drillDef.title)}</h3>
+                  <div className="muted" style={{ marginTop: 6 }}>
+                    {t(drillDef.blurb)}
+                  </div>
+                </div>
+
+                <div className="pill pill-stat overlay-badge">
+                  <div className="pill-label">{t("Category")}</div>
+                  <div className="pill-value">
+                    {t(CATEGORY_LABELS[drillDef.category] ?? drillDef.category)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="overlay-rules" style={{ marginTop: 12 }}>
                 <Rules />
               </div>
-              <div className="row" style={{ justifyContent: "flex-end" }}>
-                <button className="btn outline" onClick={() => nav(-1)}>
-                  Go back
-                </button>
+
+              <div className="row" style={{ justifyContent: "flex-end", marginTop: 16 }}>
+              <button className="btn outline" onClick={() => nav("/")}>{t("Back to Home")}</button>
                 <button
                   className="btn"
                   style={{ marginLeft: 8 }}
                   onClick={() => setShowRules(false)}
                   disabled={loading || !sessionId}
                 >
-                  Start game
+                  {t("Start game")}
                 </button>
               </div>
             </div>
@@ -318,16 +362,16 @@ export default function DrillPage() {
       {showAbortConfirm && (
         <div className="overlay open">
           <div className="overlay-panel">
-            <h3>Abort game?</h3>
+            <h3>{t("Abort game?")}</h3>
             <p className="muted">
-              Are you sure you want to abort? This counts as a loss and you will lose XP.
+              {t("Are you sure you want to abort? This counts as a loss and you will lose XP.")}
             </p>
             <div className="row" style={{ justifyContent: "flex-end" }}>
               <button className="btn outline" onClick={() => setShowAbortConfirm(false)}>
-                No, continue
+                {t("No, continue")}
               </button>
               <button className="btn danger" style={{ marginLeft: 8 }} onClick={handleAbortConfirm}>
-                Yes, abort
+                {t("Yes, abort")}
               </button>
             </div>
           </div>

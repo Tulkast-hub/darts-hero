@@ -15,26 +15,26 @@ export const GAME_XP: Record<string, GameXpConfig> = {
   // -----------------
   // DOUBLING
   // -----------------
-  bull_out: W(120, 120),
-  doubles_world: W(110, 55),
-  checkouts_popular_leaves: W(110, 55),
+  bull_out: W(100, 50),
+  doubles_world: W(140, 70),
+  checkouts_popular_leaves: W(100, 50),
+  three_dart_checkouts: W(110, 55),
 
   // -----------------
   // SCORING
   // -----------------
   t20_scoring: W(120, 60),
-  scoring_ladder: W(120, 60),
-  scoring_bingo: W(120, 60),
+  scoring_ladder: W(140, 75),
+  scoring_bingo: W(150, 75),
 
   // -----------------
   // FINISHING
   // -----------------
   checkout_41_up: W(120, 60),
-  checkout_121: W(120, 60),
-  checkout_25_repeat: W(120, 60),
-  three_dart_checkouts: W(110, 55),
+  checkout_121: W(140, 70),
+  checkout_25_repeat: W(100, 50),
 };
 
 // Defaults if a drill is missing from the map
-export const DEFAULT_GAME_XP: GameXpConfig = W(120, 120);
+export const DEFAULT_GAME_XP: GameXpConfig = W(120, 60);
   

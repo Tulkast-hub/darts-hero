@@ -16,6 +16,8 @@ type Props = {
   disabled?: boolean;
   tier: Tier;
   level: number;
+  onDartsUsed?: (count: number) => void;
+  externalUndo?: { token: number; steps: number };
 };
 
 type ThrowKind =
@@ -66,11 +68,11 @@ function getRankConfigScoring(
   let target = 5;
 
   if (tier === "Bronze") {
-    target = level <= 3 ? 5 : 10;
+    target = level <= 3 ? 10 : 20;
   } else if (tier === "Silver") {
-    target = level <= 3 ? 20 : 30;
+    target = level <= 3 ? 45 : 60;
   } else if (tier === "Gold") {
-    target = level <= 3 ? 50 : 100;
+    target = level <= 3 ? 80 : 100;
   } else if (tier === "Platinum") {
     target = level <= 3 ? 125 : 150;
   } else if (tier === "Diamond") {
@@ -167,7 +169,7 @@ const T20_SEGMENTS = tokensToSegments(["20", "D20", "T20"]);
 
 /* ---------- COMPONENT ---------- */
 
-export default function T20Scoring({ onFinish, disabled, tier, level }: Props) {
+export default function T20Scoring({ onFinish, disabled, tier, level, onDartsUsed, externalUndo }: Props) {
   const [throwHistory, setThrowHistory] = useState<ThrowEvent[]>([]);
   const [finished, setFinished] = useState(false);
 
@@ -247,6 +249,9 @@ export default function T20Scoring({ onFinish, disabled, tier, level }: Props) {
     if (disabled || finished) return;
     if (throwHistory.length >= rankConfig.maxThrows) return;
 
+    // One scoring entry equals one 3-dart visit
+    onDartsUsed?.(3);
+
     const newHistory = [...throwHistory, { kind, points }];
     const newStats = computeStats(newHistory);
 
@@ -291,6 +296,19 @@ export default function T20Scoring({ onFinish, disabled, tier, level }: Props) {
     setThrowHistory(newHistory);
   }
 
+  // Allow Versus Mode to request undo externally (e.g. go back a hand)
+  React.useEffect(() => {
+    if (!externalUndo) return;
+    if (externalUndo.steps <= 0) return;
+    const t = window.setTimeout(() => {
+      for (let i = 0; i < externalUndo.steps; i++) {
+        handleUndo();
+      }
+    }, 0);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalUndo?.token]);
+
   const canPress =
     !disabled &&
     !finished &&
@@ -315,7 +333,16 @@ export default function T20Scoring({ onFinish, disabled, tier, level }: Props) {
           </div>
         </div>
       </div>
-
+      <DartboardHighlight segments={T20_SEGMENTS} />
+          <div
+            style={{
+              marginTop: 12,
+              textAlign: "center",
+            }}
+          >
+            <div className="muted small hidden-sm" style={{ marginTop: 8, marginBottom: 20, }}>
+              Any stray dart counts, other section can be used if blocked.
+            </div>
       {/* main row: board left, stats right */}
       <div className="bullout-main">
         <div
@@ -327,15 +354,79 @@ export default function T20Scoring({ onFinish, disabled, tier, level }: Props) {
             justifyContent: "center",
           }}
         >
-          <DartboardHighlight segments={T20_SEGMENTS} />
-          <div
-            style={{
-              marginTop: 12,
-              textAlign: "center",
-            }}
-          >
-            <div className="muted small" style={{ marginTop: 8 }}>
-              Any stray dart counts, other section can be used if blocked.
+          <div className="t20scoring-controls" data-hotkeys="drill">
+            <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+              <button
+                className="btn outline"
+                style={{ flex: 1, minWidth: 140 }}
+                disabled={!canPress}
+                data-hotkey="1"
+                onClick={handleGt60}
+              >
+                &gt; 60 (1 pt)
+              </button>
+              <button
+                className="btn outline"
+                style={{ flex: 1, minWidth: 140 }}
+                disabled={!canPress}
+                data-hotkey="2"
+                onClick={handleGt80}
+              >
+                &gt; 80 (2 pts)
+              </button>
+              <button
+                className="btn outline"
+                style={{ flex: 1, minWidth: 140 }}
+                disabled={!canPress}
+                data-hotkey="3"
+                onClick={handleGt100}
+              >
+                &gt; 100 (3 pts)
+              </button>
+              <button
+                className="btn outline"
+                style={{ flex: 1, minWidth: 140 }}
+                disabled={!canPress}
+                data-hotkey="4"
+                onClick={handleGt120}
+              >
+                &gt; 120 (5 pts)
+              </button>
+              <button
+                className="btn outline"
+                style={{ flex: 1, minWidth: 140 }}
+                disabled={!canPress}
+                data-hotkey="5"
+                onClick={handleGt140}
+              >
+                &gt; 140 (7 pts)
+              </button>
+              <button
+                className="btn outline"
+                style={{ flex: 1, minWidth: 140 }}
+                disabled={!canPress}
+                data-hotkey="6"
+                onClick={handle180}
+              >
+                180 (10 pts)
+              </button>
+              <button
+                className="btn secondary"
+                style={{ flex: 1, minWidth: 140 }}
+                disabled={!canPress}
+                data-hotkey="7"
+                onClick={handleMiss}
+              >
+                Miss / &lt; 60
+              </button>
+              <button
+                className="btn"
+                style={{ flex: 1, minWidth: 140 }}
+                disabled={!canUndo}
+                onClick={handleUndo}
+               data-hotkey="0">
+                Undo
+              </button>
             </div>
           </div>
         </div>
@@ -418,76 +509,9 @@ export default function T20Scoring({ onFinish, disabled, tier, level }: Props) {
           </div>
         </div>
       </div>
-
-      {/* bottom controls – scoring options + miss + undo */}
-      <div className="t20scoring-controls" style={{ marginTop: 16 }}>
-        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-          <button
-            className="btn"
-            style={{ flex: 1, minWidth: 140 }}
-            disabled={!canPress}
-            onClick={handleGt60}
-          >
-            &gt; 60 (1 pt)
-          </button>
-          <button
-            className="btn"
-            style={{ flex: 1, minWidth: 140 }}
-            disabled={!canPress}
-            onClick={handleGt80}
-          >
-            &gt; 80 (2 pts)
-          </button>
-          <button
-            className="btn"
-            style={{ flex: 1, minWidth: 140 }}
-            disabled={!canPress}
-            onClick={handleGt100}
-          >
-            &gt; 100 (3 pts)
-          </button>
-          <button
-            className="btn"
-            style={{ flex: 1, minWidth: 140 }}
-            disabled={!canPress}
-            onClick={handleGt120}
-          >
-            &gt; 120 (5 pts)
-          </button>
-          <button
-            className="btn"
-            style={{ flex: 1, minWidth: 140 }}
-            disabled={!canPress}
-            onClick={handleGt140}
-          >
-            &gt; 140 (7 pts)
-          </button>
-          <button
-            className="btn"
-            style={{ flex: 1, minWidth: 140 }}
-            disabled={!canPress}
-            onClick={handle180}
-          >
-            180 (10 pts)
-          </button>
-          <button
-            className="btn secondary"
-            style={{ flex: 1, minWidth: 140 }}
-            disabled={!canPress}
-            onClick={handleMiss}
-          >
-            Miss / &lt; 60
-          </button>
-          <button
-            className="btn outline"
-            style={{ flex: 1, minWidth: 140 }}
-            disabled={!canUndo}
-            onClick={handleUndo}
-          >
-            Undo
-          </button>
-        </div>
       </div>
+      {/* bottom controls – scoring options + miss + undo */}
+     
     </div>
   );
 }

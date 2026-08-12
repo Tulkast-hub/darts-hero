@@ -1,4 +1,5 @@
 import React from "react";
+import { useI18n } from "../i18n/I18nProvider";
 import { useNavigate } from "react-router-dom";
 import RankBadge from "./RankBadge";
 
@@ -14,13 +15,14 @@ type Props = {
 
 export default function DrillCard({keyName, title, blurb, tier, level, xpWin, xpLose}:Props){
   const nav = useNavigate();
+  const { t } = useI18n();
   return (
     <div className="drill-card" style={{borderColor: "var(--rank-"+tier.toLowerCase()+")"}} onClick={()=>nav("/drill/"+keyName)}>
       <div className="drill-head">
-        <strong>{title}</strong>
+        <strong>{t(title)}</strong>
         <RankBadge tier={tier} level={level} />
       </div>
-      <p className="muted">{blurb}</p>
+      <p className="muted">{t(blurb)}</p>
       <div className="drill-meta">
         <span className="pill">+{xpWin} XP</span>
         <span className="pill lose">−{xpLose} XP</span>

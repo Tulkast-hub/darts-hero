@@ -43,7 +43,7 @@ export const DEFAULT_XP: GameXpConfig = {
  */
 export const GAME_XP: Record<string, GameXpConfig> = {
   // Examples (edit to match your actual keys / balance)
-  bull_out: { category: "bull", winXp: 120, lossXp: 120 },
+  bull_out: { category: "doubles", winXp: 120, lossXp: 60 },
   doubles_world: { category: "doubles", winXp: 110, lossXp: 55 },
   three_dart_checkouts: { category: "doubles", winXp: 110, lossXp: 55 },
 

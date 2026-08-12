@@ -5,7 +5,8 @@ type Payload = any;
 // Base URL for the standalone API (PHP).
 // Example in app/.env.staging:
 // VITE_API_BASE_URL=https://staging-api.federatiedarts.ro/
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/").replace(/\/+$/, "/") + "/";
+const RAW_BASE = import.meta.env.VITE_API_BASE_URL || "/";
+const API_BASE = RAW_BASE.replace(/\/+$/, "");
 
 async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers || {});
@@ -13,7 +14,7 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers.set("Content-Type", "application/json");
   }
 
-  const res = await fetch(`${API_BASE}${path.replace(/^\//, "")}`, {
+  const res = await fetch(`${API_BASE}/${path.replace(/^\//, "")}`, {
     credentials: "include",
     ...init,
     headers,
@@ -21,8 +22,7 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const msg =
-      (data && (data.message || data.error)) || `Request failed (${res.status})`;
+    const msg = (data && (data.message || data.error)) || `Request failed (${res.status})`;
     throw new Error(msg);
   }
   return data as T;
@@ -76,10 +76,24 @@ export async function getMeProgress() {
 }
 
 export async function submitOnboardingChoice(choice: "new_player" | "advanced_player") {
-  return apiFetch<MeProgressResponse>("onboarding", {
+  const res = await fetch("https://staging-api.federatiedarts.ro/onboarding", {
     method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
     body: JSON.stringify({ choice }),
   });
+
+  const text = await res.text();
+  console.log("ONBOARDING RAW RESPONSE:", text);
+
+  if (!res.ok) {
+    throw new Error(text);
+  }
+
+  return JSON.parse(text);
 }
 
 export async function startSession(game_key: string) {
@@ -116,6 +130,42 @@ export async function adminCreateUser(input: {
   admin_key: string;
 }) {
   return apiFetch<{ ok: boolean; user: { id: number; username: string } }>("admin/create-user", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export type LeaderboardRow = {
+  user_id: number;
+  username?: string;
+  display_name?: string;
+  total_xp: number;
+  category_xp?: Record<string, number>;
+};
+
+export async function getLeaderboard(): Promise<LeaderboardRow[]> {
+  const res: any = await apiFetch(`/leaderboard`, { method: "GET" });
+
+  // allow either { rows: [...] } or [...] from backend
+  if (Array.isArray(res)) return res as LeaderboardRow[];
+  if (res && Array.isArray(res.rows)) return res.rows as LeaderboardRow[];
+  return [];
+}
+
+export async function requestPasswordReset(identifier: string) {
+  // identifier can be username OR email
+  return apiFetch<{ ok: boolean }>("password/request-reset", {
+    method: "POST",
+    body: JSON.stringify({ identifier }),
+  });
+}
+
+export async function confirmPasswordReset(input: {
+  uid: number;
+  token: string;
+  new_password: string;
+}) {
+  return apiFetch<{ ok: boolean }>("password/confirm-reset", {
     method: "POST",
     body: JSON.stringify(input),
   });

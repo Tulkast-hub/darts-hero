@@ -1,4 +1,5 @@
 import React from "react";
+import { useI18n } from "../i18n/I18nProvider";
 
 import BullOut from "./BullOut";
 import DoublesWorld from "./DoublesWorld";
@@ -29,6 +30,10 @@ export type DrillComponentProps = {
   disabled?: boolean;
   tier: Tier;
   level: number;
+  /** Optional: used by Versus Mode to swap players after 3 darts */
+  onDartsUsed?: (count: number) => void;
+  /** Optional: Versus Mode can request the drill to undo N actions */
+  externalUndo?: { token: number; steps: number };
 };
 
 export type DrillDef = {
@@ -41,117 +46,126 @@ export type DrillDef = {
 };
 
 // --- Rules blocks (kept as small components so we can embed JSX cleanly)
-const RulesBullOut: React.FC = () => (
-  <>
-    <p>• Outer bull = 1 point, inner bull = 2 points.</p>
-    <p>• You have a limited number of darts to maximise your score.</p>
-    <p>• Higher ranks can penalise complete misses.</p>
-  </>
-);
+const RulesBullOut: React.FC = () => {
+  const { t } = useI18n();
+  return (
+    <>
+      <p>{t("• Outer bull = 1 point, inner bull = 2 points.")}</p>
+      <p>{t("• You have 90 darts to hit your goal.")}</p>
+      <p>{t("• Higher ranks can penalise complete misses.")}</p>
+    </>
+  );
+};
 
-const RulesDoublesWorld: React.FC = () => (
-  <>
-    <p>
-      • You play doubles in <strong>numeric order</strong>: D1 → D2 → … → D20.
-    </p>
-    <p>
-      • Each number starts with a base amount of darts (depends on rank). Any unused darts carry forward.
-    </p>
-    <p>
-      • Hit types by rank: lower ranks allow hits anywhere in the wedge, mid ranks focus on the fat single,
-      and Silver+ require the <strong>double ring only</strong>.
-    </p>
-    <p>• After D20, you revisit only the missed sections in order using any remaining darts.</p>
-    <p>
-      • You <strong>win</strong> if you clear all 20 doubles before running out of darts.
-    </p>
-  </>
-);
+const RulesDoublesWorld: React.FC = () => {
+  const { t } = useI18n();
+  return (
+    <>
+      <p>{t("• You play doubles or singles in numeric order: D1 → D2 → … → D20.")}</p>
+      <p>{t("• Each number starts with a base amount of darts (depends on rank). Any unused darts carry forward.")}</p>
+      <p>{t("• Hit types by rank vary: lower ranks allow hits anywhere in the wedge; higher ranks require stricter segments.")}</p>
+      <p>{t("• After D20, you revisit only the missed sections in order using any remaining darts.")}</p>
+      <p>{t("• You win if you clear all 20 doubles before running out of darts.")}</p>
+    </>
+  );
+};
 
-const RulesThreeDartCheckouts: React.FC = () => (
-  <>
-    <p>• You play the four most common finishing leaves: 40 → 32 → 36 → 24.</p>
-    <p>• Each score gives you 18 darts (6 throws of 3 darts).</p>
-    <p>• Each throw, choose whether you successfully checked out or missed.</p>
-    <p>• Your goal is to reach a total number of checkouts based on rank.</p>
-    <p>• Higher ranks must finish on a double.</p>
-  </>
-);
+const RulesThreeDartCheckouts: React.FC = () => {
+  const { t } = useI18n();
+  return (
+    <>
+      <p>{t("• You play the four most common finishing leaves: 40 → 32 → 36 → 24.")}</p>
+      <p>{t("• You need to checkout each number within one visit. Normal rules apply.")}</p>
+      <p>{t("• Each section has a number of visits depending on the rank and a random checkout is always chosen.")}</p>
+      <p>{t("• Each visit, choose whether you successfully checked out or missed.")}</p>
+      <p>{t("• Your goal is to reach a total number of checkouts based on rank.")}</p>
+      <p>{t("• Low ranks can finish on single; Silver+ finish only with a double.")}</p>
+    </>
+  );
+};
 
-const RulesCheckout121: React.FC = () => (
-  <>
-    <p>• Start at 121 with 3 darts per visit.</p>
-    <p>• If you checkout the current total, your next target increases by +5.</p>
-    <p>• If you miss (or bust), your next target decreases by −1.</p>
-    <p>
-      • Enter the remaining score after each visit. Remaining 0 with a single or double out counts as a
-      checkout.
-    </p>
-    <p>
-      • Your rank goal is based on finishing over a certain total (for example &gt;140, &gt;150, &gt;160,
-      &gt;170).
-    </p>
-    <p>
-      • At higher ranks you must also reach key thresholds (like &gt;140 / &gt;150 / &gt;160) within the first
-      6 darts.
-    </p>
-    <p>• The game ends as soon as you hit your rank goal, or after 201 darts.</p>
-  </>
-);
+const RulesCheckout121: React.FC = () => {
+  const { t } = useI18n();
+  return (
+    <>
+      <p>{t("• Start at 121 with 3 darts per visit and you have 3 visits per checkout.")}</p>
+      <p>{t("• If you checkout the current total, your next target increases by +5.")}</p>
+      <p>{t("• If you miss (or bust), your next target decreases by −1.")}</p>
+      <p>{t("• Enter the remaining score after each visit. Remaining 0 counts as a checkout.")}</p>
+      <p>{t("• Your rank goal is based on finishing over a certain total (for example >140, >150, >160, >170).")}</p>
+      <p>{t("• At higher ranks you must also reach key thresholds within the first 6 darts.")}</p>
+      <p>{t("• The game ends as soon as you hit your rank goal, or if you run out of visits.")}</p>
+    </>
+  );
+};
 
-const RulesCheckout41Up: React.FC = () => (
-  <>
-    <p>• Start at 41 with 3 darts per visit.</p>
-    <p>• If you checkout the current number, you move up to the next one.</p>
-    <p>• If you miss, you stay on the same number and try again next visit.</p>
-    <p>
-      • Your rank goal is to finish above a certain target (for example &gt;60, &gt;70, &gt;75, &gt;85).
-    </p>
-    <p>• The game ends as soon as you hit the goal checkout, or after 201 darts.</p>
-  </>
-);
+const RulesCheckout41Up: React.FC = () => {
+  const { t } = useI18n();
+  return (
+    <>
+      <p>{t("• Start at 41 with 3 darts per visit.")}</p>
+      <p>{t("• If you checkout the current number, you move up to the next one.")}</p>
+      <p>{t("• If you miss, you stay on the same number and try again next visit.")}</p>
+      <p>{t("• Your rank goal is to finish above a certain target (for example >60, >70, >75, >85).")}</p>
+      <p>{t("• The game ends as soon as you hit the goal checkout, or after 70 throws.")}</p>
+    </>
+  );
+};
 
-const RulesCheckout25Repeat: React.FC = () => (
-  <>
-    <p>• You always start from 25 and have 3 darts per visit.</p>
-    <p>• For each visit, record whether you finished 25 or missed.</p>
-    <p>• You have 90 darts in total (30 visits of 3 darts).</p>
-    <p>• Lower ranks focus on volume, higher ranks require more finishes.</p>
-    <p>• The drill always runs the full 90 darts, then your result is evaluated.</p>
-  </>
-);
+const RulesCheckout25Repeat: React.FC = () => {
+  const { t } = useI18n();
+  return (
+    <>
+      <p>{t("• You always start from 25 points and have 3 darts per visit.")}</p>
+      <p>{t("• Each visit counts as one throw. You have 40 throws in total.")}</p>
+      <p>{t("• After each visit, record whether you successfully finished 25 or missed.")}</p>
+      <p>{t("• Lower ranks: single odd out (even first, then odd to finish 25).")}</p>
+      <p>{t("• Higher ranks: any valid double out finish on 25 counts.")}</p>
+      <p>{t("• Your goal is to reach the required number of checkouts before running out of throws.")}</p>
+    </>
+  );
+};
 
-const RulesScoringLadder: React.FC = () => (
-  <>
-    <p>You’re climbing a scoring ladder in 30 throws.</p>
-    <p>Below the first threshold you go down, then stay, then up 1, then up 2.</p>
-    <p>Reach the target number of steps to win.</p>
-  </>
-);
+const RulesScoringLadder: React.FC = () => {
+  const { t } = useI18n();
+  return (
+    <>
+      <p>{t("You’re climbing a scoring ladder in 40 throws.")}</p>
+      <p>{t("Below the first threshold you go down, then stay, then up 1, then up 2.")}</p>
+      <p>{t("Reach the target number of steps to win.")}</p>
+    </>
+  );
+};
 
-const RulesScoringBingo: React.FC = () => (
-  <>
-    <p>• You have 30 throws to complete a 3×3 bingo grid of exact scores.</p>
-    <p>• Tap the score you hit to mark progress.</p>
-    <p>• Complete all targets to win.</p>
-  </>
-);
+const RulesScoringBingo: React.FC = () => {
+  const { t } = useI18n();
+  return (
+    <>
+      <p>{t("• You have 30 throws to complete a 3×3 bingo grid of exact scores.")}</p>
+      <p>{t("• Tap the score you hit to mark progress.")}</p>
+      <p>{t("• Complete all targets to win.")}</p>
+    </>
+  );
+};
 
-const RulesT20Scoring: React.FC = () => (
-  <>
-    <p>• You throw 100 visits at 20.</p>
-    <p>• Each visit earns ladder points based on your score.</p>
-    <p>• Your rank goal is a total number of ladder points (varies by tier/level).</p>
-    <p>• The game ends as soon as you hit your point goal, or after 100 throws.</p>
-  </>
-);
+const RulesT20Scoring: React.FC = () => {
+  const { t } = useI18n();
+  return (
+    <>
+      <p>{t("• You throw 100 visits at 20.")}</p>
+      <p>{t("• Each visit earns ladder points based on your score.")}</p>
+      <p>{t("• Your rank goal is a total number of ladder points (varies by tier/level).")}</p>
+      <p>{t("• The game ends as soon as you hit your point goal, or after 100 throws.")}</p>
+    </>
+  );
+};
 
 export const DRILLS: DrillDef[] = [
   {
     key: "bull_out",
     title: "Bull Out",
     blurb: "Score on bull with limited darts.",
-    category: "bull",
+    category: "doubles",
     Component: BullOut,
     Rules: RulesBullOut,
   },
@@ -189,7 +203,7 @@ export const DRILLS: DrillDef[] = [
   },
   {
     key: "checkout_25_repeat",
-    title: "Finish 25 (Volume)",
+    title: "Finish 25",
     blurb: "Repeat 25 finishes in 3-dart visits.",
     category: "finishing",
     Component: Finish25,

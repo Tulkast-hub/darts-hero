@@ -6,6 +6,8 @@ import { useXpStore } from "../xp/useXpStore";
 import { getRankStateFromXp, XP_CAPS } from "../xp/rank";
 import { useAuthStore } from "../auth/useAuthStore";
 import { useAbortStore } from "../session/useAbortStore";
+import HeroLogo from "../assets/img/hero.png";
+import { useI18n } from "../i18n/I18nProvider";
 
 export default function NavBar({ onMenu }: { onMenu: () => void }) {
   const nav = useNavigate();
@@ -13,7 +15,8 @@ export default function NavBar({ onMenu }: { onMenu: () => void }) {
   const [theme, setTheme] = useTheme();
   const totalXp = useXpStore((s) => s.state.totalXp);
   const me = useAuthStore((s) => s.me);
-  const name = me?.display_name || me?.login || "Player";
+  const { t, isDesktop } = useI18n();
+  const name = me?.display_name || me?.login || t("Player");
 
   const pathname = loc.pathname;
   const isHome = pathname === "/" || pathname === "";
@@ -30,7 +33,7 @@ export default function NavBar({ onMenu }: { onMenu: () => void }) {
     <header className="nav">
       <div className="nav-left">
         {isHome ? (
-          <button className="icon-btn" onClick={onMenu} aria-label="Open menu">
+          <button className="icon-btn" onClick={onMenu} aria-label={t("Open menu")}>
             ☰
           </button>
         ) : (
@@ -43,7 +46,7 @@ export default function NavBar({ onMenu }: { onMenu: () => void }) {
                 nav(-1);
               }
             }}
-            aria-label="Back"
+            aria-label={t("Back")}
           >
             ←
           </button>
@@ -51,20 +54,29 @@ export default function NavBar({ onMenu }: { onMenu: () => void }) {
       </div>
 
       <div className="nav-center">
+                  <img
+                    src={HeroLogo}
+                    alt={t("Darts Hero logo")}
+                    className="logo-large"
+                  />
+      </div>
+
+      <div className="nav-right">
+        <div>
+        <button className="icon-btn" onClick={toggleTheme} aria-label={t("Theme")}>
+          {theme === "light" ? "🌙" : "☀️"}
+        </button>
+
+        <button className="icon-btn" onClick={() => nav("/profile")} aria-label={t("Profile")}>
+          👤
+        </button>
+        </div>
+        <div className="profile">
         <div className="nav-title">{name}</div>
         <div className="nav-subtitle">
           <RankBadge tier={overallRank.tier} level={overallRank.level} />
         </div>
-      </div>
-
-      <div className="nav-right">
-        <button className="icon-btn" onClick={toggleTheme} aria-label="Toggle theme">
-          {theme === "light" ? "🌙" : "☀️"}
-        </button>
-
-        <button className="icon-btn" onClick={() => nav("/profile")} aria-label="Profile">
-          👤
-        </button>
+        </div>
       </div>
     </header>
   );

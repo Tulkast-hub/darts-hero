@@ -14,6 +14,8 @@ type Props = {
   disabled?: boolean;
   tier: Tier;
   level: number;
+  onDartsUsed?: (count: number) => void;
+  externalUndo?: { token: number; steps: number };
 };
 
 
@@ -319,7 +321,7 @@ function getSuggestedRoute(score: number): string[] {
 
 /* ---------------- COMPONENT ---------------- */
 
-export default function Checkout41({ onFinish, disabled, tier, level }: Props) {
+export default function Checkout41({ onFinish, disabled, tier, level, onDartsUsed, externalUndo }: Props) {
   const rankConfig = useMemo(
     () => getRankConfig41(tier, level),
     [tier, level]
@@ -494,6 +496,7 @@ export default function Checkout41({ onFinish, disabled, tier, level }: Props) {
     if (disabled || finished) return;
     if (throwHistory.length >= MAX_THROWS) return;
 
+    onDartsUsed?.(3);
     recordHit();
   }
 
@@ -501,6 +504,7 @@ export default function Checkout41({ onFinish, disabled, tier, level }: Props) {
     if (disabled || finished) return;
     if (throwHistory.length >= MAX_THROWS) return;
 
+    onDartsUsed?.(3);
     recordMiss();
   }
 
@@ -512,6 +516,19 @@ export default function Checkout41({ onFinish, disabled, tier, level }: Props) {
     setThrowHistory(newHistory);
     recomputeDerivedState(newHistory);
   }
+
+  // Allow Versus Mode to request undo externally (e.g. go back a hand)
+  React.useEffect(() => {
+    if (!externalUndo) return;
+    if (externalUndo.steps <= 0) return;
+    const t = window.setTimeout(() => {
+      for (let i = 0; i < externalUndo.steps; i++) {
+        handleUndo();
+      }
+    }, 0);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalUndo?.token]);
 
   const canPress = !disabled && !finished && throwHistory.length < MAX_THROWS;
   const canUndo = !disabled && !finished && throwHistory.length > 0;
@@ -530,7 +547,18 @@ export default function Checkout41({ onFinish, disabled, tier, level }: Props) {
           <div className="objective-value">Checkout &gt; {rankConfig.mainThresholdOver}</div>
         </div>
       </div>
-
+      <DartboardHighlight segments={suggestedSegments} />
+          <div
+            style={{
+              fontSize: 40,
+              fontWeight: 900,
+              textAlign: "center",
+              letterSpacing: 1,
+              textTransform: "uppercase",
+            }}
+          >
+            {suggestedRoute.length > 0 ? suggestedRoute.join(" ") : "—"}
+          </div>
       {/* main row: board left, stats right */}
       <div className="bullout-main">
         <div
@@ -542,19 +570,38 @@ export default function Checkout41({ onFinish, disabled, tier, level }: Props) {
             justifyContent: "center",
           }}
         >
-          <DartboardHighlight segments={suggestedSegments} />
-          <div
-            style={{
-              marginTop: 12,
-              fontSize: 16,
-              fontWeight: 600,
-              textAlign: "center",
-              letterSpacing: 1,
-              textTransform: "uppercase",
-            }}
+     {/* bottom controls – Hit / Miss / Undo */}
+     <div className="checkout41-controls" style={{ marginTop: 16 }} data-hotkeys="drill">
+        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+          <button
+            className="btn success"
+            style={{ flex: 1, minWidth: 140 }}
+            data-hotkey="1"
+            onClick={handleHit}
+            disabled={!canPress}
           >
-            {suggestedRoute.length > 0 ? suggestedRoute.join(" ") : "—"}
-          </div>
+            Check
+          </button>
+          <button
+            className="btn secondary"
+            style={{ flex: 1, minWidth: 140 }}
+            data-hotkey="2"
+            onClick={handleMiss}
+            disabled={!canPress}
+          >
+            Bust / Miss
+          </button>
+          <button
+            className="btn outline"
+            style={{ flex: 1, minWidth: 140 }}
+            data-hotkey="0"
+            onClick={handleUndo}
+            disabled={!canUndo}
+	          >
+            Undo
+          </button>
+        </div>
+      </div>
         </div>
 
         <div className="bullout-stats card">
@@ -592,35 +639,7 @@ export default function Checkout41({ onFinish, disabled, tier, level }: Props) {
         </div>
       </div>
 
-      {/* bottom controls – Hit / Miss / Undo */}
-      <div className="checkout41-controls" style={{ marginTop: 16 }}>
-        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-          <button
-            className="btn"
-            style={{ flex: 1, minWidth: 140 }}
-            onClick={handleHit}
-            disabled={!canPress}
-          >
-            Check
-          </button>
-          <button
-            className="btn secondary"
-            style={{ flex: 1, minWidth: 140 }}
-            onClick={handleMiss}
-            disabled={!canPress}
-          >
-            Bust
-          </button>
-          <button
-            className="btn outline"
-            style={{ flex: 1, minWidth: 140 }}
-            onClick={handleUndo}
-            disabled={!canUndo}
-          >
-            Undo
-          </button>
-        </div>
-      </div>
+ 
     </div>
   );
 }

@@ -4,8 +4,8 @@ export const TIERS: Tier[] = ["Bronze", "Silver", "Gold", "Platinum", "Diamond"]
 
 export const XP_CAPS = {
   drillTierMax: 2000,    // XP to go from rank 1 -> 5 within one tier (=> 400 per rank)
-  categoryTierMax: 10000,
-  overallTierMax: 40000,
+  categoryTierMax: 6000,
+  overallTierMax: 18000,
 } as const;
 
 export function promoteTier(base: Tier, steps: number): Tier {

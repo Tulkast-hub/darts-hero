@@ -8,6 +8,7 @@ import { getRankStateFromXp, XP_CAPS } from "../xp/rank";
 import type { Tier, XpCategory } from "../xp/types";
 import { GAME_XP, DEFAULT_GAME_XP } from "../xp/gameXp";
 import { getDrillDef, type DrillKey } from "../drills/registry";
+import { useI18n } from "../i18n/I18nProvider";
 
 // Bull should NOT be its own category track.
 // If someone ever hits /category/bull, we map it into doubling.
@@ -27,6 +28,7 @@ function slugToCategory(slug: string): XpCategory {
 }
 
 export default function CategoryPage() {
+  const { t } = useI18n();
   const { slug = "" } = useParams();
   const xpState = useXpStore((s) => s.state);
 
@@ -39,31 +41,37 @@ export default function CategoryPage() {
   };
 
   let drillKeys: DrillKey[] = [];
-  let title = "Category";
+  let title = t("Category");
   switch (slug) {
     case "scoring":
       drillKeys = groups.scoring;
-      title = "Scoring";
+      title = t("Scoring");
       break;
     case "doubling":
       drillKeys = groups.doubling;
-      title = "Doubling";
+      title = t("Doubling");
       break;
     case "finishing":
       drillKeys = groups.finishing;
-      title = "Finishing";
+      title = t("Finishing");
       break;
     // if user visits /category/bull, show doubling group (since bull is folded in)
     case "bull":
       drillKeys = groups.doubling;
-      title = "Doubling";
+      title = t("Doubling");
       break;
     default:
-      title = "Category";
+      title = t("Category");
   }
 
   const cat = slugToCategory(slug);
-  const categoryXp = Math.max(0, xpState.categoryXp?.[cat] ?? 0);
+  const raw = xpState.categoryXp || {};
+const categoryXp = Math.max(
+  0,
+  cat === "doubles"
+    ? (raw.doubles ?? 0) + (raw.bull ?? 0)
+    : (raw[cat] ?? 0)
+);
 
   const categoryRank = useMemo(
     () => getRankStateFromXp(categoryXp, XP_CAPS.categoryTierMax, "Bronze"),
@@ -80,7 +88,7 @@ export default function CategoryPage() {
       {/* Category XP progress bar (this is what was “empty”) */}
       <div style={{ marginTop: 10 }}>
         <XPBar
-          label={`Category XP · ${title}`}
+          label={`${t("Category XP")} · ${title}`}
           value={categoryXp}
           max={XP_CAPS.categoryTierMax}
         />

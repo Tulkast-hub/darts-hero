@@ -8,6 +8,7 @@ import type { DrillResult, XpAward, XpCategory, Tier } from "../xp/types";
 import type { XpState } from "../xp/store";
 
 import { GAME_XP, DEFAULT_GAME_XP } from "../xp/gameXp";
+import { useI18n } from "../i18n/I18nProvider";
 
 type ResultState = {
   win: boolean;
@@ -103,6 +104,8 @@ function getXpBarsFromState(
 function ObjectiveBar({ result }: { result?: DrillResult }) {
   if (!result) return null;
 
+  const { t } = useI18n();
+
   const obj = result.objective;
   const label = obj?.label ?? "Objective";
   const current = obj?.current;
@@ -111,7 +114,7 @@ function ObjectiveBar({ result }: { result?: DrillResult }) {
 
   return (
     <div className="objective-pill" style={{ marginTop: 12 }}>
-      <div className="objective-label">Objective</div>
+      <div className="objective-label">{t("Objective")}</div>
       <div className="objective-value" style={{ lineHeight: 1.1 }}>
         {label}
       </div>
@@ -380,6 +383,7 @@ function writeLastMeta(drillKey: string, tier: Tier, level: number) {
 }
 
 export default function ResultsPage() {
+  const { t } = useI18n();
   const nav = useNavigate();
   const { key } = useParams();
   const location = useLocation();
@@ -468,7 +472,7 @@ export default function ResultsPage() {
                   "result-status result-status-anim " + (win ? "result-status-win" : "result-status-loss")
                 }
               >
-                {win ? "Win" : "Loss"}
+                {win ? t("Win") : t("Loss")}
               </div>
               <div className="row" style={{ gap: 8, marginTop: 6, flexWrap: "wrap" }}>
                 <RankBadge tier={tier} level={typeof effectiveResult?.level === "number" ? effectiveResult.level : 1} />
@@ -478,7 +482,7 @@ export default function ResultsPage() {
             </div>
 
             <div style={{ textAlign: "right" }}>
-              <div className="muted small">XP GAINED</div>
+              <div className="muted small">{t("XP GAINED")}</div>
               <div style={{ fontSize: 28, fontWeight: 900 }}>{formatXpDelta(delta)}</div>
               {goodWinBonus > 0 ? (
                 <div className="muted small" style={{ marginTop: 6, fontWeight: 800 }}>
@@ -504,7 +508,7 @@ export default function ResultsPage() {
 
       {bars.length ? (
         <div className="card" style={{ marginTop: 12 }}>
-          <div className="muted small">XP</div>
+          <div className="muted small">{t("XP")}</div>
           <div className="result-xp-section">
             {bars.map((b) => (
               <XpBar key={b.label} config={b} />
@@ -515,7 +519,7 @@ export default function ResultsPage() {
 
       {effectiveResult?.stats && (
         <div className="card" style={{ marginTop: 12 }}>
-          <div className="muted small">DRILL STATS</div>
+          <div className="muted small">{t("DRILL STATS")}</div>
           <div className="result-stats-grid" style={{ marginTop: 10 }}>
             {pickStats(effectiveResult.stats).map((st) => (
               <Stat key={st.label} label={st.label} value={st.value} />
@@ -525,8 +529,8 @@ export default function ResultsPage() {
       )}
 
       <div className="row" style={{ gap: 8, marginTop: 14 }}>
-        <button className="btn outline" onClick={() => nav("/")}>Back to Home</button>
-        <button className="btn" onClick={() => nav(`/drill/${drillKey}`)}>Replay</button>
+        <button className="btn outline" onClick={() => nav("/")}>{t("Back to Home")}</button>
+        <button className="btn" onClick={() => nav(`/drill/${drillKey}`)}>{t("Replay")}</button>
       </div>
     </div>
   );

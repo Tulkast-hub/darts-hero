@@ -4,11 +4,14 @@ import { Link } from "react-router-dom";
 import { useXpStore } from "../xp/useXpStore";
 import { getRankStateFromXp, XP_CAPS } from "../xp/rank";
 import { useAuthStore } from "../auth/useAuthStore";
+import InstallAppButton from "../components/InstallAppButton";
+import { useI18n } from "../i18n/I18nProvider";
 
 export default function HomePage() {
+  const { t } = useI18n();
   const totalXp = useXpStore((s) => s.state.totalXp);
   const me = useAuthStore((s) => s.me);
-  const name = me?.display_name || me?.login || "Player";
+  const name = me?.display_name || me?.login || t("Player");
 
   const overallRank = useMemo(
     () => getRankStateFromXp(totalXp ?? 0, XP_CAPS.overallTierMax, "Bronze"),
@@ -18,35 +21,37 @@ export default function HomePage() {
   return (
     <div className="page">
       <section className="hero card">
-        <div className="row">
-          <div>
-            <div className="title">
-              Welcome, <strong>{name}</strong>
-            </div>
-            <div className="subtitle">
-              Overall Rank: <RankBadge tier={overallRank.tier} level={overallRank.level} />
-            </div>
+        <div>
+          <div className="title">
+            {t("Welcome")}, <strong>{name}</strong>{" "}
+            <RankBadge tier={overallRank.tier} level={overallRank.level} />
+          </div>
+
+          <div className="subtitle">
+            <h2>{t("Take your darts to the next level")}</h2>
+            <p>{t("Grow with each game and try to reach new heights in your dart game")}</p>
           </div>
         </div>
       </section>
 
-      <h3>Categories</h3>
+      <h3>{t("Game Modes")}</h3>
       <div className="stack-wrap">
         <div className="stack-list">
-        <Link to="/category/scoring" className="category-card card accent-red">
-          <div className="category-title">Scoring</div>
-          <div className="muted">Power scoring & T20 drills</div>
-        </Link>
-        <Link to="/category/doubling" className="category-card card accent-green">
-          <div className="category-title">Doubling</div>
-          <div className="muted">Doubles consistency</div>
-        </Link>
-        <Link to="/category/finishing" className="category-card card accent-gold">
-          <div className="category-title">Finishing</div>
-          <div className="muted">121+ ladders & checkouts</div>
-        </Link>
+          <Link to="/training" className="category-card card accent-green">
+            <div className="category-title">{t("Training Mode")}</div>
+            <div className="muted">{t("Play drills, earn XP, level up")}</div>
+          </Link>
+
+          <Link to="/versus" className="category-card card accent-red">
+            <div className="category-title">{t("Versus Mode")}</div>
+            <div className="muted">{t("Hotseat 1v1 — first to finish wins")}</div>
+          </Link>
         </div>
-        </div>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <InstallAppButton />
+      </div>
     </div>
   );
 }

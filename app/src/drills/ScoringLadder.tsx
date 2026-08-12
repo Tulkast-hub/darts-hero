@@ -12,6 +12,8 @@ type Props = {
   disabled?: boolean;
   tier: Tier;
   level: number;
+  onDartsUsed?: (count: number) => void;
+  externalUndo?: { token: number; steps: number };
 };
 
 type MoveKind = "DOWN" | "STAY" | "UP1" | "UP2" | "UP3";
@@ -43,7 +45,7 @@ type LadderStats = {
   accuracy: number;
 };
 
-const MAX_THROWS = 60;
+const MAX_THROWS = 40;
 
 /* ---------- RANK CONFIG ---------- */
 
@@ -67,11 +69,11 @@ function getGoalSteps(tier: Tier, level: number): number {
   const low = level <= 3;
   switch (tier) {
     case "Bronze":
-      return low ? 3 : 5;
+      return low ? 4 : 6;
     case "Silver":
-      return low ? 9 : 11;
+      return low ? 7 : 9;
     case "Gold":
-      return low ? 13 : 5;
+      return low ? 11 : 7;
     case "Platinum":
       return low ? 9 : 11;
     case "Diamond":
@@ -162,7 +164,7 @@ function LadderViz({ currentStep, goalSteps }: { currentStep: number; goalSteps:
 
   return (
     <div
-      className="ladder-viz"
+      className="ladder-viz hidden-sm"
       style={{
         width: "100%",
         maxWidth: 120,
@@ -195,7 +197,7 @@ function LadderViz({ currentStep, goalSteps }: { currentStep: number; goalSteps:
 
 /* ---------- COMPONENT ---------- */
 
-export default function ScoringLadder({ onFinish, disabled, tier, level }: Props) {
+export default function ScoringLadder({ onFinish, disabled, tier, level, onDartsUsed, externalUndo }: Props) {
   const [history, setHistory] = useState<LadderEvent[]>([]);
   const [finished, setFinished] = useState(false);
 
@@ -262,6 +264,9 @@ export default function ScoringLadder({ onFinish, disabled, tier, level }: Props
     if (disabled || finished) return;
     if (history.length >= config.maxThrows) return;
 
+    // One action equals one 3-dart visit
+    onDartsUsed?.(3);
+
     const newHistory = [...history, { kind, delta }];
     const newStats = computeLadderStats(newHistory, config.goalSteps);
 
@@ -296,6 +301,18 @@ export default function ScoringLadder({ onFinish, disabled, tier, level }: Props
     if (history.length === 0) return;
     setHistory(history.slice(0, -1));
   }
+
+  React.useEffect(() => {
+    if (!externalUndo) return;
+    if (externalUndo.steps <= 0) return;
+    const t = window.setTimeout(() => {
+      for (let i = 0; i < externalUndo.steps; i++) {
+        handleUndo();
+      }
+    }, 0);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalUndo?.token]);
 
   const canPress = !disabled && !finished && history.length < config.maxThrows;
   const canUndo = !disabled && !finished && history.length > 0;
@@ -394,24 +411,30 @@ export default function ScoringLadder({ onFinish, disabled, tier, level }: Props
         </div>
       </div>
 
-      <div className="t20scoring-controls" style={{ marginTop: 16 }}>
+      <div className="t20scoring-controls" style={{ marginTop: 16 }} data-hotkeys="drill">
         <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-          <button className="btn" style={{ flex: 1, minWidth: 150 }} disabled={!canPress} onClick={handleDown}>
+          <button className="btn outline" style={{ flex: 1, minWidth: 150 }} disabled={!canPress} data-hotkey="1"
+            onClick={handleDown}>
             {labelDown} (-1 step)
           </button>
-          <button className="btn" style={{ flex: 1, minWidth: 150 }} disabled={!canPress} onClick={handleStay}>
+          <button className="btn outline" style={{ flex: 1, minWidth: 150 }} disabled={!canPress} data-hotkey="2"
+            onClick={handleStay}>
             {labelStay} (0 steps)
           </button>
-          <button className="btn" style={{ flex: 1, minWidth: 150 }} disabled={!canPress} onClick={handleUp1}>
+          <button className="btn outline" style={{ flex: 1, minWidth: 150 }} disabled={!canPress} data-hotkey="3"
+            onClick={handleUp1}>
             {labelUp1} (+1 step)
           </button>
-          <button className="btn" style={{ flex: 1, minWidth: 150 }} disabled={!canPress} onClick={handleUp2}>
+          <button className="btn outline" style={{ flex: 1, minWidth: 150 }} disabled={!canPress} data-hotkey="4"
+            onClick={handleUp2}>
             {labelUp2} (+2 steps)
           </button>
-          <button className="btn" style={{ flex: 1, minWidth: 150 }} disabled={!canPress} onClick={handleUp3}>
+          <button className="btn outline" style={{ flex: 1, minWidth: 150 }} disabled={!canPress} data-hotkey="5"
+            onClick={handleUp3}>
             {labelUp3} (+3 steps)
           </button>
-          <button className="btn outline" style={{ flex: 1, minWidth: 150 }} disabled={!canUndo} onClick={handleUndo}>
+	          <button className="btn" style={{ flex: 1, minWidth: 150 }} disabled={!canUndo} data-hotkey="0"
+	            onClick={handleUndo}>
             Undo
           </button>
         </div>

@@ -56,7 +56,7 @@ function valueToAngle(value: number): number {
 
 export default function DartboardHighlight({ segments, className }: Props) {
   return (
-    <div className={className ?? ""}>
+    <div className={className ?? "hidden-sm"}>
       <svg
         viewBox="0 0 120 120"
         className="dartboard-svg"

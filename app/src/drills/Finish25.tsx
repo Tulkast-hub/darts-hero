@@ -3,7 +3,6 @@ import React, { useMemo, useState } from "react";
 import DartboardHighlight from "../ui/DartboardHighlight";
 import type { Tier } from "../xp/types";
 
-
 type FinishResult = {
   payload: any;
   win: boolean;
@@ -14,81 +13,89 @@ type Props = {
   disabled?: boolean;
   tier: Tier;
   level: number;
+  onDartsUsed?: (count: number) => void;
+  externalUndo?: { token: number; steps: number };
 };
 
 type RankConfig25 = {
-  labelLong: string;         // full description of the rank goal
-  objectiveShort: string;    // text shown in the objective pill (e.g. "6 checkouts (double out)")
-  targetFinishes: number;    // number of checkouts needed to win
+  labelLong: string;
+  objectiveShort: string;
+  targetFinishes: number;
+  ruleDetail?: string;
 };
 
 type VisitEvent = {
-  isHit: boolean; // true = finished 25 this visit, false = bust
+  isHit: boolean; // true = finished 25 this visit, false = miss
+  darts: number; // 1..3 (last visit can be partial)
 };
 
 const TARGET_SCORE = 25;
-// In this drill, one "throw" = one dart. A visit is always 3 darts.
-const MAX_THROWS = 90; // 30 visits (3 darts each)
+
+// One click = one throw/visit (3 darts)
+const DARTS_PER_VISIT = 3;
+
+// You want 40 throws total:
+const MAX_THROWS = 40;
+
+// Derived dart cap (so it is always consistent):
+const MAX_DARTS = MAX_THROWS * DARTS_PER_VISIT; // 120 darts
+
 
 /* ------------------ RANK CONFIG ----------------------- */
 
 function makeConfig(
   labelLong: string,
   threshold: number,
-  mode: "single" | "double" | "any"
+  mode: "single_odd" | "double" | "any"
 ): RankConfig25 {
-  // "Above X finishes" → need X+1 checkouts
   const targetFinishes = threshold + 1;
 
-  let suffix = "";
-  if (mode === "single") suffix = " (single out)";
-  if (mode === "double") suffix = " (double out)";
+  let objectiveShort = `${targetFinishes} checkouts`;
+  let ruleDetail: string | undefined;
 
-  return {
-    labelLong,
-    objectiveShort: `${targetFinishes} checkouts${suffix}`,
-    targetFinishes,
-  };
+  if (mode === "single_odd") {
+    objectiveShort = `${targetFinishes} checkouts (single odd out)`;
+    ruleDetail =
+      "Single odd out: hit an even number, then an odd number to finish 25.";
+  }
+
+  // As requested: no "(double out)" suffix shown.
+  return { labelLong, objectiveShort, targetFinishes, ruleDetail };
 }
 
 function getRankConfig25(tier: Tier, level: number): RankConfig25 {
   if (tier === "Bronze") {
-    if (level <= 3) {
-      return makeConfig("Above 10 finishes, single checkout", 10, "single");
-    }
-    return makeConfig("Above 15 finishes, single checkout", 15, "single");
+    return level <= 3
+      ? makeConfig("Above 10 finishes, single odd out", 10, "single_odd")
+      : makeConfig("Above 15 finishes, single odd out", 15, "single_odd");
   }
 
   if (tier === "Silver") {
-    if (level <= 3) {
-      return makeConfig("Above 5 finishes, double out", 5, "double");
-    }
-    return makeConfig("Above 7 finishes, double out", 7, "double");
+    return level <= 3
+      ? makeConfig("Above 5 finishes", 5, "double")
+      : makeConfig("Above 7 finishes", 7, "double");
   }
 
   if (tier === "Gold") {
-    if (level <= 3) {
-      return makeConfig("Above 10 finishes", 10, "any");
-    }
-    return makeConfig("Above 12 finishes", 12, "any");
+    return level <= 3
+      ? makeConfig("Above 10 finishes", 10, "any")
+      : makeConfig("Above 12 finishes", 12, "any");
   }
 
   if (tier === "Platinum") {
     return makeConfig("Above 15 finishes", 15, "any");
   }
 
-  // Diamond
   return makeConfig("Above 20 finishes", 20, "any");
 }
 
 /* ------------------ HELPERS ----------------------- */
 
 function computeStats(events: VisitEvent[]) {
-  const legsPlayed = events.length;
-  const dartsUsed = legsPlayed * 3;
+  const throwsUsed = events.length;
+  const dartsUsed = events.reduce((sum, e) => sum + (e.darts || 0), 0);
   const checkoutCount = events.filter((e) => e.isHit).length;
 
-  // streaks
   let currentStreak = 0;
   let bestStreak = 0;
   for (const ev of events) {
@@ -101,13 +108,13 @@ function computeStats(events: VisitEvent[]) {
   }
 
   const accuracy =
-    legsPlayed > 0 ? Math.round((checkoutCount / legsPlayed) * 100) : 0;
+    throwsUsed > 0 ? Math.round((checkoutCount / throwsUsed) * 100) : 0;
 
   const avgDartsPerCheckout =
     checkoutCount > 0 ? (dartsUsed / checkoutCount).toFixed(1) : "—";
 
   return {
-    legsPlayed,
+    throwsUsed,
     dartsUsed,
     checkoutCount,
     accuracy,
@@ -118,17 +125,14 @@ function computeStats(events: VisitEvent[]) {
 
 /* ------------------ COMPONENT ----------------------- */
 
-export default function Finish25({ onFinish, disabled, tier, level }: Props) {
-  const rankConfig = useMemo(
-    () => getRankConfig25(tier, level),
-    [tier, level]
-  );
+export default function Finish25({ onFinish, disabled, tier, level, onDartsUsed, externalUndo }: Props) {
+  const rankConfig = useMemo(() => getRankConfig25(tier, level), [tier, level]);
 
   const [visitHistory, setVisitHistory] = useState<VisitEvent[]>([]);
   const [finished, setFinished] = useState(false);
 
   const {
-    legsPlayed,
+    throwsUsed,
     dartsUsed,
     checkoutCount,
     accuracy,
@@ -136,10 +140,7 @@ export default function Finish25({ onFinish, disabled, tier, level }: Props) {
     avgDartsPerCheckout,
   } = computeStats(visitHistory);
 
-  const dartsLeft = MAX_THROWS - dartsUsed;
-  const legsTotal = MAX_THROWS / 3;
-
-  /* ---------- WIN / FINISH LOGIC ---------- */
+  const throwsLeft = Math.max(0, MAX_THROWS - throwsUsed);
 
   function hasReachedObjective(newCheckoutCount: number): boolean {
     return newCheckoutCount >= rankConfig.targetFinishes;
@@ -155,18 +156,16 @@ export default function Finish25({ onFinish, disabled, tier, level }: Props) {
       game_key: "checkout_25_repeat",
       tier,
       level,
-
       win,
-      // Normalized fields used by the WP backend XP calculation
-      throws_used: stats.dartsUsed,
-      max_throws: MAX_THROWS,
 
-      // legacy-style fields
+      // Backend expects darts-based fields for Great Win ratio checks
+      throws_used: stats.dartsUsed,
+      max_throws: MAX_DARTS,
+
       single_finishes: 0,
       double_finishes: 0,
       total_finishes: stats.checkoutCount,
 
-      // Objective + stats (used by the Results page)
       objective: {
         label: "Checkouts",
         target: rankConfig.targetFinishes,
@@ -176,7 +175,8 @@ export default function Finish25({ onFinish, disabled, tier, level }: Props) {
         accuracy: stats.accuracy,
         checkout_count: stats.checkoutCount,
         best_streak: stats.bestStreak,
-        legs_played: stats.legsPlayed,
+        throws_used: stats.throwsUsed,
+        darts_used: stats.dartsUsed,
         avg_darts_per_checkout: stats.avgDartsPerCheckout,
       },
     };
@@ -185,52 +185,68 @@ export default function Finish25({ onFinish, disabled, tier, level }: Props) {
   }
 
   function applyVisit(isHit: boolean) {
-    const newHistory = [...visitHistory, { isHit }];
-    const stats = computeStats(newHistory);
+    if (disabled || finished) return;
 
-    const outOfDarts = stats.dartsUsed >= MAX_THROWS;
-    const targetReached = hasReachedObjective(stats.checkoutCount);
+    const remaining = Math.max(0, MAX_DARTS - dartsUsed);
+    if (remaining <= 0) return;
+
+    const dartsThisVisit = Math.min(DARTS_PER_VISIT, remaining);
+    if (dartsThisVisit <= 0) return;
+
+    onDartsUsed?.(dartsThisVisit);
+
+    const newHistory = [...visitHistory, { isHit, darts: dartsThisVisit }];
+    const stats = computeStats(newHistory);
 
     setVisitHistory(newHistory);
 
+    const outOfDarts = stats.dartsUsed >= MAX_DARTS;
+    const targetReached = hasReachedObjective(stats.checkoutCount);
+
     if (targetReached || outOfDarts) {
-      const win = targetReached;
-      finishGame(win, newHistory);
+      finishGame(targetReached, newHistory);
     }
-  }
-
-  /* ---------- HANDLERS ---------- */
-
-  function handleCheck() {
-    if (disabled || finished) return;
-    if (dartsUsed >= MAX_THROWS) return;
-    applyVisit(true);
-  }
-
-  function handleBust() {
-    if (disabled || finished) return;
-    if (dartsUsed >= MAX_THROWS) return;
-    applyVisit(false);
   }
 
   function handleUndo() {
     if (disabled || finished) return;
     if (visitHistory.length === 0) return;
-    const newHistory = visitHistory.slice(0, -1);
-    setVisitHistory(newHistory);
+    setVisitHistory((h) => h.slice(0, -1));
   }
 
-  const buttonsDisabled = disabled || finished || dartsUsed >= MAX_THROWS;
-  const canUndo = !disabled && !finished && visitHistory.length > 0;
+  React.useEffect(() => {
+    if (!externalUndo) return;
+    if (externalUndo.steps <= 0) return;
+    const t = window.setTimeout(() => {
+      for (let i = 0; i < externalUndo.steps; i++) {
+        handleUndo();
+      }
+    }, 0);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalUndo?.token]);
 
-  /* ------------------ RENDER ----------------------- */
+  React.useEffect(() => {
+    if (!externalUndo) return;
+    if (externalUndo.steps <= 0) return;
+    const t = window.setTimeout(() => {
+      for (let i = 0; i < externalUndo.steps; i++) {
+        handleUndo();
+      }
+    }, 0);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalUndo?.token]);
+
+  // Disable input when the drill is finished or the dart limit is reached.
+  const buttonsDisabled = disabled || finished || dartsUsed >= MAX_DARTS;
+  const canUndo = !disabled && !finished && visitHistory.length > 0;
 
   return (
     <div className="bullout">
       {/* header */}
       <div className="bullout-header">
         <div>
-          {/* keep only the first line as you requested */}
           <div className="muted">Finish 25 · 3 darts per visit</div>
         </div>
         <div className="objective-pill">
@@ -238,7 +254,23 @@ export default function Finish25({ onFinish, disabled, tier, level }: Props) {
           <div className="objective-value">{rankConfig.objectiveShort}</div>
         </div>
       </div>
+          {/* Board */}
+          <DartboardHighlight segments={[]} />
 
+          {/* Target label (same style as your earlier version) */}
+          <div
+            style={{
+              marginTop: 12,
+              marginBottom: 16,
+              fontSize: 16,
+              fontWeight: 600,
+              textAlign: "center",
+              letterSpacing: 1,
+              textTransform: "uppercase",
+            }}
+          >
+            TARGET {TARGET_SCORE}
+          </div>
       {/* main row: board left, stats right */}
       <div className="bullout-main">
         <div
@@ -250,31 +282,52 @@ export default function Finish25({ onFinish, disabled, tier, level }: Props) {
             justifyContent: "center",
           }}
         >
-          {/* No suggestions – just show the board */}
-          <DartboardHighlight segments={[]} />
-          <div
-            style={{
-              marginTop: 12,
-              fontSize: 16,
-              fontWeight: 600,
-              textAlign: "center",
-              letterSpacing: 1,
-              textTransform: "uppercase",
-            }}
-          >
-            TARGET {TARGET_SCORE}
+
+
+          {/* Controls (under board, on the left) */}
+          <div className="checkout25-controls" data-hotkeys="drill">
+            <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+              <button
+                className="btn success"
+                style={{ flex: 1, minWidth: 140 }}
+                disabled={buttonsDisabled}
+                data-hotkey="1"
+            onClick={() => applyVisit(true)}
+              >
+                Check
+              </button>
+              <button
+                className="btn secondary"
+                style={{ flex: 1, minWidth: 140 }}
+                disabled={buttonsDisabled}
+                data-hotkey="2"
+            onClick={() => applyVisit(false)}
+              >
+                Bust/Miss
+              </button>
+              <button
+                className="btn outline"
+                style={{ flex: 1, minWidth: 140 }}
+                disabled={!canUndo}
+                data-hotkey="0"
+	                onClick={handleUndo}
+	              >
+                Undo
+              </button>
+            </div>
           </div>
         </div>
 
+        {/* Stats (right) */}
         <div className="bullout-stats card">
           <div className="row" style={{ justifyContent: "space-between" }}>
             <div>
-              <div className="small muted">Curent target</div>
-              <div className="title-lg">{TARGET_SCORE}</div>
+              <div className="small muted">Checkouts</div>
+              <div className="title-lg">{checkoutCount}</div>
             </div>
             <div>
-              <div className="small muted">Darts left</div>
-              <div className="title-lg">{dartsLeft}</div>
+              <div className="small muted">Throws left</div>
+              <div className="title-lg">{throwsLeft}</div>
             </div>
             <div>
               <div className="small muted">Avg darts / checkout</div>
@@ -289,8 +342,8 @@ export default function Finish25({ onFinish, disabled, tier, level }: Props) {
                 <div className="pill-value">{accuracy}%</div>
               </div>
               <div className="pill pill-stat">
-                <div className="pill-label"># of checkouts</div>
-                <div className="pill-value">{checkoutCount}</div>
+                <div className="pill-label">Target</div>
+                <div className="pill-value">{TARGET_SCORE}</div>
               </div>
               <div className="pill pill-stat">
                 <div className="pill-label">Checkout streak</div>
@@ -301,35 +354,9 @@ export default function Finish25({ onFinish, disabled, tier, level }: Props) {
         </div>
       </div>
 
-      {/* bottom controls – Check / Bust / Undo */}
-      <div className="checkout25-controls" style={{ marginTop: 16 }}>
-        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-          <button
-            className="btn"
-            style={{ flex: 1, minWidth: 140 }}
-            disabled={buttonsDisabled}
-            onClick={handleCheck}
-          >
-            Check
-          </button>
-          <button
-            className="btn secondary"
-            style={{ flex: 1, minWidth: 140 }}
-            disabled={buttonsDisabled}
-            onClick={handleBust}
-          >
-            Bust
-          </button>
-          <button
-            className="btn outline"
-            style={{ flex: 1, minWidth: 140 }}
-            disabled={!canUndo}
-            onClick={handleUndo}
-          >
-            Undo
-          </button>
-        </div>
-      </div>
+      {/* (Optional) Keep dartsUsed in state for debugging if needed:
+          dartsUsed={dartsUsed} / MAX_DARTS={MAX_DARTS}
+      */}
     </div>
   );
 }

@@ -12,9 +12,11 @@ type Props = {
   disabled?: boolean;
   tier: Tier;
   level: number;
+  onDartsUsed?: (count: number) => void;
+  externalUndo?: { token: number; steps: number };
 };
 
-const MAX_THROWS = 30;
+const MAX_THROWS = 50;
 
 /* ---------- SCORE POTS ---------- */
 
@@ -31,15 +33,17 @@ function sample(arr: number[], count: number) {
 function getBingoNumbers(tier: Tier): number[] {
   let numbers: number[] = [];
 
+  // Bronze: 2 rows only (6 targets)
   if (tier === "Bronze") {
-    numbers = [...sample(POT_1, 6), ...sample(POT_2, 3)];
+    numbers = [...sample(POT_1, 6)];
   } else if (tier === "Silver") {
-    numbers = [...sample(POT_1, 3), ...sample(POT_2, 6)];
+    numbers = [...sample(POT_1, 6), ...sample(POT_2, 3)];
   } else if (tier === "Gold") {
     numbers = [...sample(POT_1, 3), ...sample(POT_2, 3), ...sample(POT_3, 3)];
   } else if (tier === "Platinum") {
-    numbers = [...sample(POT_2, 3), ...sample(POT_3, 3), ...sample(POT_4, 3)];
+    numbers = [...sample(POT_2, 3), ...sample(POT_3, 6)];
   } else {
+    // Diamond
     numbers = [...sample(POT_3, 6), ...sample(POT_4, 3)];
   }
 
@@ -47,19 +51,13 @@ function getBingoNumbers(tier: Tier): number[] {
   return numbers.sort((a, b) => a - b);
 }
 
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
-}
+type Action = { type: "HIT"; value: number } | { type: "MISS" };
 
-type Action =
-  | { type: "HIT"; value: number }
-  | { type: "MISS" };
-
-export default function ScoringBingo({ onFinish, disabled, tier, level }: Props) {
+export default function ScoringBingo({ onFinish, disabled, tier, level, onDartsUsed, externalUndo }: Props) {
   const [actions, setActions] = useState<Action[]>([]);
   const [finished, setFinished] = useState(false);
 
-  const targets = useMemo(() => getBingoNumbers(tier), []);
+  const targets = useMemo(() => getBingoNumbers(tier), [tier]);
 
   const isLevel45 = level >= 4;
 
@@ -102,9 +100,7 @@ export default function ScoringBingo({ onFinish, disabled, tier, level }: Props)
     return n;
   }, [targets, requiredHitsByTarget, countsByTarget]);
 
-  const missCount = useMemo(() => {
-    return actions.filter((a) => a.type === "MISS").length;
-  }, [actions]);
+  const missCount = useMemo(() => actions.filter((a) => a.type === "MISS").length, [actions]);
 
   const accuracy = useMemo(() => {
     // "accuracy" here = successful HIT actions / total throws
@@ -120,12 +116,10 @@ export default function ScoringBingo({ onFinish, disabled, tier, level }: Props)
     const finalCounts: Record<number, number> = {};
     for (const t of targets) finalCounts[t] = 0;
 
-    const finalHits: number[] = [];
     let finalMisses = 0;
 
     for (const a of finalActions) {
       if (a.type === "HIT") {
-        finalHits.push(a.value);
         finalCounts[a.value] = (finalCounts[a.value] ?? 0) + 1;
       } else {
         finalMisses += 1;
@@ -147,9 +141,7 @@ export default function ScoringBingo({ onFinish, disabled, tier, level }: Props)
       max_throws: MAX_THROWS,
 
       targets,
-      required_hits: Object.fromEntries(
-        targets.map((t) => [t, requiredHitsByTarget.get(t) ?? 1])
-      ),
+      required_hits: Object.fromEntries(targets.map((t) => [t, requiredHitsByTarget.get(t) ?? 1])),
       hit_counts: finalCounts,
 
       misses: finalMisses,
@@ -167,6 +159,7 @@ export default function ScoringBingo({ onFinish, disabled, tier, level }: Props)
         misses: finalMisses,
         throws_used: finalActions.length,
         targets_total: targets.length,
+        accuracy,
       },
     };
 
@@ -176,6 +169,8 @@ export default function ScoringBingo({ onFinish, disabled, tier, level }: Props)
   function applyAction(action: Action) {
     if (disabled || finished) return;
     if (throwsUsed >= MAX_THROWS) return;
+
+    onDartsUsed?.(3);
 
     if (action.type === "HIT") {
       const need = requiredHitsByTarget.get(action.value) ?? 1;
@@ -187,13 +182,13 @@ export default function ScoringBingo({ onFinish, disabled, tier, level }: Props)
     setActions(newActions);
 
     // compute completion after adding
-    let newCompleted = 0;
     const nextCounts = new Map(countsByTarget);
 
     if (action.type === "HIT") {
       nextCounts.set(action.value, (nextCounts.get(action.value) ?? 0) + 1);
     }
 
+    let newCompleted = 0;
     for (const t of targets) {
       const need = requiredHitsByTarget.get(t) ?? 1;
       const have = nextCounts.get(t) ?? 0;
@@ -202,7 +197,7 @@ export default function ScoringBingo({ onFinish, disabled, tier, level }: Props)
 
     const newThrowsUsed = newActions.length;
 
-    if (newCompleted === 9) {
+    if (newCompleted === targets.length) {
       finishGame(true, newActions);
       return;
     }
@@ -223,24 +218,32 @@ export default function ScoringBingo({ onFinish, disabled, tier, level }: Props)
   function handleUndo() {
     if (disabled || finished) return;
     if (actions.length === 0) return;
-
-    const newActions = actions.slice(0, -1);
-    setActions(newActions);
+    setActions(actions.slice(0, -1));
   }
 
-  const canPress =
-    !disabled && !finished && throwsUsed < MAX_THROWS;
-  const canUndo =
-    !disabled && !finished && actions.length > 0;
+  React.useEffect(() => {
+    if (!externalUndo) return;
+    if (externalUndo.steps <= 0) return;
+    const t = window.setTimeout(() => {
+      for (let i = 0; i < externalUndo.steps; i++) {
+        handleUndo();
+      }
+    }, 0);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalUndo?.token]);
+
+  const canPress = !disabled && !finished && throwsUsed < MAX_THROWS;
+  const canUndo = !disabled && !finished && actions.length > 0;
+
+  const gridRows = targets.length === 6 ? 2 : 3;
 
   return (
     <div className="bullout">
       {/* Header */}
       <div className="bullout-header">
         <div>
-          <div className="muted">
-            Scoring Bingo · {MAX_THROWS} throws
-          </div>
+          <div className="muted">Scoring Bingo · {MAX_THROWS} throws</div>
         </div>
         <div className="objective-pill">
           <div className="objective-label">OBJECTIVE</div>
@@ -248,161 +251,136 @@ export default function ScoringBingo({ onFinish, disabled, tier, level }: Props)
         </div>
       </div>
 
-      {/* Main: targets left, stats right */}
-      <div className="bullout-main">
-        {/* Targets grid */}
-        <div className="card" style={{ flex: 1 }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 12,
-            }}
-          >
-            {targets.map((num) => {
-              const need = requiredHitsByTarget.get(num) ?? 1;
-              const have = countsByTarget.get(num) ?? 0;
-              const done = have >= need;
-
-              return (
-                <div
-                  key={num}
-                  style={{
-                    height: 92,
-                    borderRadius: 14,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: 700,
-                    border: "2px solid rgba(0,0,0,0.22)",
-                    backgroundColor: done ? "rgb(34,197,94)" : "transparent",
-                    color: done ? "#fff" : "inherit",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  <div style={{ fontSize: 22, lineHeight: 1 }}>{num}</div>
-                  {need === 2 && (
-                    <div
-                      className="muted"
-                      style={{
-                        marginTop: 8,
-                        fontSize: 12,
-                        opacity: done ? 0.9 : 0.75,
-                        color: done ? "#fff" : undefined,
-                      }}
-                    >
-                      x2
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Stats (like other games) */}
+      {/* 1) Bingo card (top, larger, clickable) */}
+      <div className="card" style={{ marginTop: 12 }}>
         <div
-          className="bullout-stats card"
+          className="bingo-card"
           style={{
-            flex: "0 0 280px",
-            maxWidth: "100%",
-            alignSelf: "stretch",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-          }}
-        >
-          {/* Top 3 */}
-          <div className="row" style={{ justifyContent: "space-between" }}>
-            <div>
-              <div className="small muted">Throws left</div>
-              <div className="title-lg">{throwsLeft}</div>
-            </div>
-            <div>
-              <div className="small muted">Completed</div>
-              <div className="title-lg">{completedCount}/9</div>
-            </div>
-            <div>
-              <div className="small muted">Miss</div>
-              <div className="title-lg">{missCount}</div>
-            </div>
-          </div>
 
-          {/* Pills */}
-          <div style={{ marginTop: 12 }}>
-            <div className="row bullout-stat-row">
-              <div className="pill pill-stat">
-                <div className="pill-label">Accuracy</div>
-                <div className="pill-value">{accuracy}%</div>
-              </div>
-              <div className="pill pill-stat">
-                <div className="pill-label">Hits</div>
-                <div className="pill-value">{hitHistory.length}</div>
-              </div>
-              <div className="pill pill-stat">
-                <div className="pill-label">Throws used</div>
-                <div className="pill-value">{throwsUsed}</div>
-              </div>
-            </div>
-
-            <div className="muted small" style={{ marginTop: 10 }}>
-              Lowest row requires x2 hits (level 4–5).
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Controls – 3 per row, then Miss + Undo */}
-      <div style={{ marginTop: 16 }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 10,
           }}
         >
           {targets.map((num) => {
             const need = requiredHitsByTarget.get(num) ?? 1;
             const have = countsByTarget.get(num) ?? 0;
+
             const done = have >= need;
+            const partial = need === 2 && have === 1;
+
+            const bg = done ? "rgb(34,197,94)" : partial ? "rgb(250,204,21)" : "transparent";
+            const fg = done ? "#fff" : partial ? "#111827" : "inherit";
 
             return (
               <button
                 key={num}
+                type="button"
                 className="btn"
-                disabled={!canPress || done}
                 onClick={() => handleHit(num)}
+                disabled={!canPress || done}
+                style={{
+                  height: "100%",
+                  borderRadius: 18,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 800,
+                  border: "2px solid rgba(0,0,0,0.22)",
+                  backgroundColor: bg,
+                  color: fg,
+                  transition: "all 0.15s ease",
+                  cursor: !canPress || done ? "not-allowed" : "pointer",
+                }}
               >
-                {num}
+                <div style={{ fontSize: 30, lineHeight: 1 }}>{num}</div>
+
+                {need === 2 && (
+                  <div
+                    className="muted"
+                    style={{
+                      marginTop: 10,
+                      fontSize: 12,
+                      opacity: done ? 0.95 : 0.8,
+                      color: done ? "#fff" : partial ? "#111827" : undefined,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {have}/2
+                  </div>
+                )}
               </button>
             );
           })}
         </div>
 
+        {isLevel45 && (
+          <div className="muted small" style={{ marginTop: 12 }}>
+            First row (lowest 3 numbers) requires 2 hits (level 4–5).
+          </div>
+        )}
+      </div>
+
+      {/* 2) Controls (Miss + Undo only) */}
+      <div style={{ marginTop: 14 }} data-hotkeys="drill">
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(2, 1fr)",
             gap: 10,
-            marginTop: 10,
           }}
         >
-          <button
-            className="btn secondary"
-            disabled={!canPress}
-            onClick={handleMiss}
-          >
+          <button className="btn secondary" disabled={!canPress} onClick={handleMiss}>
             Miss
           </button>
-          <button
-            className="btn outline"
-            disabled={!canUndo}
-            onClick={handleUndo}
-          >
+          <button className="btn outline" disabled={!canUndo} onClick={handleUndo} data-hotkey="0">
             Undo
           </button>
         </div>
+      </div>
+
+      {/* 3) Stats card (bottom) */}
+      <div className="bullout-stats card" style={{ marginTop: 14 }}>
+        {/* Top 3 */}
+        <div className="row" style={{ justifyContent: "space-around" }}>
+          <div>
+            <div className="small muted">Throws left</div>
+            <div className="title-lg">{throwsLeft}</div>
+          </div>
+          <div>
+            <div className="small muted">Completed</div>
+            <div className="title-lg">
+              {completedCount}/{targets.length}
+            </div>
+          </div>
+          <div>
+            <div className="small muted">Miss</div>
+            <div className="title-lg">{missCount}</div>
+          </div>
+        </div>
+
+        {/* Pills */}
+        <div style={{ marginTop: 12 }}>
+          <div className="row bullout-stat-row">
+            <div className="pill pill-stat">
+              <div className="pill-label">Accuracy</div>
+              <div className="pill-value">{accuracy}%</div>
+            </div>
+            <div className="pill pill-stat">
+              <div className="pill-label">Hits</div>
+              <div className="pill-value">{hitHistory.length}</div>
+            </div>
+            <div className="pill pill-stat">
+              <div className="pill-label">Throws used</div>
+              <div className="pill-value">{throwsUsed}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* For Bronze: call out it is 2 rows */}
+        {gridRows === 2 && (
+          <div className="muted small" style={{ marginTop: 10 }}>
+            Bronze uses a 2-row bingo card (6 targets).
+          </div>
+        )}
       </div>
     </div>
   );

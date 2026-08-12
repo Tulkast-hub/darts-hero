@@ -11,6 +11,8 @@ type Props = {
   disabled?: boolean;
   tier: Tier;
   level: number;
+  onDartsUsed?: (count: number) => void;
+  externalUndo?: { token: number; steps: number };
 };
 
 /* -------------------------------
@@ -32,6 +34,21 @@ function isDoubleRequired(tier: Tier) {
 }
 
 /* -------------------------------
+   HELPERS
+---------------------------------*/
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i];
+    a[i] = a[j];
+    a[j] = tmp;
+  }
+  return a;
+}
+
+/* -------------------------------
    MAIN CHECKOUTS DRILL COMPONENT
 ---------------------------------*/
 
@@ -40,16 +57,29 @@ export default function ThreeDartCheckouts({
   disabled,
   tier,
   level,
+  onDartsUsed,
+  externalUndo,
 }: Props) {
-  const TARGET_SCORES = [40, 32, 36, 24];
+  const TARGET_SCORES = [40, 32, 36, 24] as const;
+  const MAX_THROWS = 24; // 6 throws per target x 4 targets (each throw = 3 darts)
 
   const requiredCheckouts = getRankTarget(tier, level);
   const doubleOnly = isDoubleRequired(tier);
 
+  // “Bag” contains exactly 6 of each target; we draw 1 per throw
+  const initialBag = useMemo(() => {
+    const bag: number[] = [];
+    for (const t of TARGET_SCORES) {
+      for (let i = 0; i < 6; i++) bag.push(t);
+    }
+    return shuffle(bag);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tier, level]);
+
+  const [bag, setBag] = useState<number[]>(initialBag);
+
   // Game state
-  const [currentIdx, setCurrentIdx] = useState(0); // 0..3 for TARGET_SCORES
-  const [throwsOnThisScore, setThrowsOnThisScore] = useState(0); // 0..6
-  const [totalThrows, setTotalThrows] = useState(0); // overall 0..24
+  const [totalThrowsUsed, setTotalThrowsUsed] = useState(0); // 0..24 (visits)
   const [totalCheckouts, setTotalCheckouts] = useState(0);
   const [finished, setFinished] = useState(false);
 
@@ -57,26 +87,36 @@ export default function ThreeDartCheckouts({
     []
   );
 
-  const currentScore = TARGET_SCORES[currentIdx];
+  const currentScore = bag[0] ?? TARGET_SCORES[0];
 
-  const totalDartsUsed = totalThrows * 3;
+  const throwsLeft = MAX_THROWS - totalThrowsUsed;
+  const totalDartsUsed = totalThrowsUsed * 3;
+
   const conversion =
-    totalThrows === 0 ? 0 : Math.round((totalCheckouts / totalThrows) * 100);
+    totalThrowsUsed === 0
+      ? 0
+      : Math.round((totalCheckouts / totalThrowsUsed) * 100);
 
-  // Derived stats for UI
-  const checkoutsOnThisScore = useMemo(
-    () => history.filter((h) => h.target === currentScore && h.success).length,
-    [history, currentScore]
-  );
+  const checkoutsOnThisScore = useMemo(() => {
+    return history.filter((h) => h.target === currentScore && h.success).length;
+  }, [history, currentScore]);
 
-  const completedScores = currentIdx;
+  const outLabel = doubleOnly ? "Double out" : "Single out";
 
   /* --------------------------
        END GAME
   ----------------------------*/
 
-  function finishGame(win: boolean) {
+  function finishGame(win: boolean, finalHistory?: { target: number; success: boolean }[]) {
     if (finished) return;
+
+    const hist = finalHistory ?? history;
+    const finalThrowsUsed = hist.length; // each history entry is one throw/visit
+    const finalCheckouts = hist.filter((h) => h.success).length;
+
+    const finalDartsUsed = finalThrowsUsed * 3;
+    const finalConversion =
+      finalThrowsUsed === 0 ? 0 : Math.round((finalCheckouts / finalThrowsUsed) * 100);
 
     const payload = {
       game_key: "three_dart_checkouts",
@@ -84,21 +124,27 @@ export default function ThreeDartCheckouts({
       level,
 
       win,
-      // "throws" in this drill means visits (3 darts each)
-      total_throws: totalThrows,
-      total_darts_used: totalDartsUsed,
 
-      total_checkouts: totalCheckouts,
+      // Legacy-ish fields still used by UI/XP mapping
+      total_throws: finalThrowsUsed,         // visits
+      total_darts_used: finalDartsUsed,      // darts
+
+      total_checkouts: finalCheckouts,
       required_checkouts: requiredCheckouts,
-      conversion,
+      conversion: finalConversion,
 
-      // Helpful for XP inference / results stats
-      throws_used: totalThrows * 3, // darts used
-      max_throws: 24 * 3,           // 24 visits * 3 darts
-      progress: requiredCheckouts > 0 ? totalCheckouts / requiredCheckouts : win ? 1 : 0,
+      // Standardized fields used by results / XP logic
+      throws_used: finalDartsUsed,           // darts used
+      max_throws: MAX_THROWS * 3,            // max darts
+      progress:
+        requiredCheckouts > 0
+          ? finalCheckouts / requiredCheckouts
+          : win
+          ? 1
+          : 0,
 
       scores: TARGET_SCORES.map((t) => {
-        const throwsForThis = history.filter((h) => h.target === t);
+        const throwsForThis = hist.filter((h) => h.target === t);
         return {
           target: t,
           throws: throwsForThis.length,
@@ -106,18 +152,17 @@ export default function ThreeDartCheckouts({
         };
       }),
 
-      // Objective + stats (used by the Results page)
       objective: {
         label: "Checkouts",
         target: requiredCheckouts,
-        progress: totalCheckouts,
+        progress: finalCheckouts,
       },
       stats: {
-        accuracy: conversion,
-        checkout_count: totalCheckouts,
+        accuracy: finalConversion,
+        checkout_count: finalCheckouts,
         required_checkouts: requiredCheckouts,
-        total_throws: totalThrows,
-        darts_used: totalDartsUsed,
+        total_throws: finalThrowsUsed,
+        darts_used: finalDartsUsed,
       },
     };
 
@@ -129,51 +174,44 @@ export default function ThreeDartCheckouts({
        THROW LOGIC
   ----------------------------*/
 
-  function handleCheckout() {
+  function applyThrow(success: boolean) {
     if (disabled || finished) return;
-    if (throwsOnThisScore >= 6) return;
 
-    const newTotalThrows = totalThrows + 1;
-    const newTotalCheckouts = totalCheckouts + 1;
+    // Each action represents one 3-dart visit
+    onDartsUsed?.(3);
+    if (totalThrowsUsed >= MAX_THROWS) return;
+    if (bag.length === 0) return;
 
-    setHistory((h) => [...h, { target: currentScore, success: true }]);
-    setTotalThrows(newTotalThrows);
-    setTotalCheckouts(newTotalCheckouts);
-    setThrowsOnThisScore(throwsOnThisScore + 1);
+    const target = bag[0];
 
-    if (newTotalCheckouts >= requiredCheckouts) {
-      finishGame(true);
+    const newHistory = [...history, { target, success }];
+    const newThrowsUsed = totalThrowsUsed + 1;
+    const newCheckouts = totalCheckouts + (success ? 1 : 0);
+    const newBag = bag.slice(1); // next random target
+
+    setHistory(newHistory);
+    setTotalThrowsUsed(newThrowsUsed);
+    setTotalCheckouts(newCheckouts);
+    setBag(newBag);
+
+    // Win early if objective met
+    if (newCheckouts >= requiredCheckouts) {
+      finishGame(true, newHistory);
       return;
     }
 
-    if (throwsOnThisScore + 1 >= 6) {
-      if (currentIdx < TARGET_SCORES.length - 1) {
-        setCurrentIdx(currentIdx + 1);
-        setThrowsOnThisScore(0);
-      } else {
-        finishGame(newTotalCheckouts >= requiredCheckouts);
-      }
+    // If out of throws, finish
+    if (newThrowsUsed >= MAX_THROWS) {
+      finishGame(newCheckouts >= requiredCheckouts, newHistory);
     }
   }
 
+  function handleCheckout() {
+    applyThrow(true);
+  }
+
   function handleMiss() {
-    if (disabled || finished) return;
-    if (throwsOnThisScore >= 6) return;
-
-    const newTotalThrows = totalThrows + 1;
-
-    setHistory((h) => [...h, { target: currentScore, success: false }]);
-    setTotalThrows(newTotalThrows);
-    setThrowsOnThisScore(throwsOnThisScore + 1);
-
-    if (throwsOnThisScore + 1 >= 6) {
-      if (currentIdx < TARGET_SCORES.length - 1) {
-        setCurrentIdx(currentIdx + 1);
-        setThrowsOnThisScore(0);
-      } else {
-        finishGame(totalCheckouts >= requiredCheckouts);
-      }
-    }
+    applyThrow(false);
   }
 
   function handleUndo() {
@@ -181,16 +219,30 @@ export default function ThreeDartCheckouts({
     if (history.length === 0) return;
 
     const last = history[history.length - 1];
-    if (last.target !== currentScore) return;
+
+    // restore last target to the front of the bag so the user replays it
+    setBag((b) => [last.target, ...b]);
 
     setHistory((h) => h.slice(0, -1));
-    setThrowsOnThisScore((v) => Math.max(0, v - 1));
-    setTotalThrows((t) => Math.max(0, t - 1));
+    setTotalThrowsUsed((t) => Math.max(0, t - 1));
 
     if (last.success) {
       setTotalCheckouts((c) => Math.max(0, c - 1));
     }
   }
+
+  // Allow Versus Mode to request undo externally (e.g. go back a hand)
+  React.useEffect(() => {
+    if (!externalUndo) return;
+    if (externalUndo.steps <= 0) return;
+    const t = window.setTimeout(() => {
+      for (let i = 0; i < externalUndo.steps; i++) {
+        handleUndo();
+      }
+    }, 0);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalUndo?.token]);
 
   /* --------------------------
        UI LABELS
@@ -203,62 +255,96 @@ export default function ThreeDartCheckouts({
     24: 12,
   };
 
-  const currentDouble = scoreLabelMap[currentScore];
-
-  const requirementSuffix = doubleOnly ? " (double out)" : "";
+  const currentDouble = scoreLabelMap[currentScore] ?? 20;
 
   return (
     <div className="bullout">
+      {/* Header */}
       <div className="bullout-header">
         <div>
           <div className="muted">
-            3-Dart Checkouts · Target {currentScore} · Throw {throwsOnThisScore + 1}/6
+            3-Dart Checkouts
           </div>
         </div>
 
         <div className="objective-pill">
           <div className="objective-label">Objective</div>
           <div className="objective-value">
-            {totalCheckouts} / {requiredCheckouts}{requirementSuffix}
+            {totalCheckouts} / {requiredCheckouts}
           </div>
         </div>
       </div>
 
-      <div className="bullout-main">
-        <CheckoutsBoard score={currentScore} doubleNum={currentDouble} hits={totalCheckouts} />
+      {/* Board on top (like Bull Out) */}
+      <CheckoutsBoard
+        score={currentScore}
+        doubleNum={currentDouble}
+        hits={totalCheckouts}
+        outLabel={outLabel}
+      />
 
+      {/* Main layout: controls left (card), stats right (card) */}
+      <div className="bullout-main">
+        {/* Controls card (left) */}
+        <div className="bullout-controls card" data-hotkeys="drill">
+          <button
+            className="btn success"
+            data-hotkey="1"
+            onClick={handleCheckout}
+            disabled={disabled || finished || totalThrowsUsed >= MAX_THROWS}
+          >
+            Check
+          </button>
+
+          <button
+            className="btn secondary"
+            data-hotkey="2"
+            onClick={handleMiss}
+            disabled={disabled || finished || totalThrowsUsed >= MAX_THROWS}
+          >
+            Bust / Miss
+          </button>
+
+          <button
+            className="btn outline"
+            data-hotkey="0"
+            onClick={handleUndo}
+            disabled={disabled || finished || history.length === 0}
+	          >
+            Undo
+          </button>
+
+
+        </div>
+
+        {/* Stats card (right) */}
         <div className="bullout-stats card">
           <div className="row" style={{ justifyContent: "space-between" }}>
             <div style={{ textAlign: "center", flex: 1 }}>
-              <div className="title-lg">{throwsOnThisScore}</div>
-              <div className="muted">Throws</div>
+              <div className="title-lg">{throwsLeft}</div>
+              <div className="muted">Throws left</div>
             </div>
 
             <div style={{ textAlign: "center", flex: 1 }}>
               <div className="title-lg">{checkoutsOnThisScore}</div>
-              <div className="muted">Checkouts</div>
+              <div className="muted">Checkouts on {currentScore}</div>
             </div>
 
             <div style={{ textAlign: "center", flex: 1 }}>
-              <div className="title-lg">
-                {completedScores} / {TARGET_SCORES.length}
-              </div>
-              <div className="muted">Section</div>
+              <div className="title-lg">{totalCheckouts}</div>
+              <div className="muted">Total checkouts</div>
             </div>
           </div>
 
           <div style={{ marginTop: 12 }}>
             <div className="row bullout-stat-row">
               <div className="pill pill-stat">
-                <div className="pill-label">Total throws</div>
-                <div className="pill-value">{totalThrows}</div>
+                <div className="pill-label">Throws used</div>
+                <div className="pill-value">{totalThrowsUsed}</div>
               </div>
 
               <div className="pill pill-stat">
-                <div className="pill-label">
-                  <br />
-                  Conversion
-                </div>
+                <div className="pill-label">Conversion</div>
                 <div className="pill-value">{conversion}%</div>
               </div>
 
@@ -267,26 +353,11 @@ export default function ThreeDartCheckouts({
                 <div className="pill-value">{totalDartsUsed}</div>
               </div>
             </div>
+            <div className="muted small" style={{ marginTop: 12 }}>
+                Random target each throw. 6 throws per target (24 total).
+              </div>
           </div>
         </div>
-      </div>
-
-      <div className="bullout-controls">
-        <button className="btn" onClick={handleCheckout} disabled={disabled || finished}>
-          Check
-        </button>
-
-        <button className="btn secondary" onClick={handleMiss} disabled={disabled || finished}>
-          Bust
-        </button>
-
-        <button
-          className="btn outline"
-          onClick={handleUndo}
-          disabled={disabled || finished || history.length === 0}
-        >
-          Undo
-        </button>
       </div>
     </div>
   );
@@ -300,10 +371,12 @@ function CheckoutsBoard({
   score,
   doubleNum,
   hits,
+  outLabel,
 }: {
   score: number;
   doubleNum: number;
   hits: number;
+  outLabel: string;
 }) {
   const BOARD_ORDER = [
     20, 1, 18, 4, 13, 6, 10, 15, 2, 17,
@@ -321,11 +394,21 @@ function CheckoutsBoard({
   const rotationDeg = segment * segmentAngle - 90 - segmentAngle / 2;
 
   return (
-    <div className="bull-board-wrapper card">
-      <svg viewBox="0 0 120 120" className="bull-board">
+    <div
+      className="bull-board-wrapp checkout-board-wrapper hidden-sm"
+      style={{
+        // Bigger board (nice on tablets)
+        maxWidth: 560,
+        margin: "0 auto 12px",
+      }}
+    >
+      <svg
+        viewBox="0 0 120 120"
+        className="bull-board checkout-board"
+        style={{ width: "100%", height: "auto" }}
+      >
         <circle cx="60" cy="60" r="58" fill="#020617" />
         <circle cx="60" cy="60" r="50" fill="#020617" />
-
         <circle cx="60" cy="60" r={rDouble} fill="none" stroke="#0b1120" strokeWidth="8" />
 
         <g key={hits} className="bull-group">
@@ -341,12 +424,25 @@ function CheckoutsBoard({
             />
           </g>
 
-          <circle cx="60" cy="60" r="22" fill="#020617" />
-          <text x="60" y="57" textAnchor="middle" fontSize="18" fill="#f9fafb" fontWeight="700">
-            D{doubleNum}
+          <circle cx="60" cy="60" r="24" fill="#020617" />
+          <text
+            x="60"
+            y="56"
+            textAnchor="middle"
+            fontSize="22"
+            fill="#f9fafb"
+            fontWeight="800"
+          >
+            {score}
           </text>
-          <text x="60" y="75" textAnchor="middle" fontSize="10" fill="#9ca3af">
-            Score {score}
+          <text
+            x="60"
+            y="76"
+            textAnchor="middle"
+            fontSize="11"
+            fill="#9ca3af"
+          >
+            {outLabel}
           </text>
         </g>
       </svg>

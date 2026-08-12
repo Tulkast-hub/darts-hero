@@ -1,17 +1,27 @@
 import React from "react";
 import { createHashRouter, RouterProvider, Navigate } from "react-router-dom";
 import HomePage from "./pages/HomePage";
+import TrainingHomePage from "./pages/TrainingHomePage";
+import VersusSetupPage from "./pages/VersusSetupPage";
+import VersusPlayPage from "./pages/VersusPlayPage";
+import VersusResultPage from "./pages/VersusResultPage";
 import CategoryPage from "./pages/CategoryPage";
 import DrillPage from "./pages/DrillPage";
 import StatsPage from "./pages/StatsPage";
+import LeaderboardPage from "./pages/LeaderboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import RewardsPage from "./pages/RewardsPage";
 import Shell from "./shell/Shell";
 import ResultsPage from "./pages/ResultsPage";   // 👈 add this
 import LoginPage from "./pages/LoginPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import { useAuthStore } from "./auth/useAuthStore";
 import CreateUserPage from "./pages/CreateUserPage";
+import { initInstallPromptCapture } from "./pwa/installPrompt";
+
+
+initInstallPromptCapture();
 
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
@@ -46,6 +56,7 @@ function ErrorPage() {
 
 const router = createHashRouter([
   { path: "/login", element: <LoginPage /> },
+  { path: "/password/reset", element: <ResetPasswordPage /> },
   { path: "/admin/create-user", element: <CreateUserPage /> }, // ✅ add
   { path: "/onboarding", element: <RequireAuth><OnboardingPage /></RequireAuth> },
   {
@@ -58,10 +69,15 @@ const router = createHashRouter([
     errorElement: <ErrorPage />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: "training", element: <TrainingHomePage /> },
+      { path: "versus", element: <VersusSetupPage /> },
+      { path: "versus/play/:key", element: <VersusPlayPage /> },
+      { path: "versus/result", element: <VersusResultPage /> },
       { path: "category/:slug", element: <CategoryPage /> },
       { path: "drill/:key", element: <DrillPage /> },
       { path: "result/:key", element: <ResultsPage /> },
       { path: "stats", element: <StatsPage /> },
+      { path: "leaderboard", element: <LeaderboardPage  /> },
       { path: "profile", element: <ProfilePage /> },
       { path: "rewards", element: <RewardsPage /> }
     ]
