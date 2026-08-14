@@ -1,5 +1,5 @@
 import React from "react";
-import { createHashRouter, RouterProvider, Navigate } from "react-router-dom";
+import { createHashRouter, RouterProvider, Navigate, useLocation } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import TrainingHomePage from "./pages/TrainingHomePage";
 import VersusSetupPage from "./pages/VersusSetupPage";
@@ -40,9 +40,12 @@ function RequireTrainingOnboarding({
   children: React.ReactElement;
 }) {
   const needsOnboarding = useAuthStore((s) => s.needsOnboarding);
-  const deferred = useAuthStore((s) => s.deferOnboardingThisSession);
+  const location = useLocation();
 
-  if (needsOnboarding && !deferred) {
+  const skipOnboarding =
+    location.state?.skipOnboarding === true;
+
+  if (needsOnboarding && !skipOnboarding) {
     return <Navigate to="/onboarding" replace />;
   }
 
@@ -76,6 +79,9 @@ const router = createHashRouter([
     errorElement: <ErrorPage />,
     children: [
       { index: true, element: <HomePage /> },
+  
+      { path: "onboarding", element: <OnboardingPage /> },
+  
       {
         path: "training",
         element: (
@@ -84,6 +90,7 @@ const router = createHashRouter([
           </RequireTrainingOnboarding>
         ),
       },
+  
       { path: "versus", element: <VersusSetupPage /> },
       { path: "versus/play/:key", element: <VersusPlayPage /> },
       { path: "versus/result", element: <VersusResultPage /> },
@@ -91,7 +98,7 @@ const router = createHashRouter([
       { path: "drill/:key", element: <DrillPage /> },
       { path: "result/:key", element: <ResultsPage /> },
       { path: "stats", element: <StatsPage /> },
-      { path: "leaderboard", element: <LeaderboardPage  /> },
+      { path: "leaderboard", element: <LeaderboardPage /> },
       { path: "profile", element: <ProfilePage /> },
       { path: "rewards", element: <RewardsPage /> }
     ]

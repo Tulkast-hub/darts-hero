@@ -89,8 +89,10 @@ export default function OnboardingPage() {
     setError(null);
 
     if (choice === "later") {
-      setDefer(true);
-      nav("/training", { replace: true });
+      nav("/training", {
+        replace: true,
+        state: { skipOnboarding: true },
+      });
       return;
     }
 
@@ -116,24 +118,8 @@ export default function OnboardingPage() {
   const isBusy = !!busy;
 
   return (
-      <div className="app-root">
-        {/* vertically centered container like Login */}
-        <div className="page page-centered">
-          <div className="card onboard-card-shell">
-            <div
-              className="row"
-              style={{ justifyContent: "flex-end", marginBottom: 12 }}
-            >
-              <button
-                className="btn outline"
-                type="button"
-                onClick={handleLogout}
-                disabled={isBusy}
-              >
-                Log out
-              </button>
-            </div>
-
+    <div className="page">
+      <div className="card onboard-card-shell">
             <h1 className="page-title" style={{ marginTop: 0 }}>
               Quick setup
             </h1>
@@ -181,12 +167,11 @@ export default function OnboardingPage() {
             </div>
 
             {isBusy && (
-              <div className="muted small" style={{ marginTop: 12 }}>
-                Saving…
-              </div>
-            )}
-          </div>
+        <div className="muted small" style={{ marginTop: 12 }}>
+          Saving…
         </div>
-      </div>
-  );
+      )}
+    </div>
+  </div>
+);
 }
