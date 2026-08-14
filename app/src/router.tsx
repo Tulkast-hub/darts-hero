@@ -26,16 +26,23 @@ initInstallPromptCapture();
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const status = useAuthStore((s) => s.status);
-  const needsOnboarding = useAuthStore((s) => s.needsOnboarding);
-  const deferred = useAuthStore((s) => s.deferOnboardingThisSession);
-  const path = window.location.hash.replace(/^#/, "");
 
   if (status !== "authed") {
     return <Navigate to="/login" replace />;
   }
 
-  // Force onboarding for new users unless they chose to defer for this session.
-  if (needsOnboarding && !deferred && !path.startsWith("/onboarding")) {
+  return children;
+}
+
+function RequireTrainingOnboarding({
+  children,
+}: {
+  children: React.ReactElement;
+}) {
+  const needsOnboarding = useAuthStore((s) => s.needsOnboarding);
+  const deferred = useAuthStore((s) => s.deferOnboardingThisSession);
+
+  if (needsOnboarding && !deferred) {
     return <Navigate to="/onboarding" replace />;
   }
 
@@ -69,7 +76,14 @@ const router = createHashRouter([
     errorElement: <ErrorPage />,
     children: [
       { index: true, element: <HomePage /> },
-      { path: "training", element: <TrainingHomePage /> },
+      {
+        path: "training",
+        element: (
+          <RequireTrainingOnboarding>
+            <TrainingHomePage />
+          </RequireTrainingOnboarding>
+        ),
+      },
       { path: "versus", element: <VersusSetupPage /> },
       { path: "versus/play/:key", element: <VersusPlayPage /> },
       { path: "versus/result", element: <VersusResultPage /> },

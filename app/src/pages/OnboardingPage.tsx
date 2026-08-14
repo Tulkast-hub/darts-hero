@@ -90,7 +90,7 @@ export default function OnboardingPage() {
 
     if (choice === "later") {
       setDefer(true);
-      nav("/", { replace: true });
+      nav("/training", { replace: true });
       return;
     }
 
@@ -101,7 +101,7 @@ export default function OnboardingPage() {
 
       setNeedsOnboarding(false);
       setDefer(false);
-      nav("/", { replace: true });
+      nav("/training", { replace: true });
     } catch (e: any) {
       setError(
         e?.message
@@ -172,8 +172,8 @@ export default function OnboardingPage() {
               <OnboardCard
                 accent="finishing"
                 title="Choose later"
-                subtitle="Ask me again next login"
-                body="Skip this for now. We’ll show this screen again the next time you log in."
+                subtitle="Decide later"
+                body="Skip this for now and try the games. We’ll ask again the next time you start a new session and enter Training Mode."
                 onClick={() => pick("later")}
                 disabled={isBusy}
                 loading={busy === "later"}
