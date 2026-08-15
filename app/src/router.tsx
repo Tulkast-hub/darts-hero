@@ -1,5 +1,11 @@
 import React from "react";
-import { createHashRouter, RouterProvider, Navigate, useLocation } from "react-router-dom";
+import {
+  createHashRouter,
+  RouterProvider,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
+
 import HomePage from "./pages/HomePage";
 import TrainingHomePage from "./pages/TrainingHomePage";
 import VersusSetupPage from "./pages/VersusSetupPage";
@@ -11,18 +17,17 @@ import StatsPage from "./pages/StatsPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import RewardsPage from "./pages/RewardsPage";
-import Shell from "./shell/Shell";
-import ResultsPage from "./pages/ResultsPage";   // 👈 add this
+import ResultsPage from "./pages/ResultsPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import OnboardingPage from "./pages/OnboardingPage";
-import { useAuthStore } from "./auth/useAuthStore";
 import CreateUserPage from "./pages/CreateUserPage";
+
+import Shell from "./shell/Shell";
+import { useAuthStore } from "./auth/useAuthStore";
 import { initInstallPromptCapture } from "./pwa/installPrompt";
 
-
 initInstallPromptCapture();
-
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const status = useAuthStore((s) => s.status);
@@ -42,8 +47,7 @@ function RequireTrainingOnboarding({
   const needsOnboarding = useAuthStore((s) => s.needsOnboarding);
   const location = useLocation();
 
-  const skipOnboarding =
-    location.state?.skipOnboarding === true;
+  const skipOnboarding = location.state?.skipOnboarding === true;
 
   if (needsOnboarding && !skipOnboarding) {
     return <Navigate to="/onboarding" replace />;
@@ -56,19 +60,36 @@ function ErrorPage() {
   return (
     <div className="page">
       <h2 className="page-title">Something went wrong</h2>
+
       <div className="card">
-        <p className="muted">That route wasn’t found or failed to load.</p>
-        <a className="btn" href="#/">Go Home</a>
+        <p className="muted">
+          That route wasn’t found or failed to load.
+        </p>
+
+        <a className="btn" href="#/">
+          Go Home
+        </a>
       </div>
     </div>
   );
 }
 
 const router = createHashRouter([
-  { path: "/login", element: <LoginPage /> },
-  { path: "/password/reset", element: <ResetPasswordPage /> },
-  { path: "/admin/create-user", element: <CreateUserPage /> }, // ✅ add
-  { path: "/onboarding", element: <RequireAuth><OnboardingPage /></RequireAuth> },
+  {
+    path: "/login",
+    element: <LoginPage />,
+  },
+
+  {
+    path: "/password/reset",
+    element: <ResetPasswordPage />,
+  },
+
+  {
+    path: "/admin/create-user",
+    element: <CreateUserPage />,
+  },
+
   {
     path: "/",
     element: (
@@ -77,11 +98,18 @@ const router = createHashRouter([
       </RequireAuth>
     ),
     errorElement: <ErrorPage />,
+
     children: [
-      { index: true, element: <HomePage /> },
-  
-      { path: "onboarding", element: <OnboardingPage /> },
-  
+      {
+        index: true,
+        element: <HomePage />,
+      },
+
+      {
+        path: "onboarding",
+        element: <OnboardingPage />,
+      },
+
       {
         path: "training",
         element: (
@@ -90,19 +118,58 @@ const router = createHashRouter([
           </RequireTrainingOnboarding>
         ),
       },
-  
-      { path: "versus", element: <VersusSetupPage /> },
-      { path: "versus/play/:key", element: <VersusPlayPage /> },
-      { path: "versus/result", element: <VersusResultPage /> },
-      { path: "category/:slug", element: <CategoryPage /> },
-      { path: "drill/:key", element: <DrillPage /> },
-      { path: "result/:key", element: <ResultsPage /> },
-      { path: "stats", element: <StatsPage /> },
-      { path: "leaderboard", element: <LeaderboardPage /> },
-      { path: "profile", element: <ProfilePage /> },
-      { path: "rewards", element: <RewardsPage /> }
-    ]
-  }
+
+      {
+        path: "versus",
+        element: <VersusSetupPage />,
+      },
+
+      {
+        path: "versus/play/:key",
+        element: <VersusPlayPage />,
+      },
+
+      {
+        path: "versus/result",
+        element: <VersusResultPage />,
+      },
+
+      {
+        path: "category/:slug",
+        element: <CategoryPage />,
+      },
+
+      {
+        path: "drill/:key",
+        element: <DrillPage />,
+      },
+
+      {
+        path: "result/:key",
+        element: <ResultsPage />,
+      },
+
+      {
+        path: "stats",
+        element: <StatsPage />,
+      },
+
+      {
+        path: "leaderboard",
+        element: <LeaderboardPage />,
+      },
+
+      {
+        path: "profile",
+        element: <ProfilePage />,
+      },
+
+      {
+        path: "rewards",
+        element: <RewardsPage />,
+      },
+    ],
+  },
 ]);
 
 export default function AppRouter() {
