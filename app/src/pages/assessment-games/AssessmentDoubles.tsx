@@ -154,7 +154,8 @@ return (
       </div>
     )}
   </div>
-);
+  );
+}
 
 function AssessmentDoublesBoard({ number }: { number: number }) {
   const BOARD_ORDER = [
