@@ -139,7 +139,7 @@ export default function OnboardingPage() {
                 accent="scoring"
                 title="New player"
                 subtitle="Start at Bronze I"
-                body="You’re building fundamentals or you’re new to structured practice. You’ll progress from the basics and unlock difficulty naturally."
+                body="You’re new to darts building fundamentals or you’re new to structured practice. You’ll progress from the basics and unlock difficulty naturally."
                 onClick={() => pick("new_player")}
                 disabled={isBusy}
                 loading={busy === "new_player"}
@@ -149,7 +149,7 @@ export default function OnboardingPage() {
                 accent="doubles"
                 title="Advanced player"
                 subtitle="Start at Silver I"
-                body="You already have solid consistency and want tougher targets sooner. We’ll start you one tier higher so sessions feel challenging right away."
+                body="You're already familiar with the basics and want tougher targets sooner. We’ll start you one tier higher so sessions feel challenging right away."
                 onClick={() => pick("advanced_player")}
                 disabled={isBusy}
                 loading={busy === "advanced_player"}
@@ -159,7 +159,7 @@ export default function OnboardingPage() {
                 accent="finishing"
                 title="Choose later"
                 subtitle="Decide later"
-                body="Skip this for now and try the games. We’ll ask again the next time you start a new session and enter Training Mode."
+                body="Skip this for now and try the games from bronze rank. We’ll ask again the next time you start a new session and enter Training Mode."
                 onClick={() => pick("later")}
                 disabled={isBusy}
                 loading={busy === "later"}
