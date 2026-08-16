@@ -1245,6 +1245,16 @@ select {
   }
 }
 
+.assessment-board {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .assessment-board {
+    display: block;
+  }
+}
+
 
 /* LIGHT MODE: white dartboard pattern on darker outer bg */
 :root {
