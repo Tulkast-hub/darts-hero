@@ -47,7 +47,7 @@ export default function HomePage() {
             <div className="muted">{t("Hotseat 1v1 — first to finish wins")}</div>
           </Link>
 
-          <Link to="/skills-assessment" className="category-card card  accent-yellow">
+          <Link to="/skills-assessment" className="category-card card  accent-gold">
             <div className="category-title">{t("Skills Assessment")}</div>
             <div className="muted">
               {t("Test your darts skills and get a recommended training level.")}
