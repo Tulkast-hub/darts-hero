@@ -23,6 +23,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import CreateUserPage from "./pages/CreateUserPage";
 import SkillsAssessmentPage from "./pages/SkillsAssessmentPage";
+import AssessmentDoubles from "./pages/assessment-games/AssessmentDoubles";
 
 import Shell from "./shell/Shell";
 import { useAuthStore } from "./auth/useAuthStore";
@@ -172,6 +173,10 @@ const router = createHashRouter([
       {
         path: "skills-assessment",
         element: <SkillsAssessmentPage />,
+      },
+      {
+        path: "skills-assessment/doubles",
+        element: <AssessmentDoubles />,
       },
     ],
   },

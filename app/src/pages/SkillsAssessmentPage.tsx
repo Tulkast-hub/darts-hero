@@ -66,13 +66,13 @@ export default function SkillsAssessmentPage() {
       </div>
 
       <div style={{ marginTop: 16 }}>
-        <button
-          type="button"
-          className="btn"
-          style={{ width: "100%" }}
-          onClick={() => nav("/skills-assessment/doubles")}
+      <button
+        type="button"
+        className="btn"
+        style={{ width: "100%" }}
+        onClick={() => nav("/skills-assessment/doubles")}
         >
-          {t("Start assessment")}
+        {t("Start assessment")}
         </button>
       </div>
     </div>
