@@ -1,160 +1,225 @@
-return (
-  <div className="page">
-    <section className="hero card">
-      <div>
-        <div className="title">
-          {t("Skills Assessment")} · {t("Doubles")}
-        </div>
+import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useI18n } from "../../i18n/I18nProvider";
 
-        <div className="subtitle">
-          <h2>{t("Around the World – Doubles")}</h2>
-          <p>
-            {t(
-              "Hit each double from 1 to 20. Every dart counts toward your doubles accuracy."
-            )}
-          </p>
-        </div>
-      </div>
-    </section>
+export default function AssessmentDoubles() {
+  const { t } = useI18n();
+  const nav = useNavigate();
 
-    {!complete ? (
-      <div className="game-surface assessment-surface">
-        <div className="bullout-header">
-          <div>
-            <div className="muted">
-              {t("Double")} {target} · {t("Target")} {target} {t("of")} 20
-            </div>
+  const [target, setTarget] = useState(1);
+  const [dartsThrown, setDartsThrown] = useState(0);
+  const [history, setHistory] = useState<
+    { target: number; hit: boolean }[]
+  >([]);
 
-            <div className="muted">
-              {t("Hit the current double to move to the next number.")}
-            </div>
+  const complete = target > 20;
+
+  const doublesHit = useMemo(
+    () => history.filter((dart) => dart.hit).length,
+    [history]
+  );
+
+  const percentage = useMemo(() => {
+    if (!dartsThrown) return 0;
+
+    return Math.round((doublesHit / dartsThrown) * 1000) / 10;
+  }, [doublesHit, dartsThrown]);
+
+  function recordDart(hit: boolean) {
+    if (complete) return;
+
+    setHistory((current) => [
+      ...current,
+      {
+        target,
+        hit,
+      },
+    ]);
+
+    setDartsThrown((current) => current + 1);
+
+    if (hit) {
+      setTarget((current) => current + 1);
+    }
+  }
+
+  function undo() {
+    if (!history.length) return;
+
+    const last = history[history.length - 1];
+
+    setHistory((current) => current.slice(0, -1));
+    setDartsThrown((current) => Math.max(0, current - 1));
+
+    if (last.hit) {
+      setTarget(last.target);
+    }
+  }
+
+  function restart() {
+    setTarget(1);
+    setDartsThrown(0);
+    setHistory([]);
+  }
+
+  return (
+    <div className="page">
+      <section className="hero card">
+        <div>
+          <div className="title">
+            {t("Skills Assessment")} · {t("Doubles")}
           </div>
 
-          <div className="objective-pill">
-            <div className="objective-label">{t("Accuracy")}</div>
-            <div className="objective-value">{percentage}%</div>
+          <div className="subtitle">
+            <h2>{t("Around the World – Doubles")}</h2>
+            <p>
+              {t(
+                "Hit each double from 1 to 20. Every dart counts toward your doubles accuracy."
+              )}
+            </p>
           </div>
         </div>
+      </section>
 
-        <AssessmentDoublesBoard number={target} />
-
-        <div className="bullout-main aw-main">
-          <div className="bullout-controls" data-hotkeys="drill">
-            <button
-              type="button"
-              className="btn success"
-              data-hotkey="1"
-              onClick={() => recordDart(true)}
-            >
-              {t("Double hit")}
-            </button>
-
-            <button
-              type="button"
-              className="btn outline"
-              data-hotkey="2"
-              onClick={() => recordDart(false)}
-            >
-              {t("Miss")}
-            </button>
-
-            <button
-              type="button"
-              className="btn outline"
-              data-hotkey="0"
-              onClick={undo}
-              disabled={!history.length}
-            >
-              {t("Undo")}
-            </button>
-
-            <button
-              type="button"
-              className="btn outline"
-              onClick={restart}
-            >
-              {t("Restart")}
-            </button>
-          </div>
-
-          <div className="bullout-stats card">
-            <div
-              className="row"
-              style={{ justifyContent: "space-between" }}
-            >
-              <div style={{ textAlign: "center", flex: 1 }}>
-                <div className="title-lg">{dartsThrown}</div>
-                <div className="muted">{t("Darts thrown")}</div>
+      {!complete ? (
+        <div className="game-surface assessment-surface">
+          <div className="bullout-header">
+            <div>
+              <div className="muted">
+                {t("Double")} {target} · {t("Target")} {target} {t("of")} 20
               </div>
 
-              <div style={{ textAlign: "center", flex: 1 }}>
-                <div className="title-lg">{doublesHit}</div>
-                <div className="muted">{t("Doubles hit")}</div>
-              </div>
-
-              <div style={{ textAlign: "center", flex: 1 }}>
-                <div className="title-lg">D{target}</div>
-                <div className="muted">{t("Current target")}</div>
+              <div className="muted">
+                {t("Hit the current double to move to the next number.")}
               </div>
             </div>
 
-            <div style={{ marginTop: 12 }}>
-              <div className="row bullout-stat-row">
-                <div className="pill pill-stat">
-                  <div className="pill-label">{t("Accuracy")}</div>
-                  <div className="pill-value">{percentage}%</div>
+            <div className="objective-pill">
+              <div className="objective-label">{t("Accuracy")}</div>
+              <div className="objective-value">{percentage}%</div>
+            </div>
+          </div>
+
+          <AssessmentDoublesBoard number={target} />
+
+          <div className="bullout-main aw-main">
+            <div className="bullout-controls" data-hotkeys="drill">
+              <button
+                type="button"
+                className="btn success"
+                data-hotkey="1"
+                onClick={() => recordDart(true)}
+              >
+                {t("Double hit")}
+              </button>
+
+              <button
+                type="button"
+                className="btn outline"
+                data-hotkey="2"
+                onClick={() => recordDart(false)}
+              >
+                {t("Miss")}
+              </button>
+
+              <button
+                type="button"
+                className="btn outline"
+                data-hotkey="0"
+                onClick={undo}
+                disabled={!history.length}
+              >
+                {t("Undo")}
+              </button>
+
+              <button
+                type="button"
+                className="btn outline"
+                onClick={restart}
+              >
+                {t("Restart")}
+              </button>
+            </div>
+
+            <div className="bullout-stats card">
+              <div
+                className="row"
+                style={{ justifyContent: "space-between" }}
+              >
+                <div style={{ textAlign: "center", flex: 1 }}>
+                  <div className="title-lg">{dartsThrown}</div>
+                  <div className="muted">{t("Darts thrown")}</div>
                 </div>
 
-                <div className="pill pill-stat">
-                  <div className="pill-label">{t("Completed")}</div>
-                  <div className="pill-value">
-                    {doublesHit} / 20
+                <div style={{ textAlign: "center", flex: 1 }}>
+                  <div className="title-lg">{doublesHit}</div>
+                  <div className="muted">{t("Doubles hit")}</div>
+                </div>
+
+                <div style={{ textAlign: "center", flex: 1 }}>
+                  <div className="title-lg">D{target}</div>
+                  <div className="muted">{t("Current target")}</div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 12 }}>
+                <div className="row bullout-stat-row">
+                  <div className="pill pill-stat">
+                    <div className="pill-label">{t("Accuracy")}</div>
+                    <div className="pill-value">{percentage}%</div>
+                  </div>
+
+                  <div className="pill pill-stat">
+                    <div className="pill-label">{t("Completed")}</div>
+                    <div className="pill-value">
+                      {doublesHit} / 20
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    ) : (
-      <div className="card result-card">
-        <div className="result-main">
-          <h2 className="result-status">
-            {t("Doubles test complete")}
-          </h2>
+      ) : (
+        <div className="card result-card">
+          <div className="result-main">
+            <h2 className="result-status">
+              {t("Doubles test complete")}
+            </h2>
 
-          <div className="result-stats">
-            <div className="row bullout-stat-row">
-              <div className="pill pill-stat">
-                <div className="pill-label">{t("Darts thrown")}</div>
-                <div className="pill-value">{dartsThrown}</div>
-              </div>
+            <div className="result-stats">
+              <div className="row bullout-stat-row">
+                <div className="pill pill-stat">
+                  <div className="pill-label">{t("Darts thrown")}</div>
+                  <div className="pill-value">{dartsThrown}</div>
+                </div>
 
-              <div className="pill pill-stat">
-                <div className="pill-label">{t("Doubles hit")}</div>
-                <div className="pill-value">{doublesHit}</div>
-              </div>
+                <div className="pill pill-stat">
+                  <div className="pill-label">{t("Doubles hit")}</div>
+                  <div className="pill-value">{doublesHit}</div>
+                </div>
 
-              <div className="pill pill-stat">
-                <div className="pill-label">{t("Accuracy")}</div>
-                <div className="pill-value">{percentage}%</div>
+                <div className="pill pill-stat">
+                  <div className="pill-label">{t("Accuracy")}</div>
+                  <div className="pill-value">{percentage}%</div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <button
-            type="button"
-            className="btn"
-            style={{ width: "100%", marginTop: 20 }}
-            onClick={() => nav("/skills-assessment")}
-          >
-            {t("Continue")}
-          </button>
+            <button
+              type="button"
+              className="btn"
+              style={{ width: "100%", marginTop: 20 }}
+              onClick={() => nav("/skills-assessment")}
+            >
+              {t("Continue")}
+            </button>
+          </div>
         </div>
-      </div>
-    )}
-  </div>
-);
+      )}
+    </div>
+  );
+}
 
 function AssessmentDoublesBoard({ number }: { number: number }) {
   const BOARD_ORDER = [
