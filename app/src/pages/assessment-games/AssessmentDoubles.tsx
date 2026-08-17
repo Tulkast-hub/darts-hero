@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../../i18n/I18nProvider";
+import { useAssessmentStore } from "../../skills-assessment/useAssessmentStore";
 
 export default function AssessmentDoubles() {
   const { t } = useI18n();
@@ -24,6 +25,10 @@ export default function AssessmentDoubles() {
 
     return Math.round((doublesHit / dartsThrown) * 1000) / 10;
   }, [doublesHit, dartsThrown]);
+
+  const setDoublesResult = useAssessmentStore(
+    (state) => state.setDoublesResult
+  );
 
   function recordDart(hit: boolean) {
     if (complete) return;
@@ -56,10 +61,14 @@ export default function AssessmentDoubles() {
     }
   }
 
-  function restart() {
-    setTarget(1);
-    setDartsThrown(0);
-    setHistory([]);
+  function continueAssessment() {
+    setDoublesResult({
+      dartsThrown,
+      doublesHit,
+      percentage,
+    });
+  
+    nav("/skills-assessment/101");
   }
 
   return (
@@ -130,14 +139,6 @@ export default function AssessmentDoubles() {
                 disabled={!history.length}
               >
                 {t("Undo")}
-              </button>
-
-              <button
-                type="button"
-                className="btn outline"
-                onClick={restart}
-              >
-                {t("Restart")}
               </button>
             </div>
 
@@ -210,7 +211,7 @@ export default function AssessmentDoubles() {
               type="button"
               className="btn"
               style={{ width: "100%", marginTop: 20 }}
-              onClick={() => nav("/skills-assessment")}
+              onClick={continueAssessment}
             >
               {t("Continue")}
             </button>
