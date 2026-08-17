@@ -24,6 +24,7 @@ import OnboardingPage from "./pages/OnboardingPage";
 import CreateUserPage from "./pages/CreateUserPage";
 import SkillsAssessmentPage from "./pages/SkillsAssessmentPage";
 import AssessmentDoubles from "./pages/assessment-games/AssessmentDoubles";
+import Assessment101 from "./pages/assessment-games/Assessment101";
 
 import Shell from "./shell/Shell";
 import { useAuthStore } from "./auth/useAuthStore";
