@@ -178,6 +178,14 @@ const router = createHashRouter([
         path: "skills-assessment/doubles",
         element: <AssessmentDoubles />,
       },
+      {
+        path: "skills-assessment/doubles",
+        element: <AssessmentDoubles />,
+      },
+      {
+        path: "skills-assessment/101",
+        element: <Assessment101 />,
+      },
     ],
   },
 ]);

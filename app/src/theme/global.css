@@ -1251,7 +1251,20 @@ select {
 
 @media (min-width: 768px) {
   .assessment-board {
-    display: block;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    width: 100%;
+    max-width: 420px;
+
+    margin: 20px auto 32px;
+  }
+
+  .assessment-board .bull-board {
+    width: 100%;
+    max-width: 380px;
+    height: auto;
   }
 }
 
