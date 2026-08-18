@@ -864,55 +864,46 @@ export default function Assessment101() {
       </div>
 
       {checkoutOptions && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-        >
-          <div
-            className="card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="checkout-darts-title"
-            style={{
-              maxWidth: 420,
-              width: "calc(100% - 32px)",
-            }}
+  <div
+    className="assessment-modal-backdrop"
+    role="presentation"
+  >
+    <div
+      className="card assessment-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="checkout-darts-title"
+    >
+      <h2 id="checkout-darts-title">
+        {t("Checkout complete")}
+      </h2>
+
+      <p className="muted">
+        {t("How many darts did you use on this visit?")}
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${checkoutOptions.length}, 1fr)`,
+          gap: 10,
+          marginTop: 16,
+        }}
+      >
+        {checkoutOptions.map((darts) => (
+          <button
+            key={darts}
+            type="button"
+            className="btn"
+            onClick={() => confirmCheckout(darts)}
           >
-            <h2 id="checkout-darts-title">
-              {t("Checkout complete")}
-            </h2>
-
-            <p className="muted">
-              {t(
-                "How many darts did you use on this visit?"
-              )}
-            </p>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: `repeat(${checkoutOptions.length}, 1fr)`,
-                gap: 10,
-              }}
-            >
-              {checkoutOptions.map(
-                (darts) => (
-                  <button
-                    key={darts}
-                    type="button"
-                    className="btn"
-                    onClick={() =>
-                      confirmCheckout(darts)
-                    }
-                  >
-                    {darts}
-                  </button>
-                )
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+            {darts}
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
 
       <style>{`
         @media (max-width: 720px) {
