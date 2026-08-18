@@ -194,8 +194,8 @@ function searchRoute(score: number): string[] | null {
       for (const double of DOUBLE_SEGMENTS) {
         if (
           first.value +
-            second.value +
-            double.value ===
+          second.value +
+          double.value ===
           score
         ) {
           return [
@@ -693,29 +693,42 @@ export default function Assessment101() {
                 alignItems: "center",
               }}
             >
-              <div>
+              <div
+                style={{
+                  minHeight: 82,
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "flex-start",
+                }}
+              >
                 <div className="small muted">
                   {t("Entered score")}
                 </div>
 
                 <div
                   className="title-lg"
-                  style={{ minHeight: 34 }}
+                  style={{
+                    height: 34,
+                    lineHeight: "34px",
+                  }}
                 >
                   {scoreInput || "—"}
                 </div>
 
-                {scoreInput && (
-                  <div className="muted small">
-                    {isEnteredValid
+                <div
+                  className="muted small"
+                  style={{
+                    minHeight: 18,
+                    lineHeight: "18px",
+                  }}
+                >
+                  {scoreInput
+                    ? isEnteredValid
                       ? t("Valid score")
-                      : t(
-                          "Not a possible 3-dart score"
-                        )}
-                  </div>
-                )}
+                      : t("Not a possible 3-dart score")
+                    : "\u00A0"}
+                </div>
               </div>
-
               <div
                 style={{
                   display: "flex",
@@ -864,46 +877,46 @@ export default function Assessment101() {
       </div>
 
       {checkoutOptions && (
-  <div
-    className="assessment-modal-backdrop"
-    role="presentation"
-  >
-    <div
-      className="card assessment-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="checkout-darts-title"
-    >
-      <h2 id="checkout-darts-title">
-        {t("Checkout complete")}
-      </h2>
-
-      <p className="muted">
-        {t("How many darts did you use on this visit?")}
-      </p>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${checkoutOptions.length}, 1fr)`,
-          gap: 10,
-          marginTop: 16,
-        }}
-      >
-        {checkoutOptions.map((darts) => (
-          <button
-            key={darts}
-            type="button"
-            className="btn"
-            onClick={() => confirmCheckout(darts)}
+        <div
+          className="assessment-modal-backdrop"
+          role="presentation"
+        >
+          <div
+            className="card assessment-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="checkout-darts-title"
           >
-            {darts}
-          </button>
-        ))}
-      </div>
-    </div>
-  </div>
-)}
+            <h2 id="checkout-darts-title">
+              {t("Checkout complete")}
+            </h2>
+
+            <p className="muted">
+              {t("How many darts did you use on this visit?")}
+            </p>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: `repeat(${checkoutOptions.length}, 1fr)`,
+                gap: 10,
+                marginTop: 16,
+              }}
+            >
+              {checkoutOptions.map((darts) => (
+                <button
+                  key={darts}
+                  type="button"
+                  className="btn"
+                  onClick={() => confirmCheckout(darts)}
+                >
+                  {darts}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @media (max-width: 720px) {
