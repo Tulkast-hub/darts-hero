@@ -21,7 +21,7 @@ export type AssessmentResults = {
   doubles?: DoublesAssessmentResult;
   checkout101?: Checkout101AssessmentResult;
   finish170?: Finish170AssessmentResult;
-  scoring?: unknown;
+  scoring?: ScoringAssessmentResult;
   game501?: unknown;
 };
 
@@ -38,6 +38,12 @@ export type Finish170AssessmentResult = {
   averageDarts: number;
 };
 
+export type ScoringAssessmentResult = {
+  visits: number[];
+  totalScore: number;
+  averageScore: number;
+};
+
 type AssessmentStore = {
   results: AssessmentResults;
 
@@ -49,6 +55,10 @@ type AssessmentStore = {
 
   setFinish170Result: (
     result: Finish170AssessmentResult
+  ) => void;
+
+  setScoringResult: (
+    result: ScoringAssessmentResult
   ) => void;
 
 
@@ -79,6 +89,14 @@ export const useAssessmentStore = create<AssessmentStore>((set) => ({
       results: {
         ...state.results,
         finish170: result,
+      },
+    })),
+
+    setScoringResult: (result) =>
+    set((state) => ({
+      results: {
+        ...state.results,
+        scoring: result,
       },
     })),
 

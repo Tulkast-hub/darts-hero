@@ -26,6 +26,7 @@ import SkillsAssessmentPage from "./pages/SkillsAssessmentPage";
 import AssessmentDoubles from "./pages/assessment-games/AssessmentDoubles";
 import Assessment101 from "./pages/assessment-games/Assessment101";
 import Assessment170 from "./pages/assessment-games/Assessment170";
+import AssessmentScoring from "./pages/assessment-games/AssessmentScoring";
 
 import Shell from "./shell/Shell";
 import { useAuthStore } from "./auth/useAuthStore";
@@ -191,6 +192,10 @@ const router = createHashRouter([
       {
         path: "skills-assessment/170",
         element: <Assessment170 />,
+      },
+      {
+        path: "skills-assessment/scoring",
+        element: <AssessmentScoring />,
       },
     ],
   },
