@@ -373,6 +373,7 @@ export default function AssessmentScoring() {
             </div>
           </div>
 
+          <div className="bullout-stats card" style={{ width: "100%" }}>
           <div
             style={{
               fontSize: 60,
