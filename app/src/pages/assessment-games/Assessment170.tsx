@@ -428,8 +428,8 @@ export default function Assessment170() {
                 <div
                   className="title-lg"
                   style={{
-                    height: 34,
-                    lineHeight: "34px",
+                    height: 40 ,
+                    lineHeight: "36px",
                   }}
                 >
                   {scoreInput || "—"}

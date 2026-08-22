@@ -373,23 +373,22 @@ export default function AssessmentScoring() {
             </div>
           </div>
 
-          <div className="bullout-stats card" style={{ width: "100%" }}>
-            <div
-              style={{
-                fontSize: 60,
-                fontWeight: 900,
-                textAlign: "center",
-              }}
-            >
-              {averageScore}
-            </div>
+          <div
+            style={{
+              fontSize: 60,
+              fontWeight: 900,
+              textAlign: "center",
+            }}
+          >
+            {totalScore}
+          </div>
 
-            <div
-              className="muted"
-              style={{ textAlign: "center" }}
-            >
-              {t("Average score")}
-            </div>
+          <div
+            className="muted"
+            style={{ textAlign: "center" }}
+          >
+            {t("Total score")}
+          </div>
 
             <div
               style={{
@@ -410,10 +409,10 @@ export default function AssessmentScoring() {
 
               <div className="pill pill-stat">
                 <div className="pill-label">
-                  {t("Total")}
+                  {t("Average")}
                 </div>
                 <div className="pill-value">
-                  {totalScore}
+                  {averageScore}
                 </div>
               </div>
             </div>
