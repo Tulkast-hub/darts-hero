@@ -289,3 +289,47 @@ type Segment = {
       (_, index) => minimum + index
     );
   }
+
+  export function getExpectedCheckoutDarts(
+    score: number
+  ): number {
+    const preferred =
+      getSuggestedRoute(score);
+  
+    if (!preferred.length) {
+      return 3;
+    }
+  
+    return preferred.length;
+  }
+  
+  export function getValidDoubleDartCounts(
+    score: number
+  ): number[] {
+    const expectedCheckoutDarts =
+      getExpectedCheckoutDarts(score);
+  
+    const maxDoubleDarts = Math.max(
+      1,
+      4 - expectedCheckoutDarts
+    );
+  
+    return Array.from(
+      { length: maxDoubleDarts },
+      (_, index) => index + 1
+    );
+  }
+  
+  export function getCheckoutDartsFromDoubleAttempts(
+    score: number,
+    doubleDarts: number
+  ): number {
+    const expectedCheckoutDarts =
+      getExpectedCheckoutDarts(score);
+  
+    return Math.min(
+      3,
+      expectedCheckoutDarts +
+        Math.max(0, doubleDarts - 1)
+    );
+  }
