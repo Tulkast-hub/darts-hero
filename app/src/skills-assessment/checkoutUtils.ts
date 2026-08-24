@@ -333,3 +333,64 @@ type Segment = {
         Math.max(0, doubleDarts - 1)
     );
   }
+
+  const SINGLE_DART_SCORES = Array.from(
+    new Set([
+      0,
+  
+      // Singles
+      ...Array.from({ length: 20 }, (_, i) => i + 1),
+  
+      // Doubles
+      ...Array.from({ length: 20 }, (_, i) => (i + 1) * 2),
+  
+      // Trebles
+      ...Array.from({ length: 20 }, (_, i) => (i + 1) * 3),
+  
+      // Bulls
+      25,
+      50,
+    ])
+  );
+  
+  export function getMinimumDartsForScore(score: number): number {
+    if (score === 0) {
+      return 0;
+    }
+  
+    if (SINGLE_DART_SCORES.includes(score)) {
+      return 1;
+    }
+  
+    for (const first of SINGLE_DART_SCORES) {
+      for (const second of SINGLE_DART_SCORES) {
+        if (first + second === score) {
+          return 2;
+        }
+      }
+    }
+  
+    return 3;
+  }
+  
+  export function getValidDoubleDartsForNonCheckoutVisit(
+    score: number
+  ): number[] {
+    const minimumSetupDarts = getMinimumDartsForScore(score);
+  
+    const maxDoubleDarts = Math.max(
+      0,
+      3 - minimumSetupDarts
+    );
+  
+    return Array.from(
+      { length: maxDoubleDarts + 1 },
+      (_, index) => index
+    );
+  }
+  
+  export function shouldAskDoubleDartsAfterVisit(
+    remainderAfter: number
+  ): boolean {
+    return remainderAfter > 0 && remainderAfter <= 50;
+  }
