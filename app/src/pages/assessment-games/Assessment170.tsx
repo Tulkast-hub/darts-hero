@@ -226,7 +226,7 @@ export default function Assessment170() {
         setVisitScores(
           (current) => [...current, score]
         );
-    
+        }
         return;
       }
     

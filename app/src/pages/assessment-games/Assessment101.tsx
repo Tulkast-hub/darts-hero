@@ -211,7 +211,7 @@ export default function Assessment101() {
         setVisitsInLeg(
           (current) => current + 1
         );
-    
+        }
         return;
       }
     
