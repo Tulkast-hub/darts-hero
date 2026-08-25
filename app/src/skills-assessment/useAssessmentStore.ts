@@ -34,6 +34,7 @@ export type Finish170AttemptResult = {
   visitScores: number[];
   checkoutDarts: number;
   doubleDarts: number;
+  checkoutDoubleDarts: number;
 };
 
 export type Finish170AssessmentResult = {
@@ -54,6 +55,7 @@ export type Game501LegResult = {
   visitScores: number[];
   checkoutDarts: number;
   doubleDarts: number;
+  checkoutDoubleDarts: number;
 };
 
 export type Game501AssessmentResult = {
