@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAssessmentStore } from "../skills-assessment/useAssessmentStore";
+import { useAssessmentStore } from "../../skills-assessment/useAssessmentStore";
 import { useI18n } from "../../i18n/I18nProvider";
 import { calculateAssessmentMetrics } from "../../skills-assessment/assessmentMetrics";
 
@@ -8,7 +8,9 @@ export default function SkillsAssessmentResults() {
   const { t } = useI18n();
   const nav = useNavigate();
 
-  const results = useAssessmentStore((state) => state.results);
+  const results = useAssessmentStore(
+    (state) => state.results
+  );
 
   const metrics = useMemo(
     () => calculateAssessmentMetrics(results),
@@ -28,33 +30,41 @@ export default function SkillsAssessmentResults() {
     !!scoring &&
     !!game501;
 
-  const average101Darts = checkout101?.averageDarts ?? null;
-  const average170Darts = finish170?.averageDarts ?? null;
-  const scoringAverage = scoring?.averageScore ?? null;
-  const overall501Average = game501?.threeDartAverage ?? null;
-
   const checkout101Average = useMemo(() => {
-    if (!checkout101?.legs.length) return null;
+    if (!checkout101?.legs.length) {
+      return null;
+    }
+
+    const totalDarts =
+      checkout101.legs.reduce(
+        (sum, leg) => sum + leg.darts,
+        0
+      );
 
     return Number(
       (
-        checkout101.legs.reduce(
-          (sum, leg) => sum + leg.darts,
-          0
-        ) / checkout101.legs.length
+        totalDarts /
+        checkout101.legs.length
       ).toFixed(1)
     );
   }, [checkout101]);
 
   const finish170Average = useMemo(() => {
-    if (!finish170?.attempts.length) return null;
+    if (!finish170?.attempts.length) {
+      return null;
+    }
+
+    const totalDarts =
+      finish170.attempts.reduce(
+        (sum, attempt) =>
+          sum + attempt.darts,
+        0
+      );
 
     return Number(
       (
-        finish170.attempts.reduce(
-          (sum, attempt) => sum + attempt.darts,
-          0
-        ) / finish170.attempts.length
+        totalDarts /
+        finish170.attempts.length
       ).toFixed(1)
     );
   }, [finish170]);
@@ -65,11 +75,18 @@ export default function SkillsAssessmentResults() {
         <section className="hero card">
           <div>
             <div className="title">
-              {t("Skills Assessment Results")}
+              {t(
+                "Skills Assessment Results"
+              )}
             </div>
 
             <div className="subtitle">
-              <h2>{t("Assessment incomplete")}</h2>
+              <h2>
+                {t(
+                  "Assessment incomplete"
+                )}
+              </h2>
+
               <p>
                 {t(
                   "Complete all five assessment games before viewing your final results."
@@ -82,10 +99,18 @@ export default function SkillsAssessmentResults() {
         <button
           type="button"
           className="btn"
-          style={{ width: "100%" }}
-          onClick={() => nav("/skills-assessment")}
+          style={{
+            width: "100%",
+          }}
+          onClick={() =>
+            nav(
+              "/skills-assessment"
+            )
+          }
         >
-          {t("Back to assessment")}
+          {t(
+            "Back to assessment"
+          )}
         </button>
       </div>
     );
@@ -96,11 +121,17 @@ export default function SkillsAssessmentResults() {
       <section className="hero card">
         <div>
           <div className="title">
-            {t("Skills Assessment Results")}
+            {t(
+              "Skills Assessment Results"
+            )}
           </div>
 
           <div className="subtitle">
-            <h2>{t("Your darts profile")}</h2>
+            <h2>
+              {t(
+                "Your darts profile"
+              )}
+            </h2>
 
             <p>
               {t(
@@ -112,7 +143,11 @@ export default function SkillsAssessmentResults() {
       </section>
 
       <div className="card">
-        <h3>{t("Assessment summary")}</h3>
+        <h3>
+          {t(
+            "Assessment summary"
+          )}
+        </h3>
 
         <div
           style={{
@@ -123,15 +158,18 @@ export default function SkillsAssessmentResults() {
           <table
             style={{
               width: "100%",
-              borderCollapse: "collapse",
+              borderCollapse:
+                "collapse",
             }}
           >
             <thead>
               <tr>
                 <th
                   style={{
-                    textAlign: "left",
-                    padding: "10px 8px",
+                    textAlign:
+                      "left",
+                    padding:
+                      "10px 8px",
                   }}
                 >
                   {t("Skill")}
@@ -139,8 +177,10 @@ export default function SkillsAssessmentResults() {
 
                 <th
                   style={{
-                    textAlign: "right",
-                    padding: "10px 8px",
+                    textAlign:
+                      "right",
+                    padding:
+                      "10px 8px",
                   }}
                 >
                   {t("Result")}
@@ -148,53 +188,70 @@ export default function SkillsAssessmentResults() {
 
                 <th
                   style={{
-                    textAlign: "right",
-                    padding: "10px 8px",
+                    textAlign:
+                      "right",
+                    padding:
+                      "10px 8px",
                   }}
                 >
-                  {t("Skill score")}
+                  {t(
+                    "Skill score"
+                  )}
                 </th>
 
                 <th
                   style={{
-                    textAlign: "right",
-                    padding: "10px 8px",
+                    textAlign:
+                      "right",
+                    padding:
+                      "10px 8px",
                   }}
                 >
-                  {t("Equivalent level")}
+                  {t(
+                    "Equivalent level"
+                  )}
                 </th>
               </tr>
             </thead>
 
             <tbody>
-            <ResultRow
-              label={t("Doubles")}
-              result={`${metrics.doublesPercentage}%`}
-            />
+              <ResultRow
+                label={t("Doubles")}
+                result={`${metrics.doublesPercentage}%`}
+              />
 
-            <ResultRow
-              label={t("Scoring")}
-              result={`${metrics.scoringAverage}`}
-            />
+              <ResultRow
+                label={t("Scoring")}
+                result={`${metrics.scoringAverage}`}
+              />
 
-            <ResultRow
-              label={t("Overall Average")}
-              result={`${metrics.overallAverage}`}
-            />
+              <ResultRow
+                label={t(
+                  "Overall Average"
+                )}
+                result={`${metrics.overallAverage}`}
+              />
 
-            <ResultRow
-              label={t("Consistency")}
-              result={`${metrics.consistencyScore}/100`}
-            />
-            <ResultRow
-              label={t("101 Double Out")}
-              result={`${checkout101Average} darts`}
-            />
+              <ResultRow
+                label={t(
+                  "Consistency"
+                )}
+                result={`${metrics.consistencyScore}/100`}
+              />
 
-            <ResultRow
-              label={t("170 Finish")}
-              result={`${finish170Average} darts`}
-            />
+              <ResultRow
+                label={t(
+                  "101 Double Out"
+                )}
+                result={`${checkout101Average} darts`}
+              />
+
+              <ResultRow
+                label={t(
+                  "170 Finish"
+                )}
+                result={`${finish170Average} darts`}
+              />
             </tbody>
           </table>
         </div>
@@ -202,48 +259,68 @@ export default function SkillsAssessmentResults() {
 
       <div
         className="card"
-        style={{ marginTop: 16 }}
+        style={{
+          marginTop: 16,
+        }}
       >
-        <h3>{t("Test breakdown")}</h3>
+        <h3>
+          {t(
+            "Test breakdown"
+          )}
+        </h3>
 
         <div className="row bullout-stat-row">
           <div className="pill pill-stat">
             <div className="pill-label">
-              {t("Doubles")}
+              {t(
+                "ATW Doubles"
+              )}
             </div>
 
             <div className="pill-value">
-              {doubles!.percentage}%
+              {doubles.percentage}%
             </div>
           </div>
 
           <div className="pill pill-stat">
             <div className="pill-label">
-              {t("101 avg darts")}
+              {t(
+                "101 avg darts"
+              )}
             </div>
 
             <div className="pill-value">
-              {average101Darts}
+              {
+                checkout101.averageDarts
+              }
             </div>
           </div>
 
           <div className="pill pill-stat">
             <div className="pill-label">
-              {t("170 avg darts")}
+              {t(
+                "170 avg darts"
+              )}
             </div>
 
             <div className="pill-value">
-              {average170Darts}
+              {
+                finish170.averageDarts
+              }
             </div>
           </div>
 
           <div className="pill pill-stat">
             <div className="pill-label">
-              {t("Scoring avg")}
+              {t(
+                "Scoring test avg"
+              )}
             </div>
 
             <div className="pill-value">
-              {scoringAverage}
+              {
+                scoring.averageScore
+              }
             </div>
           </div>
 
@@ -253,18 +330,28 @@ export default function SkillsAssessmentResults() {
             </div>
 
             <div className="pill-value">
-              {overall501Average}
+              {
+                game501.threeDartAverage
+              }
             </div>
           </div>
         </div>
       </div>
 
-      <div style={{ marginTop: 16 }}>
+      <div
+        style={{
+          marginTop: 16,
+        }}
+      >
         <button
           type="button"
           className="btn outline"
-          style={{ width: "100%" }}
-          onClick={() => nav("/")}
+          style={{
+            width: "100%",
+          }}
+          onClick={() =>
+            nav("/")
+          }
         >
           {t("Finish")}
         </button>
@@ -284,18 +371,25 @@ function ResultRow({
     <tr>
       <td
         style={{
-          padding: "12px 8px",
-          borderTop: "1px solid rgba(148, 163, 184, 0.15)",
+          padding:
+            "12px 8px",
+          borderTop:
+            "1px solid rgba(148, 163, 184, 0.15)",
         }}
       >
-        <strong>{label}</strong>
+        <strong>
+          {label}
+        </strong>
       </td>
 
       <td
         style={{
-          padding: "12px 8px",
-          textAlign: "right",
-          borderTop: "1px solid rgba(148, 163, 184, 0.15)",
+          padding:
+            "12px 8px",
+          textAlign:
+            "right",
+          borderTop:
+            "1px solid rgba(148, 163, 184, 0.15)",
         }}
       >
         {result}
@@ -303,9 +397,12 @@ function ResultRow({
 
       <td
         style={{
-          padding: "12px 8px",
-          textAlign: "right",
-          borderTop: "1px solid rgba(148, 163, 184, 0.15)",
+          padding:
+            "12px 8px",
+          textAlign:
+            "right",
+          borderTop:
+            "1px solid rgba(148, 163, 184, 0.15)",
         }}
       >
         —
@@ -313,9 +410,12 @@ function ResultRow({
 
       <td
         style={{
-          padding: "12px 8px",
-          textAlign: "right",
-          borderTop: "1px solid rgba(148, 163, 184, 0.15)",
+          padding:
+            "12px 8px",
+          textAlign:
+            "right",
+          borderTop:
+            "1px solid rgba(148, 163, 184, 0.15)",
         }}
       >
         —
