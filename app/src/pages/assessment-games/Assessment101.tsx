@@ -56,14 +56,9 @@ export default function Assessment101() {
   const [remainder, setRemainder] = useState(START_SCORE);
   const [scoreInput, setScoreInput] = useState("");
   const [visitsInLeg, setVisitsInLeg] = useState(0);
-
-  const [doubleDartsInLeg, setDoubleDartsInLeg] =
-    useState(0);
-
+  const [doubleDartsInLeg, setDoubleDartsInLeg] = useState(0);
   const [legs, setLegs] = useState<LegResult[]>([]);
-  const [undoStack, setUndoStack] =
-    useState<VisitSnapshot[]>([]);
-
+  const [undoStack, setUndoStack] = useState<VisitSnapshot[]>([]);
   const [pendingDoubleVisit, setPendingDoubleVisit] =
     useState<PendingDoubleVisit | null>(null);
 
@@ -77,9 +72,7 @@ export default function Assessment101() {
     [suggestedRoute]
   );
 
-  const enteredValue = scoreInput
-    ? Number(scoreInput)
-    : null;
+  const enteredValue = scoreInput ? Number(scoreInput) : null;
 
   const isEnteredValid =
     enteredValue !== null &&
@@ -89,10 +82,7 @@ export default function Assessment101() {
 
   function appendDigit(digit: string) {
     setScoreInput((current) => {
-      const next = `${current}${digit}`.replace(
-        /^0+(?=\d)/,
-        ""
-      );
+      const next = `${current}${digit}`.replace(/^0+(?=\d)/, "");
 
       if (next.length > 3) {
         return current;
@@ -100,10 +90,7 @@ export default function Assessment101() {
 
       const value = Number(next);
 
-      if (
-        Number.isNaN(value) ||
-        value > 180
-      ) {
+      if (Number.isNaN(value) || value > 180) {
         return current;
       }
 
@@ -112,9 +99,7 @@ export default function Assessment101() {
   }
 
   function backspace() {
-    setScoreInput((current) =>
-      current.slice(0, -1)
-    );
+    setScoreInput((current) => current.slice(0, -1));
   }
 
   function pushUndoSnapshot() {
@@ -130,10 +115,7 @@ export default function Assessment101() {
   }
 
   function commitScore() {
-    if (
-      enteredValue === null ||
-      !isEnteredValid
-    ) {
+    if (enteredValue === null || !isEnteredValid) {
       return;
     }
 
@@ -143,8 +125,7 @@ export default function Assessment101() {
      * Successful checkout.
      */
     if (score === remainder) {
-      const options =
-        getValidDoubleDartCounts(remainder);
+      const options = getValidDoubleDartCounts(remainder);
 
       if (!options.length) {
         return;
@@ -160,88 +141,68 @@ export default function Assessment101() {
       return;
     }
 
-    const nextRemainder =
-      remainder - score;
+    const nextRemainder = remainder - score;
 
     /*
      * Bust.
      */
-    if (
-      nextRemainder < 0 ||
-      nextRemainder === 1
-    ) {
+    if (nextRemainder < 0 || nextRemainder === 1) {
       pushUndoSnapshot();
 
       setScoreInput("");
-      setVisitsInLeg(
-        (current) => current + 1
-      );
+      setVisitsInLeg((current) => current + 1);
 
       return;
     }
 
     /*
      * If this visit leaves 50 or less,
-     * ask how many darts were thrown
-     * at doubles during the visit.
+     * ask how many darts were thrown at doubles.
      */
-    if (
-      shouldAskDoubleDartsAfterVisit(
-        nextRemainder
-      )
-    ) {
+    if (shouldAskDoubleDartsAfterVisit(nextRemainder)) {
       const options =
-        getValidDoubleDartsForNonCheckoutVisit(
-          remainder
-        );
-    
+        getValidDoubleDartsForNonCheckoutVisit(remainder);
+
       /*
-       * If zero is the only possible answer,
-       * don't interrupt the player with a modal.
+       * If 0 is the only possible answer,
+       * skip the modal.
        */
       if (
         options.length === 1 &&
         options[0] === 0
       ) {
         pushUndoSnapshot();
-    
+
         setScoreInput("");
         setRemainder(nextRemainder);
-    
-        setVisitsInLeg(
-          (current) => current + 1
-        );
-        }
+        setVisitsInLeg((current) => current + 1);
+
         return;
       }
-    
+
       setScoreInput("");
-    
+
       setPendingDoubleVisit({
         type: "visit",
         score,
         nextRemainder,
         options,
       });
-    
+
       return;
-      }
-    
+    }
+
     /*
-     * Normal visit with no double question.
+     * Normal visit.
      */
     pushUndoSnapshot();
-    
+
     setScoreInput("");
     setRemainder(nextRemainder);
-    
-    setVisitsInLeg(
-      (current) => current + 1
-    );
+    setVisitsInLeg((current) => current + 1);
+  }
 
-  function confirmDoubleDarts(
-    doubleDarts: number
-  ) {
+  function confirmDoubleDarts(doubleDarts: number) {
     if (!pendingDoubleVisit) {
       return;
     }
@@ -249,9 +210,7 @@ export default function Assessment101() {
     /*
      * Non-finishing visit.
      */
-    if (
-      pendingDoubleVisit.type === "visit"
-    ) {
+    if (pendingDoubleVisit.type === "visit") {
       pushUndoSnapshot();
 
       setRemainder(
@@ -263,11 +222,11 @@ export default function Assessment101() {
       );
 
       setDoubleDartsInLeg(
-        (current) =>
-          current + doubleDarts
+        (current) => current + doubleDarts
       );
 
       setPendingDoubleVisit(null);
+
       return;
     }
 
@@ -284,20 +243,17 @@ export default function Assessment101() {
       visitsInLeg + 1;
 
     const totalDarts =
-      visitsInLeg * 3 +
-      checkoutDarts;
+      visitsInLeg * 3 + checkoutDarts;
 
     const totalDoubleDarts =
-      doubleDartsInLeg +
-      doubleDarts;
+      doubleDartsInLeg + doubleDarts;
 
     const result: LegResult = {
       darts: totalDarts,
       visits: completedVisits,
       checkoutDarts,
       doubleDarts: totalDoubleDarts,
-      checkoutDoubleDarts:
-        doubleDarts,
+      checkoutDoubleDarts: doubleDarts,
     };
 
     const updatedLegs = [
@@ -313,8 +269,7 @@ export default function Assessment101() {
     if (leg >= TOTAL_LEGS) {
       const totalDartsUsed =
         updatedLegs.reduce(
-          (sum, item) =>
-            sum + item.darts,
+          (sum, item) => sum + item.darts,
           0
         );
 
@@ -332,10 +287,7 @@ export default function Assessment101() {
       return;
     }
 
-    setLeg(
-      (current) => current + 1
-    );
-
+    setLeg((current) => current + 1);
     setRemainder(START_SCORE);
     setVisitsInLeg(0);
     setDoubleDartsInLeg(0);
@@ -358,20 +310,11 @@ export default function Assessment101() {
       }
 
       const previous =
-        current[
-          current.length - 1
-        ];
+        current[current.length - 1];
 
-      setRemainder(
-        previous.remainder
-      );
-
+      setRemainder(previous.remainder);
       setLeg(previous.leg);
-
-      setVisitsInLeg(
-        previous.visitsInLeg
-      );
-
+      setVisitsInLeg(previous.visitsInLeg);
       setDoubleDartsInLeg(
         previous.doubleDartsInLeg
       );
@@ -406,9 +349,7 @@ export default function Assessment101() {
         return;
       }
 
-      if (
-        event.key === "Backspace"
-      ) {
+      if (event.key === "Backspace") {
         event.preventDefault();
         backspace();
         return;
@@ -449,8 +390,7 @@ export default function Assessment101() {
   if (complete) {
     const totalDarts =
       legs.reduce(
-        (sum, item) =>
-          sum + item.darts,
+        (sum, item) => sum + item.darts,
         0
       );
 
@@ -465,15 +405,10 @@ export default function Assessment101() {
     const totalDoubleDarts =
       legs.reduce(
         (sum, item) =>
-          sum +
-          item.doubleDarts,
+          sum + item.doubleDarts,
         0
       );
 
-    /*
-     * Five completed legs =
-     * five successful doubles.
-     */
     const doublePercentage =
       totalDoubleDarts > 0
         ? Number(
@@ -490,20 +425,13 @@ export default function Assessment101() {
         <section className="hero card">
           <div>
             <div className="title">
-              {t(
-                "Skills Assessment"
-              )}{" "}
-              ·{" "}
-              {t(
-                "101 Double Out"
-              )}
+              {t("Skills Assessment")} ·{" "}
+              {t("101 Double Out")}
             </div>
 
             <div className="subtitle">
               <h2>
-                {t(
-                  "101 test complete"
-                )}
+                {t("101 test complete")}
               </h2>
 
               <p>
@@ -530,9 +458,7 @@ export default function Assessment101() {
 
               <div className="pill pill-stat">
                 <div className="pill-label">
-                  {t(
-                    "Total darts"
-                  )}
+                  {t("Total darts")}
                 </div>
 
                 <div className="pill-value">
@@ -542,9 +468,7 @@ export default function Assessment101() {
 
               <div className="pill pill-stat">
                 <div className="pill-label">
-                  {t(
-                    "Average darts"
-                  )}
+                  {t("Average darts")}
                 </div>
 
                 <div className="pill-value">
@@ -570,9 +494,7 @@ export default function Assessment101() {
                 width: "100%",
                 marginTop: 20,
               }}
-              onClick={
-                continueAssessment
-              }
+              onClick={continueAssessment}
             >
               {t("Continue")}
             </button>
@@ -587,10 +509,7 @@ export default function Assessment101() {
       <section className="hero card">
         <div>
           <div className="title">
-            {t(
-              "Skills Assessment"
-            )}{" "}
-            ·{" "}
+            {t("Skills Assessment")} ·{" "}
             {t("101 Double Out")}
           </div>
 
@@ -642,9 +561,7 @@ export default function Assessment101() {
           }}
         >
           <DartboardHighlight
-            segments={
-              suggestedSegments
-            }
+            segments={suggestedSegments}
           />
 
           <div
@@ -654,14 +571,11 @@ export default function Assessment101() {
               fontWeight: 900,
               textAlign: "center",
               letterSpacing: 1,
-              textTransform:
-                "uppercase",
+              textTransform: "uppercase",
             }}
           >
             {suggestedRoute.length
-              ? suggestedRoute.join(
-                  " "
-                )
+              ? suggestedRoute.join(" ")
               : "—"}
           </div>
         </div>
@@ -670,8 +584,7 @@ export default function Assessment101() {
           className="bullout-main"
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "2fr 1fr",
+            gridTemplateColumns: "2fr 1fr",
             gap: 12,
             alignItems: "start",
           }}
@@ -701,36 +614,29 @@ export default function Assessment101() {
                 }}
               >
                 <div className="small muted">
-                  {t(
-                    "Entered score"
-                  )}
+                  {t("Entered score")}
                 </div>
 
                 <div
                   className="title-lg"
                   style={{
                     height: 40,
-                    lineHeight:
-                      "36px",
+                    lineHeight: "36px",
                   }}
                 >
-                  {scoreInput ||
-                    "—"}
+                  {scoreInput || "—"}
                 </div>
 
                 <div
                   className="muted small"
                   style={{
                     minHeight: 18,
-                    lineHeight:
-                      "18px",
+                    lineHeight: "18px",
                   }}
                 >
                   {scoreInput
                     ? isEnteredValid
-                      ? t(
-                          "Valid score"
-                        )
+                      ? t("Valid score")
                       : t(
                           "Not a possible 3-dart score"
                         )
@@ -750,9 +656,7 @@ export default function Assessment101() {
                 <button
                   className="btn secondary"
                   type="button"
-                  onClick={
-                    handleBust
-                  }
+                  onClick={handleBust}
                 >
                   {t("Bust")}
                 </button>
@@ -760,9 +664,7 @@ export default function Assessment101() {
                 <button
                   className="btn outline"
                   type="button"
-                  onClick={
-                    handleUndo
-                  }
+                  onClick={handleUndo}
                   disabled={
                     !undoStack.length
                   }
@@ -796,32 +698,24 @@ export default function Assessment101() {
                   "1",
                   "2",
                   "3",
-                ].map(
-                  (digit) => (
-                    <button
-                      key={digit}
-                      type="button"
-                      className="btn"
-                      onClick={() =>
-                        appendDigit(
-                          digit
-                        )
-                      }
-                    >
-                      {digit}
-                    </button>
-                  )
-                )}
+                ].map((digit) => (
+                  <button
+                    key={digit}
+                    type="button"
+                    className="btn"
+                    onClick={() =>
+                      appendDigit(digit)
+                    }
+                  >
+                    {digit}
+                  </button>
+                ))}
 
                 <button
                   type="button"
                   className="btn outline"
-                  onClick={
-                    backspace
-                  }
-                  disabled={
-                    !scoreInput
-                  }
+                  onClick={backspace}
+                  disabled={!scoreInput}
                 >
                   ⌫
                 </button>
@@ -839,9 +733,7 @@ export default function Assessment101() {
                 <button
                   type="button"
                   className="btn success"
-                  onClick={
-                    commitScore
-                  }
+                  onClick={commitScore}
                   disabled={
                     !scoreInput ||
                     !isEnteredValid
@@ -894,8 +786,7 @@ export default function Assessment101() {
                 </div>
 
                 <div className="pill-value">
-                  {leg}/
-                  {TOTAL_LEGS}
+                  {leg}/{TOTAL_LEGS}
                 </div>
               </div>
 
@@ -927,12 +818,8 @@ export default function Assessment101() {
             <h2 id="double-darts-title">
               {pendingDoubleVisit.type ===
               "checkout"
-                ? t(
-                    "Checkout complete"
-                  )
-                : t(
-                    "Double attempts"
-                  )}
+                ? t("Checkout complete")
+                : t("Double attempts")}
             </h2>
 
             <p className="muted">
