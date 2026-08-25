@@ -392,3 +392,12 @@ type Segment = {
       (_, index) => index
     );
   }
+
+  export function shouldAskDoubleDartsAfterVisit(
+    remainderAfter: number
+  ): boolean {
+    return (
+      remainderAfter > 0 &&
+      remainderAfter <= 50
+    );
+  }
