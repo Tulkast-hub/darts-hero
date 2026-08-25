@@ -374,23 +374,21 @@ type Segment = {
   }
   
   export function getValidDoubleDartsForNonCheckoutVisit(
-    score: number
+    remainderBefore: number
   ): number[] {
-    const minimumSetupDarts = getMinimumDartsForScore(score);
+    const route = getSuggestedRoute(remainderBefore);
+  
+    if (!route.length) {
+      return [0];
+    }
   
     const maxDoubleDarts = Math.max(
       0,
-      3 - minimumSetupDarts
+      4 - route.length
     );
   
     return Array.from(
       { length: maxDoubleDarts + 1 },
       (_, index) => index
     );
-  }
-  
-  export function shouldAskDoubleDartsAfterVisit(
-    remainderAfter: number
-  ): boolean {
-    return remainderAfter > 0 && remainderAfter <= 50;
   }

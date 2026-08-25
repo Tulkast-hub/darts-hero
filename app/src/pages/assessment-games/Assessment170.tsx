@@ -202,21 +202,44 @@ export default function Assessment170() {
       )
     ) {
       const options =
-        getValidDoubleDartsForNonCheckoutVisit(
-          score
-        );
-
+      getValidDoubleDartsForNonCheckoutVisit(
+        remainder
+      );
+    
+    /*
+     * If zero is the only possible answer,
+     * don't interrupt the player with a modal.
+     */
+    if (
+      options.length === 1 &&
+      options[0] === 0
+    ) {
+      pushUndoSnapshot();
+    
       setScoreInput("");
-
-      setPendingDoubleVisit({
-        type: "visit",
-        score,
-        nextRemainder,
-        options,
-      });
-
+      setRemainder(nextRemainder);
+    
+      setVisitsInAttempt(
+        (current) => current + 1
+      );
+    
+      setVisitScores(
+        (current) => [...current, score]
+      );
+    
       return;
     }
+    
+    setScoreInput("");
+    
+    setPendingDoubleVisit({
+      type: "visit",
+      score,
+      nextRemainder,
+      options,
+    });
+    
+    return;
 
     /*
      * Normal visit.

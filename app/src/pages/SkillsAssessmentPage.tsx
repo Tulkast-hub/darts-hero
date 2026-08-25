@@ -34,6 +34,26 @@ export default function SkillsAssessmentPage() {
     },
   ];
 
+  const setDoublesResult = useAssessmentStore(
+    (state) => state.setDoublesResult
+  );
+  
+  const setCheckout101Result = useAssessmentStore(
+    (state) => state.setCheckout101Result
+  );
+  
+  const setFinish170Result = useAssessmentStore(
+    (state) => state.setFinish170Result
+  );
+  
+  const setScoringResult = useAssessmentStore(
+    (state) => state.setScoringResult
+  );
+  
+  const setGame501Result = useAssessmentStore(
+    (state) => state.setGame501Result
+  );
+
   return (
     <div className="page">
       <section className="hero card">
@@ -75,6 +95,185 @@ export default function SkillsAssessmentPage() {
         {t("Start assessment")}
         </button>
       </div>
+      {import.meta.env.DEV && (
+  <button
+    type="button"
+    className="btn outline"
+    style={{
+      width: "100%",
+      marginTop: 12,
+    }}
+    onClick={loadTestAssessment}
+  >
+    Load test results
+  </button>
+)}
     </div>
   );
+}
+
+function loadTestAssessment() {
+  setDoublesResult({
+    dartsThrown: 42,
+    doublesHit: 20,
+    percentage: 47.6,
+  });
+
+  setCheckout101Result({
+    legs: [
+      {
+        darts: 6,
+        visits: 2,
+        checkoutDarts: 3,
+        doubleDarts: 2,
+        checkoutDoubleDarts: 1,
+      },
+      {
+        darts: 5,
+        visits: 2,
+        checkoutDarts: 2,
+        doubleDarts: 3,
+        checkoutDoubleDarts: 2,
+      },
+      {
+        darts: 7,
+        visits: 3,
+        checkoutDarts: 1,
+        doubleDarts: 2,
+        checkoutDoubleDarts: 1,
+      },
+      {
+        darts: 6,
+        visits: 2,
+        checkoutDarts: 3,
+        doubleDarts: 4,
+        checkoutDoubleDarts: 2,
+      },
+      {
+        darts: 5,
+        visits: 2,
+        checkoutDarts: 2,
+        doubleDarts: 2,
+        checkoutDoubleDarts: 1,
+      },
+    ],
+    totalDarts: 29,
+    averageDarts: 5.8,
+  });
+
+  setFinish170Result({
+    attempts: [
+      {
+        darts: 6,
+        visits: 2,
+        visitScores: [110, 60],
+        checkoutDarts: 3,
+        doubleDarts: 2,
+        checkoutDoubleDarts: 1,
+      },
+      {
+        darts: 7,
+        visits: 3,
+        visitScores: [100, 38, 32],
+        checkoutDarts: 1,
+        doubleDarts: 3,
+        checkoutDoubleDarts: 1,
+      },
+      {
+        darts: 6,
+        visits: 2,
+        visitScores: [96, 74],
+        checkoutDarts: 3,
+        doubleDarts: 2,
+        checkoutDoubleDarts: 1,
+      },
+      {
+        darts: 8,
+        visits: 3,
+        visitScores: [85, 45, 40],
+        checkoutDarts: 2,
+        doubleDarts: 4,
+        checkoutDoubleDarts: 2,
+      },
+      {
+        darts: 7,
+        visits: 3,
+        visitScores: [95, 43, 32],
+        checkoutDarts: 1,
+        doubleDarts: 3,
+        checkoutDoubleDarts: 1,
+      },
+    ],
+    totalDarts: 34,
+    averageDarts: 6.8,
+  });
+
+  setScoringResult({
+    visits: [
+      100,
+      85,
+      81,
+      60,
+      96,
+      78,
+      83,
+      59,
+      95,
+      79,
+    ],
+    totalScore: 816,
+    averageScore: 81.6,
+  });
+
+  setGame501Result({
+    legs: [
+      {
+        darts: 18,
+        visits: 6,
+        visitScores: [100, 81, 95, 85, 100, 40],
+        checkoutDarts: 3,
+        doubleDarts: 2,
+        checkoutDoubleDarts: 1,
+      },
+      {
+        darts: 19,
+        visits: 7,
+        visitScores: [85, 100, 81, 96, 79, 40, 20],
+        checkoutDarts: 1,
+        doubleDarts: 3,
+        checkoutDoubleDarts: 1,
+      },
+      {
+        darts: 17,
+        visits: 6,
+        visitScores: [100, 100, 85, 96, 80, 40],
+        checkoutDarts: 2,
+        doubleDarts: 2,
+        checkoutDoubleDarts: 1,
+      },
+      {
+        darts: 20,
+        visits: 7,
+        visitScores: [81, 85, 100, 60, 95, 40, 40],
+        checkoutDarts: 2,
+        doubleDarts: 4,
+        checkoutDoubleDarts: 2,
+      },
+      {
+        darts: 15,
+        visits: 5,
+        visitScores: [100, 100, 100, 101, 100],
+        checkoutDarts: 3,
+        doubleDarts: 1,
+        checkoutDoubleDarts: 1,
+      },
+    ],
+    totalDarts: 89,
+    totalScore: 2505,
+    threeDartAverage: Number(
+      ((2505 / 89) * 3).toFixed(2)
+    ),
+  });
+
+  nav("/skills-assessment/results");
 }

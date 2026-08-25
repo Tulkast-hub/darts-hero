@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export type DoublesAssessmentResult = {
   dartsThrown: number;
@@ -90,7 +91,9 @@ type AssessmentStore = {
   resetAssessment: () => void;
 };
 
-export const useAssessmentStore = create<AssessmentStore>((set) => ({
+export const useAssessmentStore = create<AssessmentStore>()(
+  persist(
+    (set) => ({
   results: {},
 
   setDoublesResult: (result) =>
@@ -138,4 +141,9 @@ export const useAssessmentStore = create<AssessmentStore>((set) => ({
       results: {},
     });
   },
-}));
+}),
+{
+  name: "darts-hero-skills-assessment",
+}
+)
+)

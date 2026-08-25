@@ -2,12 +2,18 @@ import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAssessmentStore } from "../../skills-assessment/useAssessmentStore";
 import { useI18n } from "../../i18n/I18nProvider";
+import { calculateAssessmentMetrics } from "../../skills-assessment/assessmentMetrics";
 
 export default function SkillsAssessmentResults() {
   const { t } = useI18n();
   const nav = useNavigate();
 
   const results = useAssessmentStore((state) => state.results);
+
+  const metrics = useMemo(
+    () => calculateAssessmentMetrics(results),
+    [results]
+  );
 
   const doubles = results.doubles;
   const checkout101 = results.checkout101;
@@ -161,30 +167,34 @@ export default function SkillsAssessmentResults() {
             </thead>
 
             <tbody>
-              <ResultRow
-                label={t("Doubles")}
-                result={`${doubles!.percentage}%`}
-              />
+            <ResultRow
+              label={t("Doubles")}
+              result={`${metrics.doublesPercentage}%`}
+            />
 
-              <ResultRow
-                label={t("101 Double Out")}
-                result={`${checkout101Average} darts`}
-              />
+            <ResultRow
+              label={t("Scoring")}
+              result={`${metrics.scoringAverage}`}
+            />
 
-              <ResultRow
-                label={t("170 Finish")}
-                result={`${finish170Average} darts`}
-              />
+            <ResultRow
+              label={t("Overall Average")}
+              result={`${metrics.overallAverage}`}
+            />
 
-              <ResultRow
-                label={t("Scoring")}
-                result={`${scoringAverage}`}
-              />
+            <ResultRow
+              label={t("Consistency")}
+              result={`${metrics.consistencyScore}/100`}
+            />
+            <ResultRow
+              label={t("101 Double Out")}
+              result={`${checkout101Average} darts`}
+            />
 
-              <ResultRow
-                label={t("501 Average")}
-                result={`${overall501Average}`}
-              />
+            <ResultRow
+              label={t("170 Finish")}
+              result={`${finish170Average} darts`}
+            />
             </tbody>
           </table>
         </div>
