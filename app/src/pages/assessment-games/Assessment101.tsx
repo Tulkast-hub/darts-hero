@@ -225,7 +225,7 @@ export default function Assessment101() {
       });
     
       return;
-    }
+      }
     
     /*
      * Normal visit with no double question.

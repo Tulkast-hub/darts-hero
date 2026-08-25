@@ -240,7 +240,7 @@ export default function Assessment170() {
       });
     
       return;
-    }
+      }
     
     /*
      * Normal visit.
