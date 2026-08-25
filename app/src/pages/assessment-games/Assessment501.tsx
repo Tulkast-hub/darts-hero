@@ -202,60 +202,61 @@ export default function Assessment501() {
       )
     ) {
       const options =
-      getValidDoubleDartsForNonCheckoutVisit(
-        remainder
-      );
+        getValidDoubleDartsForNonCheckoutVisit(
+          remainder
+        );
     
-    /*
-     * If zero is the only possible answer,
-     * don't interrupt the player with a modal.
-     */
-    if (
-      options.length === 1 &&
-      options[0] === 0
-    ) {
-      pushUndoSnapshot();
+      /*
+       * If zero is the only possible answer,
+       * don't interrupt the player with a modal.
+       */
+      if (
+        options.length === 1 &&
+        options[0] === 0
+      ) {
+        pushUndoSnapshot();
+    
+        setScoreInput("");
+        setRemainder(nextRemainder);
+    
+        setVisitsInLeg(
+          (current) => current + 1
+        );
+    
+        setVisitScores(
+          (current) => [...current, score]
+        );
+    
+        return;
+      }
     
       setScoreInput("");
-      setRemainder(nextRemainder);
     
-      setVisitsInLeg(
-        (current) => current + 1
-      );
-      
-      setVisitScores(
-        (current) => [...current, score]
-      );
+      setPendingDoubleVisit({
+        type: "visit",
+        score,
+        nextRemainder,
+        options,
+      });
     
       return;
     }
     
-    setScoreInput("");
-    
-    setPendingDoubleVisit({
-      type: "visit",
-      score,
-      nextRemainder,
-      options,
-    });
-    
-    return;
     /*
      * Normal visit.
      */
     pushUndoSnapshot();
-
+    
     setScoreInput("");
     setRemainder(nextRemainder);
-
+    
     setVisitsInLeg(
       (current) => current + 1
     );
-
+    
     setVisitScores(
       (current) => [...current, score]
     );
-  }
 
   function confirmDoubleDarts(
     doubleDarts: number
