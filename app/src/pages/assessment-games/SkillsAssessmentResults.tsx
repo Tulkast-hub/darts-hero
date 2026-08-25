@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAssessmentStore } from "../../skills-assessment/useAssessmentStore";
+import { useAssessmentStore } from "../skills-assessment/useAssessmentStore";
 import { useI18n } from "../../i18n/I18nProvider";
 import { calculateAssessmentMetrics } from "../../skills-assessment/assessmentMetrics";
 
