@@ -351,20 +351,17 @@ export default function SkillsAssessmentPage() {
         >
           {t("Start Assessment")}
         </button>
-
-        {import.meta.env.DEV && (
-          <button
-            type="button"
-            className="btn outline"
-            style={{
-              width: "100%",
-              marginTop: 12,
-            }}
-            onClick={loadTestAssessment}
-          >
-            Load test results
-          </button>
-        )}
+        <button
+  type="button"
+  className="btn outline"
+  style={{
+    width: "100%",
+    marginTop: 12,
+  }}
+  onClick={loadTestAssessment}
+>
+  Load test results
+</button>
       </div>
     </div>
   );
