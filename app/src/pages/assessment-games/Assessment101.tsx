@@ -191,42 +191,53 @@ export default function Assessment101() {
       )
     ) {
       const options =
-      getValidDoubleDartsForNonCheckoutVisit(
-        remainder
-      );
+        getValidDoubleDartsForNonCheckoutVisit(
+          remainder
+        );
     
-    /*
-     * If zero is the only possible answer,
-     * don't interrupt the player with a modal.
-     */
-    if (
-      options.length === 1 &&
-      options[0] === 0
-    ) {
-      pushUndoSnapshot();
+      /*
+       * If zero is the only possible answer,
+       * don't interrupt the player with a modal.
+       */
+      if (
+        options.length === 1 &&
+        options[0] === 0
+      ) {
+        pushUndoSnapshot();
+    
+        setScoreInput("");
+        setRemainder(nextRemainder);
+    
+        setVisitsInLeg(
+          (current) => current + 1
+        );
+    
+        return;
+      }
     
       setScoreInput("");
-      setRemainder(nextRemainder);
     
-      setVisitsInLeg(
-        (current) => current + 1
-      );
+      setPendingDoubleVisit({
+        type: "visit",
+        score,
+        nextRemainder,
+        options,
+      });
     
       return;
     }
-
+    
     /*
      * Normal visit with no double question.
      */
     pushUndoSnapshot();
-
+    
     setScoreInput("");
     setRemainder(nextRemainder);
-
+    
     setVisitsInLeg(
       (current) => current + 1
     );
-  }
 
   function confirmDoubleDarts(
     doubleDarts: number
