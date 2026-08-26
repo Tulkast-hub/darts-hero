@@ -1,8 +1,26 @@
-<svg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'>
-  <defs><radialGradient id='g' cx='50%' cy='50%' r='60%'>
-    <stop offset='0%' stop-color='#fff1a6' stop-opacity='.7'/>
-    <stop offset='100%' stop-color='#ffd700'/>
-  </radialGradient></defs>
-  <circle cx='28' cy='28' r='24' fill='url(#g)' stroke='#ffd700' stroke-width='3'/>
-  <path d='M28 14l5 10 11 2-8 7 2 11-10-5-10 5 2-11-8-7 11-2z' fill='rgba(255,255,255,.35)'/>
+<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56">
+  <defs>
+    <radialGradient id="gold-grad" cx="45%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#fff6bf"/>
+      <stop offset="55%" stop-color="#f2ca3a"/>
+      <stop offset="100%" stop-color="#c18b00"/>
+    </radialGradient>
+  </defs>
+
+  <circle
+    cx="28"
+    cy="28"
+    r="24"
+    fill="url(#gold-grad)"
+    stroke="#b07c00"
+    stroke-width="3"
+  />
+
+  <path
+    d="M28 14l4.5 9 10 1.5-7.2 6.3 1.8 9.7L28 35.6l-9.1 4.9 1.8-9.7-7.2-6.3 10-1.5z"
+    fill="rgba(255,255,255,.32)"
+    stroke="rgba(255,255,255,.25)"
+    stroke-width="1"
+    stroke-linejoin="round"
+  />
 </svg>
