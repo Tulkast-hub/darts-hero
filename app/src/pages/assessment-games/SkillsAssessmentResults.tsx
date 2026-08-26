@@ -6,6 +6,7 @@ import {
   calculateAssessmentMetrics,
   calculateAssessmentSkillScores,
 } from "../../skills-assessment/assessmentMetrics";
+import SkillsRadar from "../../ui/SkillsRadar";
 
 export default function SkillsAssessmentResults() {
   const { t } = useI18n();
@@ -23,6 +24,42 @@ export default function SkillsAssessmentResults() {
   const skillScores = useMemo(
     () => calculateAssessmentSkillScores(metrics),
     [metrics]
+  );
+
+  const radarSkills = useMemo(
+    () => [
+      {
+        key: "doubles",
+        label: t("Doubles"),
+        value: skillScores.doubles,
+      },
+      {
+        key: "scoring",
+        label: t("Scoring"),
+        value: skillScores.scoring,
+      },
+      {
+        key: "setup",
+        label: t("Setup"),
+        value: skillScores.setup,
+      },
+      {
+        key: "finishing",
+        label: t("Finishing"),
+        value: skillScores.finishing,
+      },
+      {
+        key: "average",
+        label: t("Average"),
+        value: skillScores.overallAverage,
+      },
+      {
+        key: "consistency",
+        label: t("Consistency"),
+        value: skillScores.consistency,
+      },
+    ],
+    [skillScores, t]
   );
 
   const doubles = results.doubles;
@@ -300,56 +337,25 @@ export default function SkillsAssessmentResults() {
       </div>
 
       <div
-        className="card"
-        style={{
-          marginTop: 16,
-        }}
-      >
-        <h3>
-          {t("Normalized profile")}
-        </h3>
+  className="card"
+  style={{
+    marginTop: 16,
+  }}
+>
+  <h3>
+    {t("Skills profile")}
+  </h3>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(2, minmax(0, 1fr))",
-            gap: 12,
-            marginTop: 16,
-          }}
-        >
-          <SkillPill
-            label={t("Doubles")}
-            value={skillScores.doubles}
-          />
-
-          <SkillPill
-            label={t("Scoring")}
-            value={skillScores.scoring}
-          />
-
-          <SkillPill
-            label={t("Setup Play")}
-            value={skillScores.setup}
-          />
-
-          <SkillPill
-            label={t("Finishing")}
-            value={skillScores.finishing}
-          />
-
-          <SkillPill
-            label={t("Overall Average")}
-            value={skillScores.overallAverage}
-          />
-
-          <SkillPill
-            label={t("Consistency")}
-            value={skillScores.consistency}
-          />
-        </div>
-      </div>
-
+  <div
+    style={{
+      marginTop: 12,
+    }}
+  >
+    <SkillsRadar
+      skills={radarSkills}
+    />
+  </div>
+</div>
       <div
         style={{
           marginTop: 16,
