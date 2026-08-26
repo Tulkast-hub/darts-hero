@@ -4,18 +4,18 @@ export type AssessmentRawMetrics = {
   doublesPercentage: number;
   scoringAverage: number;
   overallAverage: number;
-
-  /*
-   * 0-100.
-   * Higher = more consistent.
-   */
   consistencyScore: number;
+  setupEfficiency: number;
+  finishingEfficiency: number;
+};
 
-  /*
-   * We'll add these next.
-   */
-  setupEfficiency?: number;
-  finishingEfficiency?: number;
+export type AssessmentSkillScores = {
+  doubles: number;
+  scoring: number;
+  setup: number;
+  finishing: number;
+  overallAverage: number;
+  consistency: number;
 };
 
 export function calculateAssessmentMetrics(
@@ -39,149 +39,190 @@ export function calculateAssessmentMetrics(
   const overallAverage =
     results.game501?.threeDartAverage ?? 0;
 
-  /*
-   * For consistency we use the actual individual
-   * visits rather than averaged test results.
-   */
   const consistencyVisits = [
     ...dedicatedScoringVisits,
     ...game501ScoringVisits,
   ];
 
   const consistencyScore =
-    calculateConsistency(consistencyVisits);
+    calculateConsistency(
+      consistencyVisits
+    );
+
+  const setupEfficiency =
+    calculateSetupEfficiency(results);
+
+  const finishingEfficiency =
+    calculateFinishingEfficiency(results);
 
   return {
     doublesPercentage,
     scoringAverage,
     overallAverage,
     consistencyScore,
+    setupEfficiency,
+    finishingEfficiency,
+  };
+}
+
+export function calculateAssessmentSkillScores(
+  metrics: AssessmentRawMetrics
+): AssessmentSkillScores {
+  return {
+    /*
+     * Doubles:
+     * 10% = beginner level
+     * 50%+ = very strong
+     */
+    doubles: normalizeMetric(
+      metrics.doublesPercentage,
+      10,
+      50
+    ),
+
+    /*
+     * Scoring:
+     * 30 average = beginner
+     * 100 average = very strong
+     */
+    scoring: normalizeMetric(
+      metrics.scoringAverage,
+      30,
+      100
+    ),
+
+    /*
+     * Setup Play is already 0–100.
+     */
+    setup: round1(
+      clamp(
+        metrics.setupEfficiency,
+        0,
+        100
+      )
+    ),
+
+    /*
+     * Finishing is already 0–100.
+     */
+    finishing: round1(
+      clamp(
+        metrics.finishingEfficiency,
+        0,
+        100
+      )
+    ),
+
+    /*
+     * Overall 501 average:
+     * 35 = beginner
+     * 90 = very strong amateur
+     */
+    overallAverage: normalizeMetric(
+      metrics.overallAverage,
+      35,
+      90
+    ),
+
+    /*
+     * Consistency is already 0–100.
+     */
+    consistency: round1(
+      clamp(
+        metrics.consistencyScore,
+        0,
+        100
+      )
+    ),
   };
 }
 
 /*
- * -------------------------------------------------------
+ * --------------------------------------------------
  * DOUBLES
- * -------------------------------------------------------
- *
- * Around the World:
- * every dart is a known double attempt.
- *
- * 101 / 170 / 501:
- * doubleDarts contains the reported double attempts
- * across the full leg / attempt.
- *
- * Each completed leg or attempt contributes exactly
- * one successful finishing double.
+ * --------------------------------------------------
  */
+
 function calculateDoublesPercentage(
   results: AssessmentResults
 ): number {
-  let hits = 0;
   let attempts = 0;
+  let hits = 0;
 
+  /*
+   * Around the World Doubles.
+   */
   if (results.doubles) {
-    hits += results.doubles.doublesHit;
-    attempts += results.doubles.dartsThrown;
+    attempts +=
+      results.doubles.dartsThrown;
+
+    hits +=
+      results.doubles.doublesHit;
   }
 
+  /*
+   * 101 Double Out.
+   *
+   * Every completed leg contains one
+   * successful finishing double.
+   */
   if (results.checkout101) {
-    for (const leg of results.checkout101.legs) {
+    for (
+      const leg of
+      results.checkout101.legs
+    ) {
+      attempts +=
+        leg.doubleDarts;
+
       hits += 1;
-      attempts += leg.doubleDarts;
     }
   }
 
+  /*
+   * 170 Finish.
+   */
   if (results.finish170) {
-    for (const attempt of results.finish170.attempts) {
+    for (
+      const attempt of
+      results.finish170.attempts
+    ) {
+      attempts +=
+        attempt.doubleDarts;
+
       hits += 1;
-      attempts += attempt.doubleDarts;
     }
   }
 
+  /*
+   * 501.
+   */
   if (results.game501) {
-    for (const leg of results.game501.legs) {
+    for (
+      const leg of
+      results.game501.legs
+    ) {
+      attempts +=
+        leg.doubleDarts;
+
       hits += 1;
-      attempts += leg.doubleDarts;
     }
   }
 
-  if (attempts === 0) {
+  if (attempts <= 0) {
     return 0;
   }
 
-  return Number(
-    ((hits / attempts) * 100).toFixed(1)
+  return round1(
+    (hits / attempts) * 100
   );
 }
 
 /*
- * -------------------------------------------------------
+ * --------------------------------------------------
  * SCORING
- * -------------------------------------------------------
- *
- * Scoring uses:
- *
- * 1. Dedicated 10 scoring visits.
- * 2. 501 scoring visits while the player starts
- *    the visit above 200.
- *
- * The two tests are weighted equally so the larger
- * number of visits in 501 does not automatically
- * dominate the dedicated scoring test.
+ * --------------------------------------------------
  */
-function calculateCombinedScoringAverage(
-  dedicatedScoringVisits: number[],
-  game501ScoringVisits: number[]
-): number {
-  const hasDedicated =
-    dedicatedScoringVisits.length > 0;
 
-  const has501 =
-    game501ScoringVisits.length > 0;
-
-  if (hasDedicated && has501) {
-    const dedicatedAverage =
-      calculateAverage(
-        dedicatedScoringVisits
-      );
-
-    const game501Average =
-      calculateAverage(
-        game501ScoringVisits
-      );
-
-    return Number(
-      (
-        (dedicatedAverage +
-          game501Average) /
-        2
-      ).toFixed(2)
-    );
-  }
-
-  if (hasDedicated) {
-    return calculateAverage(
-      dedicatedScoringVisits
-    );
-  }
-
-  if (has501) {
-    return calculateAverage(
-      game501ScoringVisits
-    );
-  }
-
-  return 0;
-}
-
-/*
- * Collect 501 visits which start above 200.
- *
- * Once the player starts a visit at 200 or below,
- * we stop treating it as pure scoring because
- * setup / finishing becomes increasingly relevant.
- */
 function get501ScoringVisits(
   results: AssessmentResults
 ): number[] {
@@ -191,21 +232,32 @@ function get501ScoringVisits(
 
   const scoringVisits: number[] = [];
 
-  for (const leg of results.game501.legs) {
+  for (
+    const leg of
+    results.game501.legs
+  ) {
     let remainder = 501;
 
-    for (const score of leg.visitScores) {
+    for (
+      const score of
+      leg.visitScores
+    ) {
       const remainderBefore =
         remainder;
 
-      if (remainderBefore > 200) {
+      /*
+       * Pure scoring phase.
+       *
+       * Once the player reaches 200 or less,
+       * we treat the visits more as setup /
+       * finishing rather than pure scoring.
+       */
+      if (
+        remainderBefore > 200
+      ) {
         scoringVisits.push(score);
       }
 
-      /*
-       * Bust visits are stored as 0,
-       * so the remainder correctly stays unchanged.
-       */
       remainder -= score;
     }
   }
@@ -213,34 +265,65 @@ function get501ScoringVisits(
   return scoringVisits;
 }
 
+function calculateCombinedScoringAverage(
+  dedicatedVisits: number[],
+  game501Visits: number[]
+): number {
+  const dedicatedAverage =
+    calculateAverage(
+      dedicatedVisits
+    );
+
+  const game501Average =
+    calculateAverage(
+      game501Visits
+    );
+
+  /*
+   * If both sources exist,
+   * weight them equally.
+   *
+   * This prevents the larger number
+   * of 501 visits from dominating
+   * the dedicated scoring drill.
+   */
+  if (
+    dedicatedVisits.length > 0 &&
+    game501Visits.length > 0
+  ) {
+    return round2(
+      (
+        dedicatedAverage +
+        game501Average
+      ) / 2
+    );
+  }
+
+  if (
+    dedicatedVisits.length > 0
+  ) {
+    return round2(
+      dedicatedAverage
+    );
+  }
+
+  if (
+    game501Visits.length > 0
+  ) {
+    return round2(
+      game501Average
+    );
+  }
+
+  return 0;
+}
+
 /*
- * -------------------------------------------------------
+ * --------------------------------------------------
  * CONSISTENCY
- * -------------------------------------------------------
- *
- * Consistency is not simply "how close every score is
- * to the average".
- *
- * We want:
- *
- * 100, 85, 60, 81
- *
- * to be considered reasonably consistent.
- *
- * But:
- *
- * 134, 41, 140, 26
- *
- * should score poorly because the player is repeatedly
- * moving between very strong and very weak visits.
- *
- * The metric therefore combines:
- *
- * 70% - stability around the player's own average
- * 30% - protection against very low outlier visits
- *
- * Higher score = better consistency.
+ * --------------------------------------------------
  */
+
 function calculateConsistency(
   values: number[]
 ): number {
@@ -256,72 +339,50 @@ function calculateConsistency(
   }
 
   /*
-   * -----------------------------------------------------
-   * PART 1: STABILITY
-   * -----------------------------------------------------
-   *
-   * Mean absolute deviation is easier to reason about
-   * here than standard deviation.
-   *
-   * We care about how far a normal visit tends to move
-   * away from the player's own scoring level.
+   * Measure how far individual visits
+   * move away from the player's own average.
    */
   const averageDeviation =
     values.reduce(
       (sum, value) =>
         sum +
-        Math.abs(value - mean),
+        Math.abs(
+          value - mean
+        ),
       0
     ) / values.length;
 
   const relativeDeviation =
     averageDeviation / mean;
 
-  /*
-   * Rough mapping:
-   *
-   * 0% deviation  -> 100
-   * 10%           -> 80
-   * 20%           -> 60
-   * 30%           -> 40
-   * 40%           -> 20
-   * 50%+          -> 0
-   *
-   * This still allows normal variation caused by
-   * missing a treble without immediately crushing
-   * the consistency score.
-   */
   const stabilityScore =
     clamp(
       100 -
-        relativeDeviation * 200,
+        relativeDeviation *
+          200,
       0,
       100
     );
 
   /*
-   * -----------------------------------------------------
-   * PART 2: LOW OUTLIERS
-   * -----------------------------------------------------
-   *
-   * We specifically want to detect visits that collapse
-   * dramatically below the player's usual level.
+   * Additional penalty for large low-score
+   * collapses.
    *
    * Example:
+   * 100, 85, 60, 81
+   * should remain fairly consistent.
    *
-   * player average around 85
-   *
-   * 60 = not necessarily bad;
-   *      could simply be three singles.
-   *
-   * 26 = much more likely to indicate major misses.
+   * 134, 41, 140, 26
+   * should score poorly.
    */
   const lowOutlierThreshold =
     mean * 0.55;
 
   let lowOutlierSeverity = 0;
 
-  for (const value of values) {
+  for (
+    const value of values
+  ) {
     if (
       value >=
       lowOutlierThreshold
@@ -329,13 +390,6 @@ function calculateConsistency(
       continue;
     }
 
-    /*
-     * Work out how far below the outlier threshold
-     * the visit fell.
-     *
-     * A visit just below the threshold gets a small
-     * penalty; a very low visit gets a much larger one.
-     */
     const severity =
       (
         lowOutlierThreshold -
@@ -344,17 +398,17 @@ function calculateConsistency(
       lowOutlierThreshold;
 
     lowOutlierSeverity +=
-      clamp(severity, 0, 1);
+      clamp(
+        severity,
+        0,
+        1
+      );
   }
 
   const averageOutlierSeverity =
     lowOutlierSeverity /
     values.length;
 
-  /*
-   * If very low visits are frequent and severe,
-   * this falls rapidly.
-   */
   const outlierScore =
     clamp(
       100 -
@@ -365,22 +419,429 @@ function calculateConsistency(
     );
 
   /*
-   * Stability matters more overall,
-   * while low collapses add an extra penalty.
+   * Stability matters most,
+   * but low collapses also matter.
    */
-  const consistency =
+  return round1(
     stabilityScore * 0.7 +
-    outlierScore * 0.3;
-
-  return Number(
-    consistency.toFixed(1)
+      outlierScore * 0.3
   );
 }
 
 /*
- * -------------------------------------------------------
+ * --------------------------------------------------
+ * SETUP PLAY
+ * --------------------------------------------------
+ */
+
+function calculateSetupEfficiency(
+  results: AssessmentResults
+): number {
+  const setupScores: number[] =
+    [];
+
+  /*
+   * 170 Finish.
+   */
+  if (results.finish170) {
+    for (
+      const attempt of
+      results.finish170.attempts
+    ) {
+      let remainder = 170;
+
+      for (
+        const score of
+        attempt.visitScores
+      ) {
+        const remainderBefore =
+          remainder;
+
+        const remainderAfter =
+          remainderBefore -
+          score;
+
+        /*
+         * Evaluate setup visits while
+         * above a simple finishing score.
+         */
+        if (
+          remainderBefore > 50 &&
+          remainderBefore <= 170
+        ) {
+          setupScores.push(
+            scoreSetupVisit(
+              remainderBefore,
+              remainderAfter
+            )
+          );
+        }
+
+        remainder =
+          remainderAfter;
+      }
+    }
+  }
+
+  /*
+   * 501.
+   *
+   * Setup phase begins once the player
+   * starts a visit below 200.
+   */
+  if (results.game501) {
+    for (
+      const leg of
+      results.game501.legs
+    ) {
+      let remainder = 501;
+
+      for (
+        const score of
+        leg.visitScores
+      ) {
+        const remainderBefore =
+          remainder;
+
+        const remainderAfter =
+          remainderBefore -
+          score;
+
+        if (
+          remainderBefore < 200 &&
+          remainderBefore > 50
+        ) {
+          setupScores.push(
+            scoreSetupVisit(
+              remainderBefore,
+              remainderAfter
+            )
+          );
+        }
+
+        remainder =
+          remainderAfter;
+      }
+    }
+  }
+
+  if (!setupScores.length) {
+    return 0;
+  }
+
+  return round1(
+    calculateAverage(
+      setupScores
+    )
+  );
+}
+
+function scoreSetupVisit(
+  remainderBefore: number,
+  remainderAfter: number
+): number {
+  /*
+   * Checkout completed.
+   */
+  if (remainderAfter <= 0) {
+    return 100;
+  }
+
+  /*
+   * Leaving 50 or less means the player
+   * has successfully reached a simple
+   * finishing position.
+   *
+   * We deliberately do NOT care whether
+   * this is D16, D7, D20, etc.
+   */
+  if (
+    remainderAfter <= 50
+  ) {
+    return 100;
+  }
+
+  /*
+   * Legal three-dart checkout.
+   */
+  if (
+    isLegalCheckout(
+      remainderAfter
+    )
+  ) {
+    const progress =
+      remainderBefore -
+      remainderAfter;
+
+    const availableProgress =
+      Math.max(
+        1,
+        remainderBefore - 50
+      );
+
+    const progressRatio =
+      progress /
+      availableProgress;
+
+    return clamp(
+      65 +
+        progressRatio * 35,
+      65,
+      100
+    );
+  }
+
+  /*
+   * Under 170 but on a bogey number.
+   *
+   * This is still useful progress,
+   * but should score less than leaving
+   * a genuine checkout.
+   */
+  if (
+    remainderAfter <= 170
+  ) {
+    const progress =
+      remainderBefore -
+      remainderAfter;
+
+    const availableProgress =
+      Math.max(
+        1,
+        remainderBefore - 50
+      );
+
+    const progressRatio =
+      progress /
+      availableProgress;
+
+    return clamp(
+      45 +
+        progressRatio * 30,
+      45,
+      75
+    );
+  }
+
+  /*
+   * Still outside checkout range.
+   */
+  const progress =
+    remainderBefore -
+    remainderAfter;
+
+  const progressRatio =
+    progress /
+    Math.max(
+      1,
+      remainderBefore
+    );
+
+  return clamp(
+    progressRatio * 60,
+    0,
+    60
+  );
+}
+
+/*
+ * Bogey numbers that cannot be
+ * completed in three darts.
+ */
+function isLegalCheckout(
+  score: number
+): boolean {
+  if (
+    score <= 1 ||
+    score > 170
+  ) {
+    return false;
+  }
+
+  const bogeyNumbers =
+    new Set([
+      169,
+      168,
+      166,
+      165,
+      163,
+      162,
+      159,
+    ]);
+
+  return !bogeyNumbers.has(
+    score
+  );
+}
+
+/*
+ * --------------------------------------------------
+ * FINISHING
+ * --------------------------------------------------
+ */
+
+function calculateFinishingEfficiency(
+  results: AssessmentResults
+): number {
+  let totalDoubleAttempts = 0;
+  let successfulDoubles = 0;
+
+  let checkoutDoubleAttempts = 0;
+  let checkoutSuccesses = 0;
+
+  const finishingDarts: number[] =
+    [];
+
+  /*
+   * 101 Double Out.
+   */
+  if (results.checkout101) {
+    for (
+      const leg of
+      results.checkout101.legs
+    ) {
+      totalDoubleAttempts +=
+        leg.doubleDarts;
+
+      successfulDoubles += 1;
+
+      checkoutDoubleAttempts +=
+        leg.checkoutDoubleDarts;
+
+      checkoutSuccesses += 1;
+
+      /*
+       * 101 is already a finishing exercise,
+       * so the entire leg is relevant here.
+       */
+      finishingDarts.push(
+        leg.darts
+      );
+    }
+  }
+
+  /*
+   * 170 Finish.
+   */
+  if (results.finish170) {
+    for (
+      const attempt of
+      results.finish170.attempts
+    ) {
+      totalDoubleAttempts +=
+        attempt.doubleDarts;
+
+      successfulDoubles += 1;
+
+      checkoutDoubleAttempts +=
+        attempt.checkoutDoubleDarts;
+
+      checkoutSuccesses += 1;
+
+      /*
+       * 170 is deliberately a finishing /
+       * setup exercise.
+       */
+      finishingDarts.push(
+        attempt.darts
+      );
+    }
+  }
+
+  /*
+   * 501 contributes doubles efficiency,
+   * but we do not currently use the entire
+   * 501 leg's dart count for finishing speed.
+   *
+   * Doing so would incorrectly include the
+   * scoring phase.
+   */
+  if (results.game501) {
+    for (
+      const leg of
+      results.game501.legs
+    ) {
+      totalDoubleAttempts +=
+        leg.doubleDarts;
+
+      successfulDoubles += 1;
+
+      checkoutDoubleAttempts +=
+        leg.checkoutDoubleDarts;
+
+      checkoutSuccesses += 1;
+    }
+  }
+
+  const doubleEfficiency =
+    totalDoubleAttempts > 0
+      ? clamp(
+          (
+            successfulDoubles /
+            totalDoubleAttempts
+          ) * 100,
+          0,
+          100
+        )
+      : 0;
+
+  const checkoutDoubleEfficiency =
+    checkoutDoubleAttempts > 0
+      ? clamp(
+          (
+            checkoutSuccesses /
+            checkoutDoubleAttempts
+          ) * 100,
+          0,
+          100
+        )
+      : 0;
+
+  const averageFinishingDarts =
+    calculateAverage(
+      finishingDarts
+    );
+
+  /*
+   * Initial calibration:
+   *
+   * 3 darts  -> ~96
+   * 6 darts  -> ~72
+   * 9 darts  -> ~48
+   * 12 darts -> ~24
+   * 15 darts -> 0
+   *
+   * This is intentionally provisional
+   * and can be calibrated once we have
+   * real assessment data.
+   */
+  const finishingSpeed =
+    averageFinishingDarts > 0
+      ? clamp(
+          120 -
+            averageFinishingDarts *
+              8,
+          0,
+          100
+        )
+      : 0;
+
+  /*
+   * Main emphasis is on actual
+   * double conversion.
+   */
+  return round1(
+    doubleEfficiency * 0.6 +
+      finishingSpeed * 0.25 +
+      checkoutDoubleEfficiency *
+        0.15
+  );
+}
+
+/*
+ * --------------------------------------------------
  * GENERIC HELPERS
- * -------------------------------------------------------
+ * --------------------------------------------------
  */
 
 function calculateAverage(
@@ -390,18 +851,38 @@ function calculateAverage(
     return 0;
   }
 
-  const total =
+  return (
     values.reduce(
       (sum, value) =>
         sum + value,
       0
-    );
+    ) / values.length
+  );
+}
 
-  return Number(
+function normalizeMetric(
+  value: number,
+  minimum: number,
+  maximum: number
+): number {
+  if (
+    maximum <= minimum
+  ) {
+    return 0;
+  }
+
+  const normalized =
     (
-      total /
-      values.length
-    ).toFixed(2)
+      (value - minimum) /
+      (maximum - minimum)
+    ) * 100;
+
+  return round1(
+    clamp(
+      normalized,
+      0,
+      100
+    )
   );
 }
 
@@ -416,5 +897,21 @@ function clamp(
       minimum,
       value
     )
+  );
+}
+
+function round1(
+  value: number
+): number {
+  return Number(
+    value.toFixed(1)
+  );
+}
+
+function round2(
+  value: number
+): number {
+  return Number(
+    value.toFixed(2)
   );
 }
