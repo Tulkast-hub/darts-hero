@@ -36,8 +36,7 @@ export default function NavBar({
     (state) => state.resetAssessment
   );
 
-  const { t, isDesktop } =
-    useI18n();
+  const { t, isDesktop } = useI18n();
 
   const name =
     me?.display_name ||
@@ -49,10 +48,6 @@ export default function NavBar({
   const isHome =
     pathname === "/" ||
     pathname === "";
-
-  const isAssessmentLanding =
-    pathname ===
-    "/skills-assessment";
 
   const isAssessmentResults =
     pathname ===
@@ -83,7 +78,6 @@ export default function NavBar({
 
   function cancelAssessment() {
     resetAssessment();
-
     nav("/skills-assessment");
   }
 
@@ -93,9 +87,7 @@ export default function NavBar({
 
   function handleBack() {
     if (
-      pathname.startsWith(
-        "/drill/"
-      ) &&
+      pathname.startsWith("/drill/") &&
       abortHandler
     ) {
       abortHandler();
@@ -106,183 +98,191 @@ export default function NavBar({
   }
 
   return (
-    <header className="nav">
+    <header
+      className="nav"
+      style={{
+        display: "block",
+      }}
+    >
+      {/* Main navbar */}
       <div
+        className="nav-main-row"
         style={{
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
           width: "100%",
         }}
       >
         <div
+          className="nav-left"
           style={{
-            display: "grid",
-            gridTemplateColumns:
-              "1fr auto 1fr",
+            flex: "1 1 0",
+            display: "flex",
+            justifyContent: "flex-start",
             alignItems: "center",
-            width: "100%",
           }}
         >
-          <div className="nav-left">
-            {isHome ? (
-              <button
-                className="icon-btn"
-                onClick={onMenu}
-                aria-label={t(
-                  "Open menu"
-                )}
-              >
-                ☰
-              </button>
-            ) : isAssessmentGame ? (
-              <button
-                type="button"
-                className="btn outline"
-                onClick={
-                  cancelAssessment
-                }
-              >
-                {t(
-                  "Cancel assessment"
-                )}
-              </button>
-            ) : isAssessmentResults ? (
-              <button
-                type="button"
-                className="btn outline"
-                onClick={
-                  finishAssessment
-                }
-              >
-                {t("Finish")}
-              </button>
-            ) : (
-              <button
-                className="icon-btn"
-                onClick={handleBack}
-                aria-label={t(
-                  "Back"
-                )}
-              >
-                ←
-              </button>
-            )}
+          {isHome ? (
+            <button
+              className="icon-btn"
+              onClick={onMenu}
+              aria-label={t("Open menu")}
+            >
+              ☰
+            </button>
+          ) : isAssessmentGame ? (
+            <button
+              type="button"
+              className="btn outline"
+              onClick={cancelAssessment}
+            >
+              {t("Cancel assessment")}
+            </button>
+          ) : isAssessmentResults ? (
+            <button
+              type="button"
+              className="btn outline"
+              onClick={finishAssessment}
+            >
+              {t("Finish")}
+            </button>
+          ) : (
+            <button
+              className="icon-btn"
+              onClick={handleBack}
+              aria-label={t("Back")}
+            >
+              ←
+            </button>
+          )}
+        </div>
+
+        <div
+          className="nav-center"
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            transform:
+              "translate(-50%, -50%)",
+          }}
+        >
+          <img
+            src={HeroLogo}
+            alt={t("Darts Hero logo")}
+            className="logo-large"
+          />
+        </div>
+
+        <div
+          className="nav-right"
+          style={{
+            flex: "1 1 0",
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <button
+              className="icon-btn"
+              onClick={toggleTheme}
+              aria-label={t("Theme")}
+            >
+              {theme === "light"
+                ? "🌙"
+                : "☀️"}
+            </button>
+
+            <button
+              className="icon-btn"
+              onClick={() =>
+                nav("/profile")
+              }
+              aria-label={t("Profile")}
+            >
+              👤
+            </button>
           </div>
 
-          <div className="nav-center">
-            <img
-              src={HeroLogo}
-              alt={t(
-                "Darts Hero logo"
-              )}
-              className="logo-large"
-            />
-          </div>
-
-          <div className="nav-right">
-            <div>
-              <button
-                className="icon-btn"
-                onClick={
-                  toggleTheme
-                }
-                aria-label={t(
-                  "Theme"
-                )}
-              >
-                {theme === "light"
-                  ? "🌙"
-                  : "☀️"}
-              </button>
-
-              <button
-                className="icon-btn"
-                onClick={() =>
-                  nav("/profile")
-                }
-                aria-label={t(
-                  "Profile"
-                )}
-              >
-                👤
-              </button>
+          <div className="profile">
+            <div className="nav-title">
+              {name}
             </div>
 
-            <div className="profile">
-              <div className="nav-title">
-                {name}
-              </div>
-
-              <div className="nav-subtitle">
-                <RankBadge
-                  tier={
-                    overallRank.tier
-                  }
-                  level={
-                    overallRank.level
-                  }
-                />
-              </div>
+            <div className="nav-subtitle">
+              <RankBadge
+                tier={overallRank.tier}
+                level={overallRank.level}
+              />
             </div>
           </div>
         </div>
+      </div>
 
-        {isDesktop && (
-          <div
-            className="nav-rank-steps"
+      {/* Rank progression */}
+      {isDesktop && (
+        <div
+          className="nav-rank-steps"
+          style={{
+            width: "100%",
+            marginTop: 10,
+            paddingTop: 10,
+            paddingBottom: 4,
+            borderTop:
+              "1px solid rgba(148, 163, 184, 0.25)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
+          <span
+            className="muted small"
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent:
-                "center",
-              gap: 10,
-              marginTop: 8,
-              paddingBottom: 6,
-              flexWrap: "wrap",
+              fontWeight: 800,
             }}
           >
-            <span
-              className="muted small"
-              style={{
-                fontWeight: 800,
-              }}
-            >
-              {t("Ranks")}:
-            </span>
+            {t("Ranks")}:
+          </span>
 
-            <RankStep
-              label={t("Bronze")}
-              tier="Bronze"
-            />
+          <RankStep
+            label={t("Bronze")}
+            tier="Bronze"
+          />
 
-            <RankArrow />
+          <RankArrow />
 
-            <RankStep
-              label={t("Silver")}
-              tier="Silver"
-            />
+          <RankStep
+            label={t("Silver")}
+            tier="Silver"
+          />
 
-            <RankArrow />
+          <RankArrow />
 
-            <RankStep
-              label={t("Gold")}
-              tier="Gold"
-            />
+          <RankStep
+            label={t("Gold")}
+            tier="Gold"
+          />
 
-            <RankArrow />
+          <RankArrow />
 
-            <RankStep
-              label={t("Platinum")}
-              tier="Platinum"
-            />
+          <RankStep
+            label={t("Platinum")}
+            tier="Platinum"
+          />
 
-            <RankArrow />
+          <RankArrow />
 
-            <RankStep
-              label={t("Diamond")}
-              tier="Diamond"
-            />
-          </div>
-        )}
-      </div>
+          <RankStep
+            label={t("Diamond")}
+            tier="Diamond"
+          />
+        </div>
+      )}
     </header>
   );
 }
@@ -304,13 +304,14 @@ function RankStep({
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 5,
+        gap: 6,
       }}
     >
       <span
         className="small"
         style={{
           fontWeight: 700,
+          whiteSpace: "nowrap",
         }}
       >
         {label}
