@@ -78,7 +78,7 @@ export default function NavBar({
 
   function cancelAssessment() {
     resetAssessment();
-    nav("/skills-assessment");
+    nav("/");
   }
 
   function finishAssessment() {

@@ -3,20 +3,25 @@ import { useNavigate } from "react-router-dom";
 import { useI18n } from "../../i18n/I18nProvider";
 import { useAssessmentStore } from "../../skills-assessment/useAssessmentStore";
 
+type HistoryEntry = {
+  target: number;
+  hit: boolean;
+  darts: number;
+};
+
 export default function AssessmentDoubles() {
   const { t } = useI18n();
   const nav = useNavigate();
 
   const [target, setTarget] = useState(1);
   const [dartsThrown, setDartsThrown] = useState(0);
-  const [history, setHistory] = useState<
-    { target: number; hit: boolean }[]
-  >([]);
+
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   const complete = target > 20;
 
   const doublesHit = useMemo(
-    () => history.filter((dart) => dart.hit).length,
+    () => history.filter((entry) => entry.hit).length,
     [history]
   );
 
@@ -30,22 +35,35 @@ export default function AssessmentDoubles() {
     (state) => state.setDoublesResult
   );
 
-  function recordDart(hit: boolean) {
+  function recordHit() {
     if (complete) return;
 
     setHistory((current) => [
       ...current,
       {
         target,
-        hit,
+        hit: true,
+        darts: 1,
       },
     ]);
 
     setDartsThrown((current) => current + 1);
+    setTarget((current) => current + 1);
+  }
 
-    if (hit) {
-      setTarget((current) => current + 1);
-    }
+  function recordMisses(count: number) {
+    if (complete) return;
+
+    setHistory((current) => [
+      ...current,
+      {
+        target,
+        hit: false,
+        darts: count,
+      },
+    ]);
+
+    setDartsThrown((current) => current + count);
   }
 
   function undo() {
@@ -54,7 +72,10 @@ export default function AssessmentDoubles() {
     const last = history[history.length - 1];
 
     setHistory((current) => current.slice(0, -1));
-    setDartsThrown((current) => Math.max(0, current - 1));
+
+    setDartsThrown((current) =>
+      Math.max(0, current - last.darts)
+    );
 
     if (last.hit) {
       setTarget(last.target);
@@ -67,7 +88,7 @@ export default function AssessmentDoubles() {
       doublesHit,
       percentage,
     });
-  
+
     nav("/skills-assessment/101");
   }
 
@@ -81,6 +102,7 @@ export default function AssessmentDoubles() {
 
           <div className="subtitle">
             <h2>{t("Around the World – Doubles")}</h2>
+
             <p>
               {t(
                 "Hit each double from 1 to 20. Every dart counts toward your doubles accuracy."
@@ -95,29 +117,40 @@ export default function AssessmentDoubles() {
           <div className="bullout-header">
             <div>
               <div className="muted">
-                {t("Double")} {target} · {t("Target")} {target} {t("of")} 20
+                {t("Double")} {target} · {t("Target")} {target}{" "}
+                {t("of")} 20
               </div>
 
               <div className="muted">
-                {t("Hit the current double to move to the next number.")}
+                {t(
+                  "Hit the current double to move to the next number."
+                )}
               </div>
             </div>
 
             <div className="objective-pill">
-              <div className="objective-label">{t("Accuracy")}</div>
-              <div className="objective-value">{percentage}%</div>
+              <div className="objective-label">
+                {t("Accuracy")}
+              </div>
+
+              <div className="objective-value">
+                {percentage}%
+              </div>
             </div>
           </div>
 
           <AssessmentDoublesBoard number={target} />
 
           <div className="bullout-main aw-main">
-            <div className="bullout-controls" data-hotkeys="drill">
+            <div
+              className="bullout-controls"
+              data-hotkeys="drill"
+            >
               <button
                 type="button"
                 className="btn success"
                 data-hotkey="1"
-                onClick={() => recordDart(true)}
+                onClick={recordHit}
               >
                 {t("Double hit")}
               </button>
@@ -126,9 +159,27 @@ export default function AssessmentDoubles() {
                 type="button"
                 className="btn outline"
                 data-hotkey="2"
-                onClick={() => recordDart(false)}
+                onClick={() => recordMisses(1)}
               >
                 {t("Miss")}
+              </button>
+
+              <button
+                type="button"
+                className="btn outline"
+                data-hotkey="3"
+                onClick={() => recordMisses(2)}
+              >
+                {t("Miss 2")}
+              </button>
+
+              <button
+                type="button"
+                className="btn outline"
+                data-hotkey="4"
+                onClick={() => recordMisses(3)}
+              >
+                {t("Miss 3")}
               </button>
 
               <button
@@ -145,33 +196,73 @@ export default function AssessmentDoubles() {
             <div className="bullout-stats card">
               <div
                 className="row"
-                style={{ justifyContent: "space-between" }}
+                style={{
+                  justifyContent: "space-between",
+                }}
               >
-                <div style={{ textAlign: "center", flex: 1 }}>
-                  <div className="title-lg">{dartsThrown}</div>
-                  <div className="muted">{t("Darts thrown")}</div>
+                <div
+                  style={{
+                    textAlign: "center",
+                    flex: 1,
+                  }}
+                >
+                  <div className="title-lg">
+                    {dartsThrown}
+                  </div>
+
+                  <div className="muted">
+                    {t("Darts thrown")}
+                  </div>
                 </div>
 
-                <div style={{ textAlign: "center", flex: 1 }}>
-                  <div className="title-lg">{doublesHit}</div>
-                  <div className="muted">{t("Doubles hit")}</div>
+                <div
+                  style={{
+                    textAlign: "center",
+                    flex: 1,
+                  }}
+                >
+                  <div className="title-lg">
+                    {doublesHit}
+                  </div>
+
+                  <div className="muted">
+                    {t("Doubles hit")}
+                  </div>
                 </div>
 
-                <div style={{ textAlign: "center", flex: 1 }}>
-                  <div className="title-lg">D{target}</div>
-                  <div className="muted">{t("Current target")}</div>
+                <div
+                  style={{
+                    textAlign: "center",
+                    flex: 1,
+                  }}
+                >
+                  <div className="title-lg">
+                    D{target}
+                  </div>
+
+                  <div className="muted">
+                    {t("Current target")}
+                  </div>
                 </div>
               </div>
 
               <div style={{ marginTop: 12 }}>
                 <div className="row bullout-stat-row">
                   <div className="pill pill-stat">
-                    <div className="pill-label">{t("Accuracy")}</div>
-                    <div className="pill-value">{percentage}%</div>
+                    <div className="pill-label">
+                      {t("Accuracy")}
+                    </div>
+
+                    <div className="pill-value">
+                      {percentage}%
+                    </div>
                   </div>
 
                   <div className="pill pill-stat">
-                    <div className="pill-label">{t("Completed")}</div>
+                    <div className="pill-label">
+                      {t("Completed")}
+                    </div>
+
                     <div className="pill-value">
                       {doublesHit} / 20
                     </div>
@@ -191,18 +282,33 @@ export default function AssessmentDoubles() {
             <div className="result-stats">
               <div className="row bullout-stat-row">
                 <div className="pill pill-stat">
-                  <div className="pill-label">{t("Darts thrown")}</div>
-                  <div className="pill-value">{dartsThrown}</div>
+                  <div className="pill-label">
+                    {t("Darts thrown")}
+                  </div>
+
+                  <div className="pill-value">
+                    {dartsThrown}
+                  </div>
                 </div>
 
                 <div className="pill pill-stat">
-                  <div className="pill-label">{t("Doubles hit")}</div>
-                  <div className="pill-value">{doublesHit}</div>
+                  <div className="pill-label">
+                    {t("Doubles hit")}
+                  </div>
+
+                  <div className="pill-value">
+                    {doublesHit}
+                  </div>
                 </div>
 
                 <div className="pill pill-stat">
-                  <div className="pill-label">{t("Accuracy")}</div>
-                  <div className="pill-value">{percentage}%</div>
+                  <div className="pill-label">
+                    {t("Accuracy")}
+                  </div>
+
+                  <div className="pill-value">
+                    {percentage}%
+                  </div>
                 </div>
               </div>
             </div>
@@ -210,7 +316,10 @@ export default function AssessmentDoubles() {
             <button
               type="button"
               className="btn"
-              style={{ width: "100%", marginTop: 20 }}
+              style={{
+                width: "100%",
+                marginTop: 20,
+              }}
               onClick={continueAssessment}
             >
               {t("Continue")}
@@ -222,7 +331,11 @@ export default function AssessmentDoubles() {
   );
 }
 
-function AssessmentDoublesBoard({ number }: { number: number }) {
+function AssessmentDoublesBoard({
+  number,
+}: {
+  number: number;
+}) {
   const BOARD_ORDER = [
     20, 1, 18, 4, 13, 6, 10, 15, 2, 17,
     3, 19, 7, 16, 8, 11, 14, 9, 12, 5,
@@ -237,7 +350,8 @@ function AssessmentDoublesBoard({ number }: { number: number }) {
 
   const segmentAngle = 360 / 20;
   const baseOffset = -90 - segmentAngle / 2;
-  const rotation = segmentIndex * segmentAngle + baseOffset;
+  const rotation =
+    segmentIndex * segmentAngle + baseOffset;
 
   return (
     <div className="bull-board-wrapper assessment-board">
@@ -246,9 +360,26 @@ function AssessmentDoublesBoard({ number }: { number: number }) {
         className="bull-board"
         aria-hidden="true"
       >
-        <circle cx="60" cy="60" r="58" fill="#020617" />
-        <circle cx="60" cy="60" r="50" fill="#020617" />
-        <circle cx="60" cy="60" r="40" fill="#020617" />
+        <circle
+          cx="60"
+          cy="60"
+          r="58"
+          fill="#020617"
+        />
+
+        <circle
+          cx="60"
+          cy="60"
+          r="50"
+          fill="#020617"
+        />
+
+        <circle
+          cx="60"
+          cy="60"
+          r="40"
+          fill="#020617"
+        />
 
         <circle
           cx="60"
@@ -277,7 +408,9 @@ function AssessmentDoublesBoard({ number }: { number: number }) {
           strokeWidth="8"
         />
 
-        <g transform={`rotate(${rotation} 60 60)`}>
+        <g
+          transform={`rotate(${rotation} 60 60)`}
+        >
           <circle
             cx="60"
             cy="60"
@@ -291,7 +424,12 @@ function AssessmentDoublesBoard({ number }: { number: number }) {
           />
         </g>
 
-        <circle cx="60" cy="60" r="22" fill="#020617" />
+        <circle
+          cx="60"
+          cy="60"
+          r="22"
+          fill="#020617"
+        />
 
         <text
           x="60"

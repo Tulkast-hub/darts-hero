@@ -389,7 +389,7 @@ export default function Shell() {
                   fontWeight: 800,
                 }}
               >
-                {t("Game")}{" "}
+                {t("Assessment - Game")}{" "}
                 {
                   assessmentGameNumber
                 }{" "}
