@@ -54,6 +54,16 @@ export default function SkillsAssessmentPage() {
         {
           darts: 6,
           visits: 2,
+          visitScores: [
+            {
+              score: 61,
+              doubleDarts: 1,
+            },
+            {
+              score: 40,
+              doubleDarts: 1,
+            },
+          ],
           checkoutDarts: 3,
           doubleDarts: 2,
           checkoutDoubleDarts: 1,
@@ -61,6 +71,16 @@ export default function SkillsAssessmentPage() {
         {
           darts: 5,
           visits: 2,
+          visitScores: [
+            {
+              score: 61,
+              doubleDarts: 1,
+            },
+            {
+              score: 40,
+              doubleDarts: 2,
+            },
+          ],
           checkoutDarts: 2,
           doubleDarts: 3,
           checkoutDoubleDarts: 2,
@@ -68,6 +88,20 @@ export default function SkillsAssessmentPage() {
         {
           darts: 7,
           visits: 3,
+          visitScores: [
+            {
+              score: 60,
+              doubleDarts: 0,
+            },
+            {
+              score: 9,
+              doubleDarts: 1,
+            },
+            {
+              score: 32,
+              doubleDarts: 1,
+            },
+          ],
           checkoutDarts: 1,
           doubleDarts: 2,
           checkoutDoubleDarts: 1,
@@ -75,6 +109,16 @@ export default function SkillsAssessmentPage() {
         {
           darts: 6,
           visits: 2,
+          visitScores: [
+            {
+              score: 61,
+              doubleDarts: 2,
+            },
+            {
+              score: 40,
+              doubleDarts: 2,
+            },
+          ],
           checkoutDarts: 3,
           doubleDarts: 4,
           checkoutDoubleDarts: 2,
@@ -82,6 +126,16 @@ export default function SkillsAssessmentPage() {
         {
           darts: 5,
           visits: 2,
+          visitScores: [
+            {
+              score: 61,
+              doubleDarts: 1,
+            },
+            {
+              score: 40,
+              doubleDarts: 1,
+            },
+          ],
           checkoutDarts: 2,
           doubleDarts: 2,
           checkoutDoubleDarts: 1,
@@ -99,7 +153,16 @@ export default function SkillsAssessmentPage() {
         {
           darts: 6,
           visits: 2,
-          visitScores: [110, 60],
+          visitScores: [
+            {
+              score: 110,
+              doubleDarts: 1,
+            },
+            {
+              score: 60,
+              doubleDarts: 1,
+            },
+          ],
           checkoutDarts: 3,
           doubleDarts: 2,
           checkoutDoubleDarts: 1,
@@ -107,7 +170,20 @@ export default function SkillsAssessmentPage() {
         {
           darts: 7,
           visits: 3,
-          visitScores: [100, 38, 32],
+          visitScores: [
+            {
+              score: 100,
+              doubleDarts: 0,
+            },
+            {
+              score: 38,
+              doubleDarts: 2,
+            },
+            {
+              score: 32,
+              doubleDarts: 1,
+            },
+          ],
           checkoutDarts: 1,
           doubleDarts: 3,
           checkoutDoubleDarts: 1,
@@ -115,7 +191,16 @@ export default function SkillsAssessmentPage() {
         {
           darts: 6,
           visits: 2,
-          visitScores: [96, 74],
+          visitScores: [
+            {
+              score: 96,
+              doubleDarts: 1,
+            },
+            {
+              score: 74,
+              doubleDarts: 1,
+            },
+          ],
           checkoutDarts: 3,
           doubleDarts: 2,
           checkoutDoubleDarts: 1,
@@ -123,7 +208,20 @@ export default function SkillsAssessmentPage() {
         {
           darts: 8,
           visits: 3,
-          visitScores: [85, 45, 40],
+          visitScores: [
+            {
+              score: 85,
+              doubleDarts: 0,
+            },
+            {
+              score: 45,
+              doubleDarts: 2,
+            },
+            {
+              score: 40,
+              doubleDarts: 2,
+            },
+          ],
           checkoutDarts: 2,
           doubleDarts: 4,
           checkoutDoubleDarts: 2,
@@ -131,7 +229,20 @@ export default function SkillsAssessmentPage() {
         {
           darts: 7,
           visits: 3,
-          visitScores: [95, 43, 32],
+          visitScores: [
+            {
+              score: 95,
+              doubleDarts: 0,
+            },
+            {
+              score: 43,
+              doubleDarts: 2,
+            },
+            {
+              score: 32,
+              doubleDarts: 1,
+            },
+          ],
           checkoutDarts: 1,
           doubleDarts: 3,
           checkoutDoubleDarts: 1,
@@ -170,12 +281,30 @@ export default function SkillsAssessmentPage() {
           darts: 18,
           visits: 6,
           visitScores: [
-            100,
-            81,
-            95,
-            85,
-            100,
-            40,
+            {
+              score: 100,
+              doubleDarts: 0,
+            },
+            {
+              score: 81,
+              doubleDarts: 0,
+            },
+            {
+              score: 95,
+              doubleDarts: 0,
+            },
+            {
+              score: 85,
+              doubleDarts: 0,
+            },
+            {
+              score: 100,
+              doubleDarts: 1,
+            },
+            {
+              score: 40,
+              doubleDarts: 1,
+            },
           ],
           checkoutDarts: 3,
           doubleDarts: 2,
@@ -185,13 +314,34 @@ export default function SkillsAssessmentPage() {
           darts: 19,
           visits: 7,
           visitScores: [
-            85,
-            100,
-            81,
-            96,
-            79,
-            40,
-            20,
+            {
+              score: 85,
+              doubleDarts: 0,
+            },
+            {
+              score: 100,
+              doubleDarts: 0,
+            },
+            {
+              score: 81,
+              doubleDarts: 0,
+            },
+            {
+              score: 96,
+              doubleDarts: 0,
+            },
+            {
+              score: 79,
+              doubleDarts: 1,
+            },
+            {
+              score: 40,
+              doubleDarts: 1,
+            },
+            {
+              score: 20,
+              doubleDarts: 1,
+            },
           ],
           checkoutDarts: 1,
           doubleDarts: 3,
@@ -201,12 +351,30 @@ export default function SkillsAssessmentPage() {
           darts: 17,
           visits: 6,
           visitScores: [
-            100,
-            100,
-            85,
-            96,
-            80,
-            40,
+            {
+              score: 100,
+              doubleDarts: 0,
+            },
+            {
+              score: 100,
+              doubleDarts: 0,
+            },
+            {
+              score: 85,
+              doubleDarts: 0,
+            },
+            {
+              score: 96,
+              doubleDarts: 0,
+            },
+            {
+              score: 80,
+              doubleDarts: 1,
+            },
+            {
+              score: 40,
+              doubleDarts: 1,
+            },
           ],
           checkoutDarts: 2,
           doubleDarts: 2,
@@ -216,13 +384,34 @@ export default function SkillsAssessmentPage() {
           darts: 20,
           visits: 7,
           visitScores: [
-            81,
-            85,
-            100,
-            60,
-            95,
-            40,
-            40,
+            {
+              score: 81,
+              doubleDarts: 0,
+            },
+            {
+              score: 85,
+              doubleDarts: 0,
+            },
+            {
+              score: 100,
+              doubleDarts: 0,
+            },
+            {
+              score: 60,
+              doubleDarts: 0,
+            },
+            {
+              score: 95,
+              doubleDarts: 1,
+            },
+            {
+              score: 40,
+              doubleDarts: 1,
+            },
+            {
+              score: 40,
+              doubleDarts: 2,
+            },
           ],
           checkoutDarts: 2,
           doubleDarts: 4,
@@ -232,11 +421,26 @@ export default function SkillsAssessmentPage() {
           darts: 15,
           visits: 5,
           visitScores: [
-            100,
-            100,
-            100,
-            101,
-            100,
+            {
+              score: 100,
+              doubleDarts: 0,
+            },
+            {
+              score: 100,
+              doubleDarts: 0,
+            },
+            {
+              score: 100,
+              doubleDarts: 0,
+            },
+            {
+              score: 101,
+              doubleDarts: 0,
+            },
+            {
+              score: 100,
+              doubleDarts: 1,
+            },
           ],
           checkoutDarts: 3,
           doubleDarts: 1,
@@ -351,17 +555,18 @@ export default function SkillsAssessmentPage() {
         >
           {t("Start Assessment")}
         </button>
+
         <button
-  type="button"
-  className="btn outline"
-  style={{
-    width: "100%",
-    marginTop: 12,
-  }}
-  onClick={loadTestAssessment}
->
-  Load test results
-</button>
+          type="button"
+          className="btn outline"
+          style={{
+            width: "100%",
+            marginTop: 12,
+          }}
+          onClick={loadTestAssessment}
+        >
+          Load test results
+        </button>
       </div>
     </div>
   );
