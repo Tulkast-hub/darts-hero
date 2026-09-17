@@ -39,33 +39,8 @@ type CalibrationPoint = {
  * --------------------------------------------------
  * CALIBRATION CURVES
  * --------------------------------------------------
- *
- * These curves deliberately become harder
- * at the upper end.
- *
- * The goal is that the normalized 0–100 score
- * roughly represents equivalent real-world
- * 501 ability:
- *
- * 0–19   Bronze
- * 20–39  Silver
- * 40–59  Gold
- * 60–79  Platinum
- * 80–100 Diamond
  */
 
-/*
- * 501 three-dart average.
- *
- * Approximate reference:
- *
- * 40 avg -> Silver 1
- * 55 avg -> Gold 1
- * 70 avg -> Platinum 1
- * 79 avg -> around Platinum 3
- * 85 avg -> Diamond 1
- * 95 avg -> Diamond 5
- */
 const OVERALL_AVERAGE_CURVE: CalibrationPoint[] = [
   { raw: 20, score: 0 },
   { raw: 30, score: 5 },
@@ -84,15 +59,6 @@ const OVERALL_AVERAGE_CURVE: CalibrationPoint[] = [
   { raw: 95, score: 100 },
 ];
 
-/*
- * Combined scoring average.
- *
- * Scoring drill + pure scoring phase from 501.
- *
- * This is intentionally a little more demanding
- * than a simple linear mapping because sustained
- * 80+ scoring is already strong club-level darts.
- */
 const SCORING_CURVE: CalibrationPoint[] = [
   { raw: 25, score: 0 },
   { raw: 35, score: 10 },
@@ -110,14 +76,6 @@ const SCORING_CURVE: CalibrationPoint[] = [
   { raw: 120, score: 100 },
 ];
 
-/*
- * Doubles percentage.
- *
- * 20% is respectable lower-level conversion.
- * 30% is strong.
- * 40%+ is very strong.
- * 50% is intentionally close to the top.
- */
 const DOUBLES_CURVE: CalibrationPoint[] = [
   { raw: 5, score: 0 },
   { raw: 10, score: 10 },
@@ -132,14 +90,6 @@ const DOUBLES_CURVE: CalibrationPoint[] = [
   { raw: 60, score: 100 },
 ];
 
-/*
- * Setup Play is already produced as a 0–100
- * raw efficiency metric, but we don't want a
- * raw 80 to automatically mean Diamond.
- *
- * High setup scores should become progressively
- * harder to convert into the top ranks.
- */
 const SETUP_CURVE: CalibrationPoint[] = [
   { raw: 20, score: 0 },
   { raw: 35, score: 10 },
@@ -155,44 +105,103 @@ const SETUP_CURVE: CalibrationPoint[] = [
 ];
 
 /*
- * Finishing is also already 0–100 raw.
+ * Finishing efficiency is already produced as
+ * a normalized 0–100 skill-like value from:
  *
- * It is calibrated separately so average finishing
- * performance does not become a high rank too easily.
+ * 65% finishing opportunity performance
+ * 35% double efficiency
+ *
+ * So we do not apply a second harsh curve.
  */
 const FINISHING_CURVE: CalibrationPoint[] = [
-  { raw: 15, score: 0 },
-  { raw: 25, score: 10 },
-  { raw: 35, score: 20 },
-  { raw: 45, score: 32 },
-  { raw: 55, score: 44 },
-  { raw: 65, score: 57 },
-  { raw: 75, score: 68 },
-  { raw: 82, score: 76 },
-  { raw: 88, score: 84 },
-  { raw: 94, score: 92 },
+  { raw: 0, score: 0 },
+  { raw: 20, score: 20 },
+  { raw: 40, score: 40 },
+  { raw: 60, score: 60 },
+  { raw: 80, score: 80 },
   { raw: 100, score: 100 },
 ];
 
 /*
- * Consistency is already a 0–100 raw score.
+ * Checkout opportunity average.
  *
- * Very high consistency should be difficult,
- * especially because perfect stability is not
- * realistic over many real scoring visits.
+ * Successful higher checkouts help, but they
+ * aren't required to achieve a strong score.
+ *
+ * Because failed opportunities contribute 0,
+ * even an average of 30–40 is already strong.
+ */
+const FINISHING_OPPORTUNITY_CURVE: CalibrationPoint[] = [
+  { raw: 0, score: 0 },
+  { raw: 10, score: 20 },
+  { raw: 15, score: 30 },
+  { raw: 20, score: 40 },
+  { raw: 25, score: 50 },
+  { raw: 30, score: 60 },
+  { raw: 35, score: 68 },
+  { raw: 40, score: 75 },
+  { raw: 50, score: 84 },
+  { raw: 60, score: 90 },
+  { raw: 70, score: 95 },
+  { raw: 80, score: 98 },
+  { raw: 100, score: 100 },
+];
+
+/*
+ * Consistency:
+ *
+ * Very high consistency should genuinely require
+ * very strong repeatability.
+ *
+ * Around 90 raw is required to enter Diamond.
  */
 const CONSISTENCY_CURVE: CalibrationPoint[] = [
-  { raw: 20, score: 0 },
-  { raw: 35, score: 10 },
-  { raw: 45, score: 20 },
-  { raw: 55, score: 32 },
-  { raw: 65, score: 44 },
-  { raw: 72, score: 55 },
-  { raw: 78, score: 64 },
-  { raw: 84, score: 72 },
-  { raw: 89, score: 80 },
-  { raw: 94, score: 90 },
+  { raw: 0, score: 0 },
+  { raw: 40, score: 5 },
+  { raw: 50, score: 12 },
+  { raw: 60, score: 25 },
+  { raw: 70, score: 40 },
+  { raw: 75, score: 50 },
+  { raw: 80, score: 60 },
+  { raw: 85, score: 70 },
+  { raw: 90, score: 80 },
+  { raw: 95, score: 90 },
   { raw: 100, score: 100 },
+];
+
+/*
+ * Score one visit relative to the player's
+ * own scoring baseline.
+ *
+ * Scores above baseline never hurt consistency.
+ */
+const CONSISTENCY_VISIT_CURVE: CalibrationPoint[] = [
+  { raw: 0, score: 0 },
+  { raw: 30, score: 5 },
+  { raw: 40, score: 25 },
+  { raw: 50, score: 45 },
+  { raw: 60, score: 70 },
+  { raw: 70, score: 88 },
+  { raw: 75, score: 94 },
+  { raw: 85, score: 98 },
+  { raw: 100, score: 100 },
+];
+
+/*
+ * Extra penalty for repeated genuinely poor visits.
+ *
+ * Poor = below 60% of the player's baseline.
+ */
+const CONSISTENCY_LOW_VISIT_MULTIPLIER_CURVE: CalibrationPoint[] = [
+  { raw: 0, score: 100 },
+  { raw: 10, score: 98 },
+  { raw: 20, score: 94 },
+  { raw: 30, score: 88 },
+  { raw: 40, score: 80 },
+  { raw: 50, score: 70 },
+  { raw: 60, score: 58 },
+  { raw: 70, score: 45 },
+  { raw: 100, score: 30 },
 ];
 
 export function calculateAssessmentMetrics(
@@ -221,9 +230,22 @@ export function calculateAssessmentMetrics(
     ...game501ScoringVisits,
   ];
 
+  /*
+   * Consistency baseline should represent
+   * the player's actual average scoring visit.
+   *
+   * This is deliberately separate from the
+   * 50/50 weighting used by the Scoring metric.
+   */
+  const consistencyBaseline =
+    calculateAverage(
+      consistencyVisits
+    );
+
   const consistencyScore =
     calculateConsistency(
-      consistencyVisits
+      consistencyVisits,
+      consistencyBaseline
     );
 
   const setupEfficiency =
@@ -350,15 +372,6 @@ export function getEquivalentLevel(
     value -
     safeBandIndex * 20;
 
-  /*
-   * Each inner level spans 4 points.
-   *
-   * Example:
-   *
-   * 20–23.99 -> Silver 1
-   * 24–27.99 -> Silver 2
-   * 40–43.99 -> Gold 1
-   */
   const level =
     Math.min(
       5,
@@ -385,9 +398,6 @@ function calculateDoublesPercentage(
   let attempts = 0;
   let hits = 0;
 
-  /*
-   * Around the World Doubles.
-   */
   if (results.doubles) {
     attempts +=
       results.doubles.dartsThrown;
@@ -396,12 +406,6 @@ function calculateDoublesPercentage(
       results.doubles.doublesHit;
   }
 
-  /*
-   * 101 Double Out.
-   *
-   * Each completed leg contains one
-   * successful final double.
-   */
   if (results.checkout101) {
     for (
       const leg of
@@ -414,9 +418,6 @@ function calculateDoublesPercentage(
     }
   }
 
-  /*
-   * 170 Finish.
-   */
   if (results.finish170) {
     for (
       const attempt of
@@ -429,9 +430,6 @@ function calculateDoublesPercentage(
     }
   }
 
-  /*
-   * 501.
-   */
   if (results.game501) {
     for (
       const leg of
@@ -481,13 +479,12 @@ function get501ScoringVisits(
       const remainderBefore =
         remainder;
 
-      /*
-       * Treat >200 as the pure scoring phase.
-       */
       if (
         remainderBefore > 200
       ) {
-        scoringVisits.push(score);
+        scoringVisits.push(
+          score
+        );
       }
 
       remainder -= score;
@@ -511,12 +508,6 @@ function calculateCombinedScoringAverage(
       game501Visits
     );
 
-  /*
-   * Equal weighting between:
-   *
-   * - dedicated scoring test
-   * - 501 scoring phase
-   */
   if (
     dedicatedVisits.length > 0 &&
     game501Visits.length > 0
@@ -555,94 +546,82 @@ function calculateCombinedScoringAverage(
  */
 
 function calculateConsistency(
-  values: number[]
+  values: number[],
+  scoringBaseline: number
 ): number {
-  if (values.length < 2) {
-    return 0;
-  }
-
-  const mean =
-    calculateAverage(values);
-
-  if (mean <= 0) {
-    return 0;
-  }
-
-  /*
-   * Stability around the player's own average.
-   */
-  const averageDeviation =
-    values.reduce(
-      (sum, value) =>
-        sum +
-        Math.abs(
-          value - mean
-        ),
-      0
-    ) / values.length;
-
-  const relativeDeviation =
-    averageDeviation / mean;
-
-  const stabilityScore =
-    clamp(
-      100 -
-        relativeDeviation *
-          200,
-      0,
-      100
-    );
-
-  /*
-   * Additional penalty for very low
-   * visits relative to the player's average.
-   */
-  const lowOutlierThreshold =
-    mean * 0.55;
-
-  let lowOutlierSeverity = 0;
-
-  for (
-    const value of values
+  if (
+    values.length < 2 ||
+    scoringBaseline <= 0
   ) {
-    if (
-      value >=
-      lowOutlierThreshold
-    ) {
-      continue;
-    }
-
-    const severity =
-      (
-        lowOutlierThreshold -
-        value
-      ) /
-      lowOutlierThreshold;
-
-    lowOutlierSeverity +=
-      clamp(
-        severity,
-        0,
-        1
-      );
+    return 0;
   }
 
-  const averageOutlierSeverity =
-    lowOutlierSeverity /
-    values.length;
+  const visitConsistencyScores =
+    values.map((value) => {
+      const ratioPercentage =
+        (
+          value /
+          scoringBaseline
+        ) * 100;
 
-  const outlierScore =
-    clamp(
-      100 -
-        averageOutlierSeverity *
-          250,
-      0,
-      100
+      /*
+       * Scores above the player's expected
+       * scoring level never hurt consistency.
+       */
+      if (
+        ratioPercentage >= 100
+      ) {
+        return 100;
+      }
+
+      return normalizeFromCurve(
+        ratioPercentage,
+        CONSISTENCY_VISIT_CURVE
+      );
+    });
+
+  const baseConsistency =
+    calculateAverage(
+      visitConsistencyScores
     );
+
+  /*
+   * Visits under 60% of baseline are considered
+   * genuinely poor visits.
+   */
+  const lowVisitThreshold =
+    scoringBaseline * 0.6;
+
+  const lowVisitCount =
+    values.filter(
+      (value) =>
+        value <
+        lowVisitThreshold
+    ).length;
+
+  const lowVisitPercentage =
+    (
+      lowVisitCount /
+      values.length
+    ) * 100;
+
+  const multiplierPercentage =
+    normalizeFromCurve(
+      lowVisitPercentage,
+      CONSISTENCY_LOW_VISIT_MULTIPLIER_CURVE
+    );
+
+  const lowVisitMultiplier =
+    multiplierPercentage /
+    100;
 
   return round1(
-    stabilityScore * 0.7 +
-      outlierScore * 0.3
+    clamp(
+      baseConsistency *
+        lowVisitMultiplier,
+      0,
+      100
+    )
   );
 }
 
@@ -658,9 +637,6 @@ function calculateSetupEfficiency(
   const setupScores: number[] =
     [];
 
-  /*
-   * 170 Finish.
-   */
   if (results.finish170) {
     for (
       const attempt of
@@ -697,9 +673,6 @@ function calculateSetupEfficiency(
     }
   }
 
-  /*
-   * 501 setup phase.
-   */
   if (results.game501) {
     for (
       const leg of
@@ -751,30 +724,18 @@ function scoreSetupVisit(
   remainderBefore: number,
   remainderAfter: number
 ): number {
-  /*
-   * Completed checkout.
-   */
   if (
     remainderAfter <= 0
   ) {
     return 100;
   }
 
-  /*
-   * Reached a simple finishing position.
-   *
-   * We deliberately don't care which
-   * double the player leaves.
-   */
   if (
     remainderAfter <= 50
   ) {
     return 100;
   }
 
-  /*
-   * Reached a legal three-dart checkout.
-   */
   if (
     isLegalCheckout(
       remainderAfter
@@ -802,9 +763,6 @@ function scoreSetupVisit(
     );
   }
 
-  /*
-   * Reached <=170 but left a bogey number.
-   */
   if (
     remainderAfter <= 170
   ) {
@@ -830,9 +788,6 @@ function scoreSetupVisit(
     );
   }
 
-  /*
-   * Still outside checkout range.
-   */
   const progress =
     remainderBefore -
     remainderAfter;
@@ -881,23 +836,34 @@ function isLegalCheckout(
  * --------------------------------------------------
  * FINISHING
  * --------------------------------------------------
+ *
+ * Finishing now measures two distinct things:
+ *
+ * 65% - how well the player converts genuine
+ *       finishing opportunities
+ *
+ * 35% - how efficiently the player throws at
+ *       doubles
+ *
+ * Setup speed and whole-leg speed are deliberately
+ * excluded. Those belong to Setup / Scoring /
+ * Overall Average instead.
  */
 
 function calculateFinishingEfficiency(
   results: AssessmentResults
 ): number {
+  /*
+   * -----------------------------------------------
+   * 1. DOUBLE EFFICIENCY
+   * -----------------------------------------------
+   *
+   * This uses 101, 170 and 501.
+   */
+
   let totalDoubleAttempts = 0;
   let successfulDoubles = 0;
 
-  let checkoutDoubleAttempts = 0;
-  let checkoutSuccesses = 0;
-
-  const finishingDarts: number[] =
-    [];
-
-  /*
-   * 101 Double Out.
-   */
   if (results.checkout101) {
     for (
       const leg of
@@ -907,21 +873,9 @@ function calculateFinishingEfficiency(
         leg.doubleDarts;
 
       successfulDoubles += 1;
-
-      checkoutDoubleAttempts +=
-        leg.checkoutDoubleDarts;
-
-      checkoutSuccesses += 1;
-
-      finishingDarts.push(
-        leg.darts
-      );
     }
   }
 
-  /*
-   * 170 Finish.
-   */
   if (results.finish170) {
     for (
       const attempt of
@@ -931,23 +885,9 @@ function calculateFinishingEfficiency(
         attempt.doubleDarts;
 
       successfulDoubles += 1;
-
-      checkoutDoubleAttempts +=
-        attempt.checkoutDoubleDarts;
-
-      checkoutSuccesses += 1;
-
-      finishingDarts.push(
-        attempt.darts
-      );
     }
   }
 
-  /*
-   * 501 contributes its double efficiency,
-   * but not its whole-leg dart count because
-   * that would include the scoring phase.
-   */
   if (results.game501) {
     for (
       const leg of
@@ -957,62 +897,232 @@ function calculateFinishingEfficiency(
         leg.doubleDarts;
 
       successfulDoubles += 1;
-
-      checkoutDoubleAttempts +=
-        leg.checkoutDoubleDarts;
-
-      checkoutSuccesses += 1;
     }
   }
 
-  const doubleEfficiency =
+  const rawDoublePercentage =
     totalDoubleAttempts > 0
-      ? clamp(
-          (
-            successfulDoubles /
-            totalDoubleAttempts
-          ) * 100,
-          0,
-          100
-        )
+      ? (
+          successfulDoubles /
+          totalDoubleAttempts
+        ) * 100
       : 0;
 
-  const checkoutDoubleEfficiency =
-    checkoutDoubleAttempts > 0
-      ? clamp(
-          (
-            checkoutSuccesses /
-            checkoutDoubleAttempts
-          ) * 100,
-          0,
-          100
-        )
-      : 0;
-
-  const averageFinishingDarts =
-    calculateAverage(
-      finishingDarts
+  /*
+   * Use the same real-world doubles calibration
+   * as the Doubles category.
+   *
+   * It is only 35% of Finishing, so Finishing
+   * does not simply duplicate the Doubles metric.
+   */
+  const doubleEfficiencyScore =
+    normalizeFromCurve(
+      rawDoublePercentage,
+      DOUBLES_CURVE
     );
 
   /*
-   * Initial finishing-speed model.
+   * -----------------------------------------------
+   * 2. FINISHING OPPORTUNITIES
+   * -----------------------------------------------
+   *
+   * Each qualifying opportunity contributes:
+   *
+   * successful checkout -> adjusted checkout value
+   * failed opportunity  -> 0
+   *
+   * Mandatory opportunity:
+   * remainder before visit is 2–40.
+   *
+   * Successful higher checkout:
+   * always counts.
+   *
+   * Current storage limitation:
+   * failed higher checkouts cannot yet be identified
+   * reliably because per-visit double attempts are
+   * not stored.
    */
-  const finishingSpeed =
-    averageFinishingDarts > 0
-      ? clamp(
-          120 -
-            averageFinishingDarts *
-              8,
-          0,
-          100
-        )
-      : 0;
+
+  const opportunityValues: number[] =
+    [];
+
+  /*
+   * 170 Finish has visit-by-visit scoring data.
+   */
+  if (results.finish170) {
+    for (
+      const attempt of
+      results.finish170.attempts
+    ) {
+      collectFinishingOpportunities(
+        START_170_SCORE,
+        attempt.visitScores,
+        opportunityValues
+      );
+    }
+  }
+
+  /*
+   * 501 also has visit-by-visit scoring data.
+   */
+  if (results.game501) {
+    for (
+      const leg of
+      results.game501.legs
+    ) {
+      collectFinishingOpportunities(
+        START_501_SCORE,
+        leg.visitScores,
+        opportunityValues
+      );
+    }
+  }
+
+  const opportunityAverage =
+    calculateAverage(
+      opportunityValues
+    );
+
+  const opportunityScore =
+    normalizeFromCurve(
+      opportunityAverage,
+      FINISHING_OPPORTUNITY_CURVE
+    );
+
+  /*
+   * If for some reason there are no reconstructable
+   * finishing opportunities, use only double
+   * efficiency rather than artificially assigning
+   * a zero to 65% of the metric.
+   */
+  if (
+    opportunityValues.length === 0
+  ) {
+    return round1(
+      doubleEfficiencyScore
+    );
+  }
 
   return round1(
-    doubleEfficiency * 0.6 +
-      finishingSpeed * 0.25 +
-      checkoutDoubleEfficiency *
-        0.15
+    clamp(
+      opportunityScore * 0.65 +
+        doubleEfficiencyScore * 0.35,
+      0,
+      100
+    )
+  );
+}
+
+const START_170_SCORE = 170;
+const START_501_SCORE = 501;
+
+function collectFinishingOpportunities(
+  startScore: number,
+  visitScores: number[],
+  opportunities: number[]
+) {
+  let remainder =
+    startScore;
+
+  for (
+    const score of
+    visitScores
+  ) {
+    const remainderBefore =
+      remainder;
+
+    const remainderAfter =
+      remainderBefore -
+      score;
+
+    const checkoutCompleted =
+      remainderAfter <= 0;
+
+    /*
+     * Successful checkout from any value counts.
+     */
+    if (
+      checkoutCompleted
+    ) {
+      opportunities.push(
+        adjustedCheckoutValue(
+          remainderBefore
+        )
+      );
+
+      remainder =
+        remainderAfter;
+
+      continue;
+    }
+
+    /*
+     * Once the player begins a visit with
+     * 2–40 remaining, they should be expected
+     * to create a dart at double.
+     *
+     * Failure to finish therefore counts as 0,
+     * even if no actual double dart was recorded.
+     *
+     * Example:
+     *
+     * 39 left
+     * visit scores 39 without finishing correctly,
+     * or produces another non-checkout visit
+     *
+     * -> finishing opportunity = 0
+     */
+    if (
+      remainderBefore >= 2 &&
+      remainderBefore <= 40
+    ) {
+      opportunities.push(0);
+    }
+
+    /*
+     * Busts are currently stored as score 0,
+     * which correctly leaves the remainder
+     * unchanged here.
+     */
+    remainder =
+      remainderAfter;
+  }
+}
+
+/*
+ * High checkouts receive extra credit,
+ * but with diminishing returns.
+ *
+ * 20  -> 20
+ * 40  -> 40
+ * 60  -> 50
+ * 80  -> 60
+ * 100 -> 70
+ * 120 -> 80
+ * 160 -> 100
+ */
+function adjustedCheckoutValue(
+  checkout: number
+): number {
+  if (
+    checkout <= 0
+  ) {
+    return 0;
+  }
+
+  if (
+    checkout <= 40
+  ) {
+    return checkout;
+  }
+
+  return clamp(
+    40 +
+      (
+        checkout - 40
+      ) * 0.5,
+    0,
+    100
   );
 }
 
