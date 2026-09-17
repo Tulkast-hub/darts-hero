@@ -1017,42 +1017,54 @@ export default function Assessment101() {
             </div>
 
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(2, minmax(0, 1fr))",
-                gap: 10,
-                marginTop: 16,
-              }}
-            >
-              <div className="pill pill-stat">
-                <div className="pill-label">
-                  {t(
-                    "Darts / finish"
-                  )}
-                </div>
+  style={{
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(2, minmax(0, 1fr))",
+    gap: 10,
+    marginTop: 16,
+  }}
+>
+  <div className="pill pill-stat">
+    <div className="pill-label">
+      {t("Leg")}
+    </div>
 
-                <div className="pill-value">
-                  {dartsPerFinish ??
-                    "—"}
-                </div>
-              </div>
+    <div className="pill-value">
+      {leg}/{TOTAL_LEGS}
+    </div>
+  </div>
 
-              <div className="pill pill-stat">
-                <div className="pill-label">
-                  {t(
-                    "Double %"
-                  )}
-                </div>
+  <div className="pill pill-stat">
+    <div className="pill-label">
+      {t("Visits")}
+    </div>
 
-                <div className="pill-value">
-                  {
-                    runningDoublePercentage
-                  }
-                  %
-                </div>
-              </div>
-            </div>
+    <div className="pill-value">
+      {visitsInLeg}
+    </div>
+  </div>
+
+  <div className="pill pill-stat">
+    <div className="pill-label">
+      {t("Darts / finish")}
+    </div>
+
+    <div className="pill-value">
+      {dartsPerFinish ?? "—"}
+    </div>
+  </div>
+
+  <div className="pill pill-stat">
+    <div className="pill-label">
+      {t("Double %")}
+    </div>
+
+    <div className="pill-value">
+      {runningDoublePercentage}%
+    </div>
+  </div>
+</div>
           </div>
         </div>
       </div>
