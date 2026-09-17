@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+export type AssessmentVisit = {
+  score: number;
+  doubleDarts: number;
+};
+
 export type DoublesAssessmentResult = {
   dartsThrown: number;
   doublesHit: number;
@@ -10,6 +15,7 @@ export type DoublesAssessmentResult = {
 export type Checkout101LegResult = {
   darts: number;
   visits: number;
+  visitScores: AssessmentVisit[];
   checkoutDarts: number;
   doubleDarts: number;
   checkoutDoubleDarts: number;
@@ -21,18 +27,10 @@ export type Checkout101AssessmentResult = {
   averageDarts: number;
 };
 
-export type AssessmentResults = {
-  doubles?: DoublesAssessmentResult;
-  checkout101?: Checkout101AssessmentResult;
-  finish170?: Finish170AssessmentResult;
-  scoring?: ScoringAssessmentResult;
-  game501?: Game501AssessmentResult;
-};
-
 export type Finish170AttemptResult = {
   darts: number;
   visits: number;
-  visitScores: number[];
+  visitScores: AssessmentVisit[];
   checkoutDarts: number;
   doubleDarts: number;
   checkoutDoubleDarts: number;
@@ -53,7 +51,7 @@ export type ScoringAssessmentResult = {
 export type Game501LegResult = {
   darts: number;
   visits: number;
-  visitScores: number[];
+  visitScores: AssessmentVisit[];
   checkoutDarts: number;
   doubleDarts: number;
   checkoutDoubleDarts: number;
@@ -66,10 +64,20 @@ export type Game501AssessmentResult = {
   threeDartAverage: number;
 };
 
+export type AssessmentResults = {
+  doubles?: DoublesAssessmentResult;
+  checkout101?: Checkout101AssessmentResult;
+  finish170?: Finish170AssessmentResult;
+  scoring?: ScoringAssessmentResult;
+  game501?: Game501AssessmentResult;
+};
+
 type AssessmentStore = {
   results: AssessmentResults;
 
-  setDoublesResult: (result: DoublesAssessmentResult) => void;
+  setDoublesResult: (
+    result: DoublesAssessmentResult
+  ) => void;
 
   setCheckout101Result: (
     result: Checkout101AssessmentResult
@@ -87,63 +95,63 @@ type AssessmentStore = {
     result: Game501AssessmentResult
   ) => void;
 
-
   resetAssessment: () => void;
 };
 
-export const useAssessmentStore = create<AssessmentStore>()(
-  persist(
-    (set) => ({
-  results: {},
+export const useAssessmentStore =
+  create<AssessmentStore>()(
+    persist(
+      (set) => ({
+        results: {},
 
-  setDoublesResult: (result) =>
-    set((state) => ({
-      results: {
-        ...state.results,
-        doubles: result,
-      },
-    })),
+        setDoublesResult: (result) =>
+          set((state) => ({
+            results: {
+              ...state.results,
+              doubles: result,
+            },
+          })),
 
-  setCheckout101Result: (result) =>
-    set((state) => ({
-      results: {
-        ...state.results,
-        checkout101: result,
-      },
-    })),
+        setCheckout101Result: (result) =>
+          set((state) => ({
+            results: {
+              ...state.results,
+              checkout101: result,
+            },
+          })),
 
-    setFinish170Result: (result) =>
-    set((state) => ({
-      results: {
-        ...state.results,
-        finish170: result,
-      },
-    })),
+        setFinish170Result: (result) =>
+          set((state) => ({
+            results: {
+              ...state.results,
+              finish170: result,
+            },
+          })),
 
-    setScoringResult: (result) =>
-    set((state) => ({
-      results: {
-        ...state.results,
-        scoring: result,
-      },
-    })),
+        setScoringResult: (result) =>
+          set((state) => ({
+            results: {
+              ...state.results,
+              scoring: result,
+            },
+          })),
 
-    setGame501Result: (result) =>
-    set((state) => ({
-      results: {
-        ...state.results,
-        game501: result,
-      },
-    })),
+        setGame501Result: (result) =>
+          set((state) => ({
+            results: {
+              ...state.results,
+              game501: result,
+            },
+          })),
 
-  resetAssessment: () => {
-    set({
-      results: {},
-    });
-  },
-}),
-{
-  name: "darts-hero-skills-assessment",
-}
-)
-)
+        resetAssessment: () => {
+          set({
+            results: {},
+          });
+        },
+      }),
+      {
+        name: "darts-hero-skills-assessment",
+      }
+    )
+  );

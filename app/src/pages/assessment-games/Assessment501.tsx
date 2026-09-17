@@ -4,7 +4,10 @@ import DartboardHighlight, {
   tokensToSegments,
 } from "../../ui/DartboardHighlight";
 import { useI18n } from "../../i18n/I18nProvider";
-import { useAssessmentStore } from "../../skills-assessment/useAssessmentStore";
+import {
+  useAssessmentStore,
+  type AssessmentVisit,
+} from "../../skills-assessment/useAssessmentStore";
 import {
   getSuggestedRoute,
   getValidDoubleDartCounts,
@@ -18,14 +21,14 @@ type VisitSnapshot = {
   remainder: number;
   leg: number;
   visitsInLeg: number;
-  visitScores: number[];
+  visitScores: AssessmentVisit[];
   doubleDartsInLeg: number;
 };
 
 type LegResult = {
   darts: number;
   visits: number;
-  visitScores: number[];
+  visitScores: AssessmentVisit[];
   checkoutDarts: number;
   doubleDarts: number;
   checkoutDoubleDarts: number;
@@ -58,8 +61,14 @@ export default function Assessment501() {
   const [remainder, setRemainder] = useState(START_SCORE);
   const [scoreInput, setScoreInput] = useState("");
   const [visitsInLeg, setVisitsInLeg] = useState(0);
-  const [visitScores, setVisitScores] = useState<number[]>([]);
-  const [doubleDartsInLeg, setDoubleDartsInLeg] = useState(0);
+
+  const [visitScores, setVisitScores] = useState<
+    AssessmentVisit[]
+  >([]);
+
+  const [doubleDartsInLeg, setDoubleDartsInLeg] =
+    useState(0);
+
   const [legs, setLegs] = useState<LegResult[]>([]);
   const [undoStack, setUndoStack] = useState<VisitSnapshot[]>([]);
   const [pendingDoubleVisit, setPendingDoubleVisit] =
@@ -206,6 +215,19 @@ export default function Assessment501() {
     ]);
   }
 
+  function addVisit(
+    score: number,
+    doubleDarts: number
+  ) {
+    setVisitScores((current) => [
+      ...current,
+      {
+        score,
+        doubleDarts,
+      },
+    ]);
+  }
+
   function processVisitScore(score: number) {
     /*
      * Successful checkout.
@@ -246,9 +268,7 @@ export default function Assessment501() {
         (current) => current + 1
       );
 
-      setVisitScores(
-        (current) => [...current, 0]
-      );
+      addVisit(0, 0);
 
       return;
     }
@@ -285,12 +305,7 @@ export default function Assessment501() {
           (current) => current + 1
         );
 
-        setVisitScores(
-          (current) => [
-            ...current,
-            score,
-          ]
-        );
+        addVisit(score, 0);
 
         return;
       }
@@ -319,9 +334,7 @@ export default function Assessment501() {
       (current) => current + 1
     );
 
-    setVisitScores(
-      (current) => [...current, score]
-    );
+    addVisit(score, 0);
   }
 
   function commitScore() {
@@ -358,6 +371,9 @@ export default function Assessment501() {
 
     /*
      * Non-finishing visit.
+     *
+     * Store the score together with the
+     * actual number of double attempts.
      */
     if (
       pendingDoubleVisit.type ===
@@ -373,11 +389,9 @@ export default function Assessment501() {
         (current) => current + 1
       );
 
-      setVisitScores(
-        (current) => [
-          ...current,
-          pendingDoubleVisit.score,
-        ]
+      addVisit(
+        pendingDoubleVisit.score,
+        doubleDarts
       );
 
       setDoubleDartsInLeg(
@@ -406,9 +420,12 @@ export default function Assessment501() {
       visitsInLeg * 3 +
       checkoutDarts;
 
-    const completedVisitScores = [
+    const completedVisitScores: AssessmentVisit[] = [
       ...visitScores,
-      remainder,
+      {
+        score: remainder,
+        doubleDarts,
+      },
     ];
 
     const totalDoubleDarts =
@@ -491,9 +508,7 @@ export default function Assessment501() {
       (current) => current + 1
     );
 
-    setVisitScores(
-      (current) => [...current, 0]
-    );
+    addVisit(0, 0);
   }
 
   function handleUndo() {
@@ -1182,7 +1197,7 @@ export default function Assessment501() {
                     visitScores[
                       visitScores.length -
                         1
-                    ]
+                    ].score
                   }
                 </div>
               </div>

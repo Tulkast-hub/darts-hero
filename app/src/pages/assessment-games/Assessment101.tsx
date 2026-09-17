@@ -4,7 +4,10 @@ import DartboardHighlight, {
   tokensToSegments,
 } from "../../ui/DartboardHighlight";
 import { useI18n } from "../../i18n/I18nProvider";
-import { useAssessmentStore } from "../../skills-assessment/useAssessmentStore";
+import {
+  useAssessmentStore,
+  type AssessmentVisit,
+} from "../../skills-assessment/useAssessmentStore";
 import {
   getSuggestedRoute,
   getValidDoubleDartCounts,
@@ -18,12 +21,14 @@ type VisitSnapshot = {
   remainder: number;
   leg: number;
   visitsInLeg: number;
+  visitScores: AssessmentVisit[];
   doubleDartsInLeg: number;
 };
 
 type LegResult = {
   darts: number;
   visits: number;
+  visitScores: AssessmentVisit[];
   checkoutDarts: number;
   doubleDarts: number;
   checkoutDoubleDarts: number;
@@ -56,9 +61,20 @@ export default function Assessment101() {
   const [remainder, setRemainder] = useState(START_SCORE);
   const [scoreInput, setScoreInput] = useState("");
   const [visitsInLeg, setVisitsInLeg] = useState(0);
-  const [doubleDartsInLeg, setDoubleDartsInLeg] = useState(0);
+
+  const [visitScores, setVisitScores] = useState<
+    AssessmentVisit[]
+  >([]);
+
+  const [doubleDartsInLeg, setDoubleDartsInLeg] =
+    useState(0);
+
   const [legs, setLegs] = useState<LegResult[]>([]);
-  const [undoStack, setUndoStack] = useState<VisitSnapshot[]>([]);
+
+  const [undoStack, setUndoStack] = useState<
+    VisitSnapshot[]
+  >([]);
+
   const [pendingDoubleVisit, setPendingDoubleVisit] =
     useState<PendingDoubleVisit | null>(null);
 
@@ -190,7 +206,21 @@ export default function Assessment101() {
         remainder,
         leg,
         visitsInLeg,
+        visitScores,
         doubleDartsInLeg,
+      },
+    ]);
+  }
+
+  function addVisit(
+    score: number,
+    doubleDarts: number
+  ) {
+    setVisitScores((current) => [
+      ...current,
+      {
+        score,
+        doubleDarts,
       },
     ]);
   }
@@ -222,6 +252,9 @@ export default function Assessment101() {
 
     /*
      * Bust.
+     *
+     * A bust scores 0 for the visit,
+     * so store score: 0.
      */
     if (
       nextRemainder < 0 ||
@@ -234,6 +267,8 @@ export default function Assessment101() {
       setVisitsInLeg(
         (current) => current + 1
       );
+
+      addVisit(0, 0);
 
       return;
     }
@@ -270,6 +305,8 @@ export default function Assessment101() {
           (current) => current + 1
         );
 
+        addVisit(score, 0);
+
         return;
       }
 
@@ -286,7 +323,8 @@ export default function Assessment101() {
     }
 
     /*
-     * Normal visit.
+     * Normal visit with no recorded
+     * darts at double.
      */
     pushUndoSnapshot();
 
@@ -296,6 +334,8 @@ export default function Assessment101() {
     setVisitsInLeg(
       (current) => current + 1
     );
+
+    addVisit(score, 0);
   }
 
   function commitScore() {
@@ -332,6 +372,9 @@ export default function Assessment101() {
 
     /*
      * Non-finishing visit.
+     *
+     * Store exactly how many darts were
+     * thrown at doubles during this visit.
      */
     if (
       pendingDoubleVisit.type ===
@@ -345,6 +388,11 @@ export default function Assessment101() {
 
       setVisitsInLeg(
         (current) => current + 1
+      );
+
+      addVisit(
+        pendingDoubleVisit.score,
+        doubleDarts
       );
 
       setDoubleDartsInLeg(
@@ -377,9 +425,23 @@ export default function Assessment101() {
       doubleDartsInLeg +
       doubleDarts;
 
+    /*
+     * The checkout visit itself also gets
+     * stored with its double-attempt count.
+     */
+    const completedVisitScores: AssessmentVisit[] = [
+      ...visitScores,
+      {
+        score: remainder,
+        doubleDarts,
+      },
+    ];
+
     const result: LegResult = {
       darts: totalDarts,
       visits: completedVisits,
+      visitScores:
+        completedVisitScores,
       checkoutDarts,
       doubleDarts:
         totalDoubleDarts,
@@ -393,6 +455,7 @@ export default function Assessment101() {
     ];
 
     setLegs(updatedLegs);
+
     setPendingDoubleVisit(null);
     setUndoStack([]);
     setScoreInput("");
@@ -424,8 +487,12 @@ export default function Assessment101() {
       (current) => current + 1
     );
 
-    setRemainder(START_SCORE);
+    setRemainder(
+      START_SCORE
+    );
+
     setVisitsInLeg(0);
+    setVisitScores([]);
     setDoubleDartsInLeg(0);
   }
 
@@ -437,6 +504,11 @@ export default function Assessment101() {
     setVisitsInLeg(
       (current) => current + 1
     );
+
+    /*
+     * Busts count as a zero-score visit.
+     */
+    addVisit(0, 0);
   }
 
   function handleUndo() {
@@ -460,6 +532,10 @@ export default function Assessment101() {
 
       setVisitsInLeg(
         previous.visitsInLeg
+      );
+
+      setVisitScores(
+        previous.visitScores
       );
 
       setDoubleDartsInLeg(
@@ -1017,54 +1093,62 @@ export default function Assessment101() {
             </div>
 
             <div
-  style={{
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(2, minmax(0, 1fr))",
-    gap: 10,
-    marginTop: 16,
-  }}
->
-  <div className="pill pill-stat">
-    <div className="pill-label">
-      {t("Leg")}
-    </div>
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(2, minmax(0, 1fr))",
+                gap: 10,
+                marginTop: 16,
+              }}
+            >
+              <div className="pill pill-stat">
+                <div className="pill-label">
+                  {t("Leg")}
+                </div>
 
-    <div className="pill-value">
-      {leg}/{TOTAL_LEGS}
-    </div>
-  </div>
+                <div className="pill-value">
+                  {leg}/{TOTAL_LEGS}
+                </div>
+              </div>
 
-  <div className="pill pill-stat">
-    <div className="pill-label">
-      {t("Visits")}
-    </div>
+              <div className="pill pill-stat">
+                <div className="pill-label">
+                  {t("Visits")}
+                </div>
 
-    <div className="pill-value">
-      {visitsInLeg}
-    </div>
-  </div>
+                <div className="pill-value">
+                  {visitsInLeg}
+                </div>
+              </div>
 
-  <div className="pill pill-stat">
-    <div className="pill-label">
-      {t("Darts / finish")}
-    </div>
+              <div className="pill pill-stat">
+                <div className="pill-label">
+                  {t(
+                    "Darts / finish"
+                  )}
+                </div>
 
-    <div className="pill-value">
-      {dartsPerFinish ?? "—"}
-    </div>
-  </div>
+                <div className="pill-value">
+                  {dartsPerFinish ??
+                    "—"}
+                </div>
+              </div>
 
-  <div className="pill pill-stat">
-    <div className="pill-label">
-      {t("Double %")}
-    </div>
+              <div className="pill pill-stat">
+                <div className="pill-label">
+                  {t(
+                    "Double %"
+                  )}
+                </div>
 
-    <div className="pill-value">
-      {runningDoublePercentage}%
-    </div>
-  </div>
-</div>
+                <div className="pill-value">
+                  {
+                    runningDoublePercentage
+                  }
+                  %
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -4,7 +4,10 @@ import DartboardHighlight, {
   tokensToSegments,
 } from "../../ui/DartboardHighlight";
 import { useI18n } from "../../i18n/I18nProvider";
-import { useAssessmentStore } from "../../skills-assessment/useAssessmentStore";
+import {
+  useAssessmentStore,
+  type AssessmentVisit,
+} from "../../skills-assessment/useAssessmentStore";
 import {
   getSuggestedRoute,
   getValidDoubleDartCounts,
@@ -18,14 +21,14 @@ type VisitSnapshot = {
   remainder: number;
   attempt: number;
   visitsInAttempt: number;
-  visitScores: number[];
+  visitScores: AssessmentVisit[];
   doubleDartsInAttempt: number;
 };
 
 type AttemptResult = {
   darts: number;
   visits: number;
-  visitScores: number[];
+  visitScores: AssessmentVisit[];
   checkoutDarts: number;
   doubleDarts: number;
   checkoutDoubleDarts: number;
@@ -58,9 +61,14 @@ export default function Assessment170() {
   const [remainder, setRemainder] = useState(START_SCORE);
   const [scoreInput, setScoreInput] = useState("");
   const [visitsInAttempt, setVisitsInAttempt] = useState(0);
-  const [visitScores, setVisitScores] = useState<number[]>([]);
+
+  const [visitScores, setVisitScores] = useState<
+    AssessmentVisit[]
+  >([]);
+
   const [doubleDartsInAttempt, setDoubleDartsInAttempt] =
     useState(0);
+
   const [attempts, setAttempts] = useState<AttemptResult[]>([]);
   const [undoStack, setUndoStack] = useState<VisitSnapshot[]>([]);
   const [pendingDoubleVisit, setPendingDoubleVisit] =
@@ -200,6 +208,19 @@ export default function Assessment170() {
     ]);
   }
 
+  function addVisit(
+    score: number,
+    doubleDarts: number
+  ) {
+    setVisitScores((current) => [
+      ...current,
+      {
+        score,
+        doubleDarts,
+      },
+    ]);
+  }
+
   function processVisitScore(score: number) {
     /*
      * Successful checkout.
@@ -240,9 +261,7 @@ export default function Assessment170() {
         (current) => current + 1
       );
 
-      setVisitScores(
-        (current) => [...current, 0]
-      );
+      addVisit(0, 0);
 
       return;
     }
@@ -279,12 +298,7 @@ export default function Assessment170() {
           (current) => current + 1
         );
 
-        setVisitScores(
-          (current) => [
-            ...current,
-            score,
-          ]
-        );
+        addVisit(score, 0);
 
         return;
       }
@@ -313,9 +327,7 @@ export default function Assessment170() {
       (current) => current + 1
     );
 
-    setVisitScores(
-      (current) => [...current, score]
-    );
+    addVisit(score, 0);
   }
 
   function commitScore() {
@@ -367,11 +379,9 @@ export default function Assessment170() {
         (current) => current + 1
       );
 
-      setVisitScores(
-        (current) => [
-          ...current,
-          pendingDoubleVisit.score,
-        ]
+      addVisit(
+        pendingDoubleVisit.score,
+        doubleDarts
       );
 
       setDoubleDartsInAttempt(
@@ -400,9 +410,12 @@ export default function Assessment170() {
       visitsInAttempt * 3 +
       checkoutDarts;
 
-    const completedScores = [
+    const completedVisitScores: AssessmentVisit[] = [
       ...visitScores,
-      remainder,
+      {
+        score: remainder,
+        doubleDarts,
+      },
     ];
 
     const totalDoubleDarts =
@@ -412,7 +425,8 @@ export default function Assessment170() {
     const result: AttemptResult = {
       darts: totalDarts,
       visits: completedVisits,
-      visitScores: completedScores,
+      visitScores:
+        completedVisitScores,
       checkoutDarts,
       doubleDarts:
         totalDoubleDarts,
@@ -479,9 +493,7 @@ export default function Assessment170() {
       (current) => current + 1
     );
 
-    setVisitScores(
-      (current) => [...current, 0]
-    );
+    addVisit(0, 0);
   }
 
   function handleUndo() {
@@ -1170,7 +1182,7 @@ export default function Assessment170() {
                     visitScores[
                       visitScores.length -
                         1
-                    ]
+                    ].score
                   }
                 </div>
               </div>
