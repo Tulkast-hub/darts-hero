@@ -1291,6 +1291,157 @@ select {
 }
 
 
+/*
+ * --------------------------------------------------
+ * STATS PAGE
+ * --------------------------------------------------
+ */
+
+ .stats-assessment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.stats-assessment-overall {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.stats-assessment-score {
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1.2;
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+.stats-assessment-score .muted {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/*
+ * Radar left, skills right.
+ */
+
+.stats-assessment-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.stats-assessment-radar {
+  min-width: 0;
+  width: 100%;
+}
+
+.stats-assessment-skills {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+/*
+ * Compact skill rows.
+ */
+
+.stats-skill-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  padding: 10px 12px;
+
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 10px;
+}
+
+.stats-skill-label {
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 0;
+}
+
+.stats-skill-result {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.stats-skill-value {
+  font-size: 18px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+  text-align: right;
+}
+
+/*
+ * Empty states.
+ */
+
+.stats-assessment-empty {
+  text-align: center;
+  padding: 24px 12px;
+}
+
+.stats-assessment-empty p {
+  max-width: 420px;
+  margin: 12px auto 20px;
+}
+
+.stats-history-empty {
+  margin-top: 16px;
+  padding: 20px 12px;
+  text-align: center;
+
+  border: 1px dashed rgba(148, 163, 184, 0.3);
+  border-radius: 12px;
+
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+/*
+ * Mobile / narrow screens.
+ */
+
+@media (max-width: 767px) {
+  .stats-assessment-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .stats-assessment-overall {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .stats-assessment-radar {
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+  }
+
+  .stats-assessment-skills {
+    gap: 6px;
+  }
+
+  .stats-skill-row {
+    padding: 9px 12px;
+  }
+}
+
+
 /* LIGHT MODE: white dartboard pattern on darker outer bg */
 :root {
   --bg-pattern: url("data:image/svg+xml;utf8,\
