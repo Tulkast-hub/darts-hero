@@ -37,6 +37,7 @@ export default function SkillsAssessmentPage() {
   }
 
   function loadTestAssessment() {
+    resetAssessment();
     /*
      * Doubles
      */
