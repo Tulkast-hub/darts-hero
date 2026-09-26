@@ -1,4 +1,15 @@
+
 // app/src/api.ts
+
+import type {
+  AssessmentResults,
+} from "./skills-assessment/useAssessmentStore";
+
+import type {
+  AssessmentRawMetrics,
+  AssessmentSkillScores,
+  AssessmentLevelBand,
+} from "./skills-assessment/assessmentMetrics";
 
 type Payload = any;
 
@@ -257,4 +268,149 @@ export async function confirmPasswordReset(input: {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+/*
+ * --------------------------------------------------
+ * SKILLS ASSESSMENT API
+ * --------------------------------------------------
+ *
+ * Assessments are stored independently from:
+ *
+ * - XP
+ * - Training sessions
+ * - The player's active rank
+ *
+ * All assessment endpoints use the authenticated
+ * PHP session cookie.
+ */
+
+/*
+ * Data submitted when an assessment is completed.
+ */
+export type SaveSkillsAssessmentInput = {
+  assessmentUuid: string;
+
+  gameResults: AssessmentResults;
+
+  rawMetrics: AssessmentRawMetrics;
+
+  skillScores: AssessmentSkillScores;
+
+  overallScore: number;
+
+  rankBand: AssessmentLevelBand;
+
+  rankLevel: number;
+
+  calculationVersion: number;
+};
+
+/*
+ * Response from POST /skills-assessments.
+ *
+ * alreadySaved is true when the same UUID
+ * has previously been submitted.
+ */
+export type SaveSkillsAssessmentResponse = {
+  ok: boolean;
+  id: number;
+  alreadySaved: boolean;
+};
+
+/*
+ * A summary record used by the Stats page.
+ *
+ * The history endpoint deliberately excludes
+ * full game results to keep the response small.
+ */
+export type SkillsAssessmentHistoryItem = {
+  id: number;
+
+  assessmentUuid: string;
+
+  overallScore: number;
+
+  rankBand: AssessmentLevelBand;
+
+  rankLevel: number;
+
+  rawMetrics: AssessmentRawMetrics;
+
+  skillScores: AssessmentSkillScores;
+
+  calculationVersion: number;
+
+  completedAt: string;
+};
+
+/*
+ * A complete saved assessment.
+ *
+ * Includes the original game results, so
+ * historical assessments can be reviewed
+ * without recalculating their original scores.
+ */
+export type SavedSkillsAssessment =
+  SkillsAssessmentHistoryItem & {
+    gameResults: AssessmentResults;
+  };
+
+export type SkillsAssessmentHistoryResponse = {
+  ok: boolean;
+  assessments: SkillsAssessmentHistoryItem[];
+};
+
+export type SkillsAssessmentDetailResponse = {
+  ok: boolean;
+  assessment: SavedSkillsAssessment;
+};
+
+/*
+ * Save a completed assessment.
+ *
+ * The same assessmentUuid must be reused
+ * for retries to avoid duplicate records.
+ */
+export async function saveSkillsAssessment(
+  input: SaveSkillsAssessmentInput
+): Promise<SaveSkillsAssessmentResponse> {
+  return apiFetch<SaveSkillsAssessmentResponse>(
+    "skills-assessments",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    }
+  );
+}
+
+/*
+ * Retrieve the authenticated player's
+ * assessment history.
+ *
+ * Newest assessments are returned first.
+ */
+export async function getSkillsAssessmentHistory():
+  Promise<SkillsAssessmentHistoryResponse> {
+  return apiFetch<SkillsAssessmentHistoryResponse>(
+    "skills-assessments",
+    {
+      method: "GET",
+    }
+  );
+}
+
+/*
+ * Retrieve one saved assessment, including
+ * its complete five-game results.
+ */
+export async function getSkillsAssessment(
+  id: number
+): Promise<SkillsAssessmentDetailResponse> {
+  return apiFetch<SkillsAssessmentDetailResponse>(
+    `skills-assessments/${id}`,
+    {
+      method: "GET",
+    }
+  );
 }

@@ -1,5 +1,6 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { saveSkillsAssessment } from "../../api";
 import { useAssessmentStore } from "../../skills-assessment/useAssessmentStore";
 import { useI18n } from "../../i18n/I18nProvider";
 import RankBadge from "../../ui/RankBadge";
@@ -19,6 +20,16 @@ export default function SkillsAssessmentResults() {
   const results = useAssessmentStore(
     (state) => state.results
   );
+
+  const ensureAssessmentUuid = useAssessmentStore(
+    (state) => state.ensureAssessmentUuid
+  );
+
+  type SaveStatus = "idle" | "saving" | "saved" | "error";
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [saveError, setSaveError] = useState("");
+  const savingUuidRef = useRef<string | null>(null);
+  const savedUuidRef = useRef<string | null>(null);
 
   const metrics = useMemo(
     () => calculateAssessmentMetrics(results),
@@ -153,6 +164,74 @@ export default function SkillsAssessmentResults() {
     ],
     [skillScores, t]
   );
+
+  /*
+   * Save the finished assessment once the results page opens.
+   * The UUID is persisted in the assessment store, and the PHP
+   * endpoint also deduplicates requests using that UUID.
+   */
+  const saveAssessment = useCallback(async () => {
+    if (!allComplete) return;
+
+    const uuid = ensureAssessmentUuid();
+
+    if (
+      savedUuidRef.current === uuid ||
+      savingUuidRef.current === uuid
+    ) {
+      return;
+    }
+
+    savingUuidRef.current = uuid;
+    setSaveStatus("saving");
+    setSaveError("");
+
+    try {
+      const response = await saveSkillsAssessment({
+        assessmentUuid: uuid,
+        gameResults: results,
+        rawMetrics: metrics,
+        skillScores,
+        overallScore,
+        rankBand: overallRank.band,
+        rankLevel: overallRank.level,
+        calculationVersion: 1,
+      });
+
+      if (!response.ok) {
+        throw new Error("Assessment could not be saved.");
+      }
+
+      savedUuidRef.current = uuid;
+      setSaveStatus("saved");
+    } catch (error) {
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "Assessment could not be saved."
+      );
+      setSaveStatus("error");
+    } finally {
+      if (savingUuidRef.current === uuid) {
+        savingUuidRef.current = null;
+      }
+    }
+  }, [
+    allComplete,
+    ensureAssessmentUuid,
+    results,
+    metrics,
+    skillScores,
+    overallScore,
+    overallRank.band,
+    overallRank.level,
+  ]);
+
+  useEffect(() => {
+    if (allComplete) {
+      void saveAssessment();
+    }
+  }, [allComplete, saveAssessment]);
 
   if (!allComplete) {
     return (
@@ -317,31 +396,30 @@ export default function SkillsAssessmentResults() {
           />
         </div>
 
-        <button
-          type="button"
-          className="btn"
-          style={{
-            width: "100%",
-            marginTop: 12,
-          }}
-          onClick={() => {
-            /*
-             * Later this will update
-             * the player's active
-             * profile level.
-             *
-             * It can also become the
-             * paywall entry point.
-             */
-            console.log(
-              "Assessment rank:",
-              overallRank.band,
-              overallRank.level
-            );
-          }}
+        <div
+          role="status"
+          aria-live="polite"
+          className="muted small"
+          style={{ marginTop: 16 }}
         >
-          {t("Use this level")}
-        </button>
+          {saveStatus === "saving" && t("Saving assessment…")}
+          {saveStatus === "saved" && t("Assessment saved to your account.")}
+          {saveStatus === "error" && (
+            <>
+              <span role="alert">
+                {t("Unable to save assessment")}: {saveError}
+              </span>
+              <button
+                type="button"
+                className="btn outline"
+                style={{ marginTop: 10, display: "block" }}
+                onClick={() => void saveAssessment()}
+              >
+                {t("Retry saving")}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div
@@ -599,9 +677,8 @@ export default function SkillsAssessmentResults() {
           style={{
             width: "100%",
           }}
-          onClick={() =>
-            nav("/")
-          }
+          onClick={() => nav("/")}
+          disabled={saveStatus !== "saved"}
         >
           {t("Finish")}
         </button>

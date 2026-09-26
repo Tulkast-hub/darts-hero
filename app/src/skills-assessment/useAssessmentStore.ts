@@ -1,3 +1,4 @@
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -72,8 +73,36 @@ export type AssessmentResults = {
   game501?: Game501AssessmentResult;
 };
 
+/*
+ * Generate a unique identifier for each
+ * assessment attempt.
+ *
+ * Staging and production use HTTPS, so
+ * crypto.randomUUID() is available.
+ */
+function createAssessmentUuid(): string {
+  return crypto.randomUUID();
+}
+
 type AssessmentStore = {
+  /*
+   * Identifier for the current assessment.
+   *
+   * null is allowed for assessments saved
+   * before this field was introduced.
+   */
+  assessmentUuid: string | null;
+
   results: AssessmentResults;
+
+  /*
+   * Return the existing assessment UUID
+   * or create one when it is missing.
+   *
+   * This is useful for existing persisted
+   * results and the test results loader.
+   */
+  ensureAssessmentUuid: () => string;
 
   setDoublesResult: (
     result: DoublesAssessmentResult
@@ -101,8 +130,34 @@ type AssessmentStore = {
 export const useAssessmentStore =
   create<AssessmentStore>()(
     persist(
-      (set) => ({
+      (set, get) => ({
+        assessmentUuid: null,
+
         results: {},
+
+        /*
+         * Keep the same UUID for the entire
+         * current assessment.
+         *
+         * Only create one if missing.
+         */
+        ensureAssessmentUuid: () => {
+          const existingUuid =
+            get().assessmentUuid;
+
+          if (existingUuid) {
+            return existingUuid;
+          }
+
+          const newUuid =
+            createAssessmentUuid();
+
+          set({
+            assessmentUuid: newUuid,
+          });
+
+          return newUuid;
+        },
 
         setDoublesResult: (result) =>
           set((state) => ({
@@ -144,14 +199,27 @@ export const useAssessmentStore =
             },
           })),
 
+        /*
+         * Start a fresh assessment.
+         *
+         * This clears only the current
+         * browser-stored assessment.
+         *
+         * Previously completed assessments
+         * saved in MariaDB are unaffected.
+         */
         resetAssessment: () => {
           set({
+            assessmentUuid:
+              createAssessmentUuid(),
+
             results: {},
           });
         },
       }),
       {
-        name: "darts-hero-skills-assessment",
+        name:
+          "darts-hero-skills-assessment",
       }
     )
   );
