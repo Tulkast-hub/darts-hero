@@ -1,6 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { saveSkillsAssessment } from "../../api";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  getSkillsAssessment,
+  saveSkillsAssessment,
+  type SavedSkillsAssessment,
+} from "../../api";
 import { useAssessmentStore } from "../../skills-assessment/useAssessmentStore";
 import { useI18n } from "../../i18n/I18nProvider";
 import RankBadge from "../../ui/RankBadge";
@@ -16,10 +20,61 @@ import {
 export default function SkillsAssessmentResults() {
   const { t } = useI18n();
   const nav = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isHistorical = id !== undefined;
 
-  const results = useAssessmentStore(
+  const activeResults = useAssessmentStore(
     (state) => state.results
   );
+
+  const [historicalAssessment, setHistoricalAssessment] =
+    useState<SavedSkillsAssessment | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(isHistorical);
+  const [historyError, setHistoryError] = useState("");
+  const [historyRetry, setHistoryRetry] = useState(0);
+
+  useEffect(() => {
+    if (!isHistorical) return;
+
+    const assessmentId = Number(id);
+    if (!Number.isSafeInteger(assessmentId) || assessmentId <= 0) {
+      setHistoricalAssessment(null);
+      setHistoryError("Invalid assessment ID.");
+      setHistoryLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setHistoricalAssessment(null);
+    setHistoryError("");
+    setHistoryLoading(true);
+
+    void getSkillsAssessment(assessmentId)
+      .then((response) => {
+        if (!cancelled) {
+          setHistoricalAssessment(response.assessment);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setHistoryError(
+            error instanceof Error
+              ? error.message
+              : "Could not load assessment."
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isHistorical, historyRetry]);
+
+  // Historical snapshots are read-only; never replace the active store.
+  const results = historicalAssessment?.gameResults ?? activeResults;
 
   const ensureAssessmentUuid = useAssessmentStore(
     (state) => state.ensureAssessmentUuid
@@ -32,32 +87,28 @@ export default function SkillsAssessmentResults() {
   const savedUuidRef = useRef<string | null>(null);
 
   const metrics = useMemo(
-    () => calculateAssessmentMetrics(results),
-    [results]
+    () => historicalAssessment?.rawMetrics ?? calculateAssessmentMetrics(results),
+    [historicalAssessment, results]
   );
 
   const skillScores = useMemo(
     () =>
-      calculateAssessmentSkillScores(
-        metrics
-      ),
-    [metrics]
+      historicalAssessment?.skillScores ?? calculateAssessmentSkillScores(metrics),
+    [historicalAssessment, metrics]
   );
 
   const overallScore = useMemo(
     () =>
-      calculateOverallSkillScore(
-        skillScores
-      ),
-    [skillScores]
+      historicalAssessment?.overallScore ?? calculateOverallSkillScore(skillScores),
+    [historicalAssessment, skillScores]
   );
 
   const overallRank = useMemo(
     () =>
-      getEquivalentLevel(
-        overallScore
-      ),
-    [overallScore]
+      historicalAssessment
+        ? { band: historicalAssessment.rankBand, level: historicalAssessment.rankLevel }
+        : getEquivalentLevel(overallScore),
+    [historicalAssessment, overallScore]
   );
 
   const doubles = results.doubles;
@@ -171,7 +222,7 @@ export default function SkillsAssessmentResults() {
    * endpoint also deduplicates requests using that UUID.
    */
   const saveAssessment = useCallback(async () => {
-    if (!allComplete) return;
+    if (isHistorical || !allComplete) return;
 
     const uuid = ensureAssessmentUuid();
 
@@ -218,6 +269,7 @@ export default function SkillsAssessmentResults() {
     }
   }, [
     allComplete,
+    isHistorical,
     ensureAssessmentUuid,
     results,
     metrics,
@@ -228,10 +280,36 @@ export default function SkillsAssessmentResults() {
   ]);
 
   useEffect(() => {
-    if (allComplete) {
+    if (!isHistorical && allComplete) {
       void saveAssessment();
     }
-  }, [allComplete, saveAssessment]);
+  }, [isHistorical, allComplete, saveAssessment]);
+
+  if (isHistorical && (historyLoading || historyError || !historicalAssessment)) {
+    return (
+      <div className="page">
+        <section className="hero card">
+          <div className="title">{t("Skills Assessment Results")}</div>
+          {historyLoading ? (
+            <p className="muted" role="status">{t("Loading assessment…")}</p>
+          ) : (
+            <>
+              <p role="alert">{historyError || "Assessment not found."}</p>
+              <button type="button" className="btn outline"
+                onClick={() => setHistoryRetry((value) => value + 1)}>
+                {t("Retry")}
+              </button>
+            </>
+          )}
+        </section>
+        <button type="button" className="btn outline"
+          style={{ marginTop: 16, width: "100%" }}
+          onClick={() => nav("/stats")}>
+          {t("Back to Stats")}
+        </button>
+      </div>
+    );
+  }
 
   if (!allComplete) {
     return (
@@ -268,13 +346,11 @@ export default function SkillsAssessmentResults() {
           }}
           onClick={() =>
             nav(
-              "/skills-assessment"
+              isHistorical ? "/stats" : "/skills-assessment"
             )
           }
         >
-          {t(
-            "Back to assessment"
-          )}
+          {t(isHistorical ? "Back to Stats" : "Back to assessment")}
         </button>
       </div>
     );
@@ -337,8 +413,11 @@ export default function SkillsAssessmentResults() {
                 marginTop: 4,
               }}
             >
-              {t(
-                "Overall assessment rating"
+              {t("Overall assessment rating")}
+              {historicalAssessment && (
+                <div style={{ marginTop: 4 }}>
+                  {t("Saved assessment")} · {historicalAssessment.completedAt}
+                </div>
               )}
             </div>
           </div>
@@ -396,7 +475,7 @@ export default function SkillsAssessmentResults() {
           />
         </div>
 
-        <div
+        {!isHistorical && <div
           role="status"
           aria-live="polite"
           className="muted small"
@@ -419,7 +498,7 @@ export default function SkillsAssessmentResults() {
               </button>
             </>
           )}
-        </div>
+        </div>}
       </div>
 
       <div
@@ -677,10 +756,10 @@ export default function SkillsAssessmentResults() {
           style={{
             width: "100%",
           }}
-          onClick={() => nav("/")}
-          disabled={saveStatus !== "saved"}
+          onClick={() => nav(isHistorical ? "/stats" : "/")}
+          disabled={!isHistorical && saveStatus !== "saved"}
         >
-          {t("Finish")}
+          {t(isHistorical ? "Back to Stats" : "Finish")}
         </button>
       </div>
     </div>

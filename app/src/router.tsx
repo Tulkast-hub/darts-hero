@@ -160,6 +160,11 @@ const router = createHashRouter([
         path: "stats",
         element: <StatsPage />,
       },
+      
+      {
+        path: "stats/assessment/:id",
+        element: <SkillsAssessmentResults />,
+      },
 
       {
         path: "leaderboard",
