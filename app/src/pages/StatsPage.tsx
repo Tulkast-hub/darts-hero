@@ -1,14 +1,20 @@
 
-import React, { useMemo } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import { useNavigate } from "react-router-dom";
 
 import { useI18n } from "../i18n/I18nProvider";
-import { useAssessmentStore } from "../skills-assessment/useAssessmentStore";
 
 import {
-  calculateAssessmentMetrics,
-  calculateAssessmentSkillScores,
-  calculateOverallSkillScore,
+  getSkillsAssessmentHistory,
+  type SkillsAssessmentHistoryItem,
+} from "../api";
+
+import {
   getEquivalentLevel,
 } from "../skills-assessment/assessmentMetrics";
 
@@ -16,42 +22,137 @@ import RankBadge from "../ui/RankBadge";
 import SkillsRadar from "../ui/SkillsRadar";
 
 export default function StatsPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const nav = useNavigate();
 
-  const results = useAssessmentStore(
-    (state) => state.results
+  /*
+   * Saved assessments from MariaDB.
+   *
+   * We no longer use Zustand for the Stats
+   * assessment overview.
+   */
+  const [assessments, setAssessments] = useState<
+    SkillsAssessmentHistoryItem[]
+  >([]);
+
+  const [
+    selectedAssessmentId,
+    setSelectedAssessmentId,
+  ] = useState<number | null>(null);
+
+  const [loading, setLoading] = useState(true);
+
+  const [error, setError] = useState<string | null>(
+    null
   );
 
-  const hasCompletedAssessment =
-    !!results.doubles &&
-    !!results.checkout101 &&
-    !!results.finish170 &&
-    !!results.scoring &&
-    !!results.game501;
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const metrics = useMemo(
-    () => calculateAssessmentMetrics(results),
-    [results]
-  );
+  /*
+   * Load saved assessment history.
+   */
+  useEffect(() => {
+    let cancelled = false;
 
-  const skillScores = useMemo(
-    () => calculateAssessmentSkillScores(metrics),
-    [metrics]
-  );
+    async function loadHistory() {
+      setLoading(true);
+      setError(null);
 
-  const overallScore = useMemo(
-    () => calculateOverallSkillScore(skillScores),
-    [skillScores]
-  );
+      try {
+        const response =
+          await getSkillsAssessmentHistory();
 
-  const overallRank = useMemo(
-    () => getEquivalentLevel(overallScore),
-    [overallScore]
-  );
+        if (cancelled) {
+          return;
+        }
 
-  const radarSkills = useMemo(
-    () => [
+        setAssessments(response.assessments);
+
+        /*
+         * Keep the selected record if it
+         * still exists after reloading.
+         *
+         * Otherwise select the newest.
+         */
+        setSelectedAssessmentId((previousId) => {
+          if (
+            previousId !== null &&
+            response.assessments.some(
+              (assessment) =>
+                assessment.id === previousId
+            )
+          ) {
+            return previousId;
+          }
+
+          return response.assessments[0]?.id ?? null;
+        });
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Could not load assessment history."
+        );
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
+
+  /*
+   * Resolve selected assessment.
+   *
+   * The API returns newest first.
+   */
+  const selectedAssessment = useMemo(() => {
+    if (!assessments.length) {
+      return null;
+    }
+
+    return (
+      assessments.find(
+        (assessment) =>
+          assessment.id === selectedAssessmentId
+      ) ?? assessments[0]
+    );
+  }, [
+    assessments,
+    selectedAssessmentId,
+  ]);
+
+  /*
+   * Use the historical snapshot.
+   *
+   * Do not recalculate old assessment scores
+   * with potentially newer formulas.
+   */
+  const skillScores =
+    selectedAssessment?.skillScores;
+
+  const overallScore =
+    selectedAssessment?.overallScore ?? 0;
+
+  /*
+   * Radar chart data.
+   */
+  const radarSkills = useMemo(() => {
+    if (!skillScores) {
+      return [];
+    }
+
+    return [
       {
         key: "doubles",
         label: t("Doubles"),
@@ -82,9 +183,74 @@ export default function StatsPage() {
         label: t("Consistency"),
         value: skillScores.consistency,
       },
-    ],
-    [skillScores, t]
-  );
+    ];
+  }, [skillScores, t]);
+
+  /*
+   * Format the date returned by MariaDB.
+   *
+   * Example:
+   * 2026-09-27 14:30:00
+   *
+   * We only need the calendar date here.
+   */
+  function formatAssessmentDate(
+    value: string
+  ): string {
+    const datePart =
+      value.split(/[ T]/)[0];
+
+    const parts =
+      datePart.split("-").map(Number);
+
+    if (
+      parts.length !== 3 ||
+      parts.some(
+        (part) => !Number.isFinite(part)
+      )
+    ) {
+      return value;
+    }
+
+    const [year, month, day] = parts;
+
+    const date = new Date(
+      year,
+      month - 1,
+      day
+    );
+
+    if (
+      date.getFullYear() !== year ||
+      date.getMonth() !== month - 1 ||
+      date.getDate() !== day
+    ) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat(
+      lang === "ro" ? "ro-RO" : "en-GB",
+      {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }
+    ).format(date);
+  }
+
+  function retryHistory() {
+    setReloadKey(
+      (value) => value + 1
+    );
+  }
+
+  function openAssessment(
+    id: number
+  ) {
+    nav(
+      `/stats/assessment/${id}`
+    );
+  }
 
   return (
     <div className="page">
@@ -161,32 +327,85 @@ export default function StatsPage() {
                 "Your measured performance across six skills."
               )}
             </p>
+
+            {selectedAssessment && !error && (
+              <div
+                className="muted small"
+                style={{
+                  marginTop: 6,
+                }}
+              >
+                {formatAssessmentDate(
+                  selectedAssessment.completedAt
+                )}
+              </div>
+            )}
           </div>
 
-          {hasCompletedAssessment && (
-            <div className="stats-assessment-overall">
-              <div>
-                <div className="muted small">
-                  {t("Overall score")}
+          {!loading &&
+            !error &&
+            selectedAssessment && (
+              <div className="stats-assessment-overall">
+                <div>
+                  <div className="muted small">
+                    {t("Overall score")}
+                  </div>
+
+                  <div className="stats-assessment-score">
+                    {overallScore}
+
+                    <span className="muted">
+                      {" "}/ 100
+                    </span>
+                  </div>
                 </div>
 
-                <div className="stats-assessment-score">
-                  {overallScore}
-                  <span className="muted">
-                    {" "}/ 100
-                  </span>
-                </div>
+                <RankBadge
+                  tier={selectedAssessment.rankBand}
+                  level={selectedAssessment.rankLevel}
+                />
               </div>
-
-              <RankBadge
-                tier={overallRank.band}
-                level={overallRank.level}
-              />
-            </div>
-          )}
+            )}
         </div>
 
-        {!hasCompletedAssessment ? (
+        {/* LOADING */}
+
+        {loading ? (
+          <div className="stats-assessment-empty">
+            <div
+              className="loader"
+              style={{
+                margin: "0 auto 12px",
+              }}
+            />
+
+            <p className="muted small">
+              {t("Loading assessment history...")}
+            </p>
+          </div>
+        ) : error ? (
+          /* API ERROR */
+
+          <div className="stats-assessment-empty">
+            <h3>
+              {t("Could not load assessments")}
+            </h3>
+
+            <p className="muted small">
+              {error}
+            </p>
+
+            <button
+              type="button"
+              className="btn outline"
+              onClick={retryHistory}
+            >
+              {t("Retry")}
+            </button>
+          </div>
+        ) : !selectedAssessment || !skillScores ? (
+          /* EMPTY STATE */
+
           <div className="stats-assessment-empty">
             <div
               style={{
@@ -218,6 +437,8 @@ export default function StatsPage() {
             </button>
           </div>
         ) : (
+          /* SAVED ASSESSMENT */
+
           <>
             <div className="stats-assessment-grid">
 
@@ -264,6 +485,8 @@ export default function StatsPage() {
               </div>
             </div>
 
+            {/* FULL RESULTS */}
+
             <button
               type="button"
               className="btn outline"
@@ -272,7 +495,9 @@ export default function StatsPage() {
                 marginTop: 16,
               }}
               onClick={() =>
-                nav("/skills-assessment/results")
+                openAssessment(
+                  selectedAssessment.id
+                )
               }
             >
               {t("View full assessment results")}
@@ -289,9 +514,26 @@ export default function StatsPage() {
           marginTop: 16,
         }}
       >
-        <h3 style={{ margin: 0 }}>
-          {t("Assessment History")}
-        </h3>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <h3 style={{ margin: 0 }}>
+            {t("Assessment History")}
+          </h3>
+
+          {!loading && !error && (
+            <span className="muted small">
+              {assessments.length}{" "}
+              {t("assessments")}
+            </span>
+          )}
+        </div>
 
         <p
           className="muted small"
@@ -301,13 +543,117 @@ export default function StatsPage() {
           }}
         >
           {t(
-            "Completed assessments will be saved to your account so you can review previous results and track your progress."
+            "Select a previous assessment to review its saved skills profile."
           )}
         </p>
 
-        <div className="stats-history-empty">
-          {t("Assessment history coming soon")}
-        </div>
+        {!loading &&
+        !error &&
+        assessments.length > 0 ? (
+          <div
+            style={{
+              display: "grid",
+              gap: 8,
+              marginTop: 16,
+            }}
+          >
+            {assessments.map((assessment) => {
+              const isSelected =
+                assessment.id ===
+                selectedAssessment?.id;
+
+              return (
+                <button
+                  key={assessment.id}
+                  type="button"
+                  aria-pressed={isSelected}
+                  onClick={() =>
+                    setSelectedAssessmentId(
+                      assessment.id
+                    )
+                  }
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 10,
+                    border: isSelected
+                      ? "2px solid var(--accent, #22c55e)"
+                      : "1px solid rgba(148, 163, 184, 0.2)",
+                    background: "transparent",
+                    color: "inherit",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    font: "inherit",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: 5,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontWeight: 800,
+                        fontSize: 14,
+                      }}
+                    >
+                      {formatAssessmentDate(
+                        assessment.completedAt
+                      )}
+                    </div>
+
+                    <div className="muted small">
+                      {isSelected
+                        ? t("Selected assessment")
+                        : t("View assessment")}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "flex-end",
+                      gap: 12,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <strong
+                      style={{
+                        fontSize: 18,
+                        fontVariantNumeric:
+                          "tabular-nums",
+                      }}
+                    >
+                      {assessment.overallScore}
+                    </strong>
+
+                    <RankBadge
+                      tier={assessment.rankBand}
+                      level={assessment.rankLevel}
+                    />
+
+                    <span
+                      className="muted"
+                      aria-hidden="true"
+                    >
+                      {isSelected ? "✓" : "›"}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : !loading && !error ? (
+          <div className="stats-history-empty">
+            {t("No saved assessments yet")}
+          </div>
+        ) : null}
       </section>
     </div>
   );
