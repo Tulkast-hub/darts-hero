@@ -577,11 +577,17 @@ function calculateConsistency(
   }
 
   /*
-   * Judge every visit relative to the
-   * player's own scoring level.
+   * --------------------------------------------------
+   * RELATIVE VISIT CONSISTENCY
+   * --------------------------------------------------
    *
-   * Higher-than-normal scores never hurt.
+   * First measure how repeatable the player is
+   * relative to their own scoring baseline.
+   *
+   * Scores above the player's average never
+   * hurt consistency.
    */
+
   const visitConsistencyScores =
     values.map((value) => {
       const ratioPercentage =
@@ -608,9 +614,15 @@ function calculateConsistency(
     );
 
   /*
-   * Visits under 60% of the player's average
-   * are considered genuinely poor visits.
+   * --------------------------------------------------
+   * LOW VISIT PENALTY
+   * --------------------------------------------------
+   *
+   * Visits below 60% of the player's normal
+   * scoring level are considered genuinely
+   * poor visits.
    */
+
   const lowVisitThreshold =
     scoringBaseline * 0.6;
 
@@ -627,9 +639,6 @@ function calculateConsistency(
       values.length
     ) * 100;
 
-  /*
-   * Repeated low visits add an extra penalty.
-   */
   const multiplierPercentage =
     normalizeFromCurve(
       lowVisitPercentage,
@@ -640,10 +649,53 @@ function calculateConsistency(
     multiplierPercentage /
     100;
 
+  /*
+   * --------------------------------------------------
+   * SCORING QUALITY MULTIPLIER
+   * --------------------------------------------------
+   *
+   * Relative consistency alone is not enough.
+   *
+   * A player averaging 40 can be extremely
+   * consistent around 40, but that should not
+   * produce the same Consistency skill rating
+   * as a player consistently scoring 60+.
+   *
+   * 60 is our reference baseline:
+   *
+   * 60 = three clean darts scoring 20 each.
+   *
+   * Below 60, consistency is progressively
+   * reduced.
+   *
+   * At 60 or above, no additional penalty
+   * applies.
+   *
+   * Examples:
+   *
+   * baseline 30 -> 0.50 multiplier
+   * baseline 40 -> 0.67 multiplier
+   * baseline 50 -> 0.83 multiplier
+   * baseline 60 -> 1.00 multiplier
+   * baseline 80 -> 1.00 multiplier
+   */
+
+  const scoringQualityMultiplier =
+    clamp(
+      scoringBaseline / 60,
+      0,
+      1
+    );
+
+  /*
+   * Apply both penalties before the final
+   * consistency calibration curve.
+   */
   return round1(
     clamp(
       baseConsistency *
-        lowVisitMultiplier,
+        lowVisitMultiplier *
+        scoringQualityMultiplier,
       0,
       100
     )
