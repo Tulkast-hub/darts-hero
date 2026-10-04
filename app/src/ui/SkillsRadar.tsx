@@ -103,7 +103,7 @@ export default function SkillsRadar({
         width: "100%",
         display: "flex",
         justifyContent: "center",
-        overflow: "hidden",
+        overflow: "visible",
       }}
     >
       <svg

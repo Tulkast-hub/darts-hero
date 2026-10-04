@@ -177,13 +177,13 @@ const CONSISTENCY_CURVE: CalibrationPoint[] = [
  */
 const CONSISTENCY_VISIT_CURVE: CalibrationPoint[] = [
   { raw: 0, score: 0 },
-  { raw: 30, score: 5 },
-  { raw: 40, score: 25 },
-  { raw: 50, score: 45 },
-  { raw: 60, score: 70 },
-  { raw: 70, score: 88 },
-  { raw: 75, score: 94 },
-  { raw: 85, score: 98 },
+  { raw: 30, score: 10 },
+  { raw: 40, score: 30 },
+  { raw: 50, score: 55 },
+  { raw: 60, score: 75 },
+  { raw: 70, score: 90 },
+  { raw: 80, score: 97 },
+  { raw: 90, score: 100 },
   { raw: 100, score: 100 },
 ];
 
@@ -297,9 +297,12 @@ export function calculateAssessmentSkillScores(
       OVERALL_AVERAGE_CURVE
     ),
 
-    consistency: normalizeFromCurve(
-      metrics.consistencyScore,
-      CONSISTENCY_CURVE
+    consistency: round1(
+      clamp(
+        metrics.consistencyScore,
+        0,
+        100
+      )
     ),
   };
 }
@@ -681,16 +684,19 @@ function calculateConsistency(
    */
 
   const scoringQualityMultiplier =
-    clamp(
+  clamp(
+    Math.pow(
       scoringBaseline / 60,
-      0,
-      1
-    );
+      2.5
+    ),
+    0,
+    1
+  );
 
-  /*
-   * Apply both penalties before the final
-   * consistency calibration curve.
-   */
+/*
+ * Apply both penalties to produce the final
+ * consistency skill score.
+ */
   return round1(
     clamp(
       baseConsistency *

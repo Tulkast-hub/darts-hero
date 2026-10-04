@@ -1,1222 +1,2561 @@
 import React, { useMemo, useState } from "react";
+
 import { useNavigate } from "react-router-dom";
+
 import DartboardHighlight, {
+
   tokensToSegments,
+
 } from "../../ui/DartboardHighlight";
+
 import { useI18n } from "../../i18n/I18nProvider";
+
 import {
+
   useAssessmentStore,
+
   type AssessmentVisit,
+
 } from "../../skills-assessment/useAssessmentStore";
+
 import {
+
   getSuggestedRoute,
+
   getValidDoubleDartCounts,
+
   getCheckoutDartsFromDoubleAttempts,
+
   getValidDoubleDartsForNonCheckoutVisit,
+
   shouldAskDoubleDartsAfterVisit,
+
   POSSIBLE_3DART_SCORES,
+
 } from "../../skills-assessment/checkoutUtils";
 
+
+
 type VisitSnapshot = {
+
   remainder: number;
+
   leg: number;
+
   visitsInLeg: number;
+
   visitScores: AssessmentVisit[];
+
   doubleDartsInLeg: number;
+
+  legs: LegResult[];
+
 };
+
+
 
 type LegResult = {
+
   darts: number;
+
   visits: number;
+
   visitScores: AssessmentVisit[];
+
   checkoutDarts: number;
+
   doubleDarts: number;
+
   checkoutDoubleDarts: number;
+
 };
 
+
+
 type PendingDoubleVisit =
+
   | {
-      type: "visit";
-      score: number;
-      nextRemainder: number;
-      options: number[];
-    }
+
+    type: "visit";
+
+    score: number;
+
+    nextRemainder: number;
+
+    options: number[];
+
+  }
+
   | {
-      type: "checkout";
-      options: number[];
-    };
+
+    type: "checkout";
+
+    options: number[];
+
+  };
+
+
 
 const START_SCORE = 101;
+
 const TOTAL_LEGS = 5;
 
+
+
 export default function Assessment101() {
+
   const { t } = useI18n();
+
   const nav = useNavigate();
 
+
+
   const setCheckout101Result = useAssessmentStore(
+
     (state) => state.setCheckout101Result
+
   );
 
+
+
   const [leg, setLeg] = useState(1);
+
   const [remainder, setRemainder] = useState(START_SCORE);
+
   const [scoreInput, setScoreInput] = useState("");
+
   const [visitsInLeg, setVisitsInLeg] = useState(0);
 
+
+
   const [visitScores, setVisitScores] = useState<
+
     AssessmentVisit[]
+
   >([]);
 
+
+
   const [doubleDartsInLeg, setDoubleDartsInLeg] =
+
     useState(0);
+
+
 
   const [legs, setLegs] = useState<LegResult[]>([]);
 
+
+
   const [undoStack, setUndoStack] = useState<
+
     VisitSnapshot[]
+
   >([]);
 
+
+
   const [pendingDoubleVisit, setPendingDoubleVisit] =
+
     useState<PendingDoubleVisit | null>(null);
 
+
+
   const suggestedRoute = useMemo(
+
     () => getSuggestedRoute(remainder),
+
     [remainder]
+
   );
+
+
 
   const suggestedSegments = useMemo(
+
     () => tokensToSegments(suggestedRoute),
+
     [suggestedRoute]
+
   );
+
+
 
   const enteredValue =
+
     scoreInput !== "" ? Number(scoreInput) : null;
 
+
+
   const isEnteredScoreValid =
+
     enteredValue !== null &&
+
     enteredValue >= 0 &&
+
     enteredValue <= 180 &&
+
     POSSIBLE_3DART_SCORES.has(enteredValue);
 
+
+
   /*
+
    * "Left" means the entered number is
+
    * the remainder after this visit.
+
    *
+
    * Example:
+
    * 101 left
+
    * enter 40
+
    * press Left
+
    * visit score = 61
+
    */
+
   const scoreFromLeft =
+
     enteredValue !== null
+
       ? remainder - enteredValue
+
       : null;
+
+
 
   const isEnteredLeftValid =
+
     enteredValue !== null &&
+
     enteredValue >= 0 &&
+
     enteredValue <= remainder &&
+
     enteredValue !== 1 &&
+
     scoreFromLeft !== null &&
+
     scoreFromLeft >= 0 &&
+
     scoreFromLeft <= 180 &&
+
     POSSIBLE_3DART_SCORES.has(scoreFromLeft);
 
+
+
   /*
+
    * Running assessment stats.
+
    */
+
   const completedDarts = useMemo(
+
     () =>
+
       legs.reduce(
+
         (sum, item) => sum + item.darts,
+
         0
+
       ),
+
     [legs]
+
   );
+
+
 
   const dartsPerFinish =
+
     legs.length > 0
+
       ? Number(
-          (
-            completedDarts /
-            legs.length
-          ).toFixed(1)
-        )
+
+        (
+
+          completedDarts /
+
+          legs.length
+
+        ).toFixed(1)
+
+      )
+
       : null;
 
+
+
   const completedDoubleDarts = useMemo(
+
     () =>
+
       legs.reduce(
+
         (sum, item) =>
+
           sum + item.doubleDarts,
+
         0
+
       ),
+
     [legs]
+
   );
 
+
+
   const totalDoubleAttempts =
+
     completedDoubleDarts +
+
     doubleDartsInLeg;
 
+
+
   const runningDoublePercentage =
+
     totalDoubleAttempts > 0
+
       ? Number(
-          (
-            (legs.length /
-              totalDoubleAttempts) *
-            100
-          ).toFixed(1)
-        )
+
+        (
+
+          (legs.length /
+
+            totalDoubleAttempts) *
+
+          100
+
+        ).toFixed(1)
+
+      )
+
       : 0;
 
+
+
   function appendDigit(digit: string) {
+
     setScoreInput((current) => {
+
       const next = `${current}${digit}`.replace(
+
         /^0+(?=\d)/,
+
         ""
+
       );
 
+
+
       if (next.length > 3) {
+
         return current;
+
       }
+
+
 
       const value = Number(next);
 
+
+
       if (
+
         Number.isNaN(value) ||
+
         value > 180
+
       ) {
+
         return current;
+
       }
+
+
 
       return next;
+
     });
+
   }
+
+
 
   function backspace() {
+
     setScoreInput((current) =>
+
       current.slice(0, -1)
+
     );
+
   }
+
+
 
   function pushUndoSnapshot() {
+
     setUndoStack((current) => [
+
       ...current,
+
       {
+
         remainder,
+
         leg,
+
         visitsInLeg,
-        visitScores,
+
+        visitScores: [...visitScores],
+
         doubleDartsInLeg,
+
+        legs: [...legs],
+
       },
+
     ]);
+
   }
+
+
 
   function addVisit(
+
     score: number,
+
     doubleDarts: number
+
   ) {
+
     setVisitScores((current) => [
+
       ...current,
+
       {
+
         score,
+
         doubleDarts,
+
       },
+
     ]);
+
   }
 
+
+
   function processVisitScore(score: number) {
+
     /*
+
      * Successful checkout.
+
      */
+
     if (score === remainder) {
+
       const options =
+
         getValidDoubleDartCounts(remainder);
 
+
+
       if (!options.length) {
+
         return;
+
       }
 
+
+
       setScoreInput("");
+
+
 
       setPendingDoubleVisit({
+
         type: "checkout",
+
         options,
+
       });
 
+
+
       return;
+
     }
 
+
+
     const nextRemainder =
+
       remainder - score;
 
+
+
     /*
+
      * Bust.
+
      *
+
      * A bust scores 0 for the visit,
+
      * so store score: 0.
+
      */
+
     if (
+
       nextRemainder < 0 ||
+
       nextRemainder === 1
+
     ) {
+
       pushUndoSnapshot();
+
+
 
       setScoreInput("");
 
+
+
       setVisitsInLeg(
+
         (current) => current + 1
+
       );
+
+
 
       addVisit(0, 0);
 
+
+
       return;
+
     }
 
+
+
     /*
+
      * If this visit leaves 50 or less,
+
      * ask how many darts were thrown
+
      * at doubles.
+
      */
+
     if (
+
       shouldAskDoubleDartsAfterVisit(
+
         nextRemainder
+
       )
+
     ) {
+
       const options =
+
         getValidDoubleDartsForNonCheckoutVisit(
+
           remainder
+
         );
+
+
 
       /*
+
        * If 0 is the only possible answer,
+
        * skip the modal.
+
        */
+
       if (
+
         options.length === 1 &&
+
         options[0] === 0
+
       ) {
+
         pushUndoSnapshot();
 
+
+
         setScoreInput("");
+
         setRemainder(nextRemainder);
 
+
+
         setVisitsInLeg(
+
           (current) => current + 1
+
         );
+
+
 
         addVisit(score, 0);
 
+
+
         return;
+
       }
+
+
 
       setScoreInput("");
 
+
+
       setPendingDoubleVisit({
+
         type: "visit",
+
         score,
+
         nextRemainder,
+
         options,
+
       });
 
+
+
       return;
+
     }
 
+
+
     /*
+
      * Normal visit with no recorded
+
      * darts at double.
+
      */
+
     pushUndoSnapshot();
 
+
+
     setScoreInput("");
+
     setRemainder(nextRemainder);
 
+
+
     setVisitsInLeg(
+
       (current) => current + 1
+
     );
 
+
+
     addVisit(score, 0);
+
   }
+
+
 
   function commitScore() {
+
     if (
+
       enteredValue === null ||
+
       !isEnteredScoreValid
+
     ) {
+
       return;
+
     }
+
+
 
     processVisitScore(enteredValue);
+
   }
+
+
 
   function commitLeft() {
+
     if (
+
       enteredValue === null ||
+
       !isEnteredLeftValid
+
     ) {
+
       return;
+
     }
+
+
 
     const score =
+
       remainder - enteredValue;
 
+
+
     processVisitScore(score);
+
   }
 
+
+
   function confirmDoubleDarts(
+
     doubleDarts: number
+
   ) {
+
     if (!pendingDoubleVisit) {
+
       return;
+
     }
 
+
+
     /*
+
      * Non-finishing visit.
+
      *
+
      * Store exactly how many darts were
+
      * thrown at doubles during this visit.
+
      */
+
     if (
+
       pendingDoubleVisit.type ===
+
       "visit"
+
     ) {
+
       pushUndoSnapshot();
 
+
+
       setRemainder(
+
         pendingDoubleVisit.nextRemainder
+
       );
+
+
 
       setVisitsInLeg(
+
         (current) => current + 1
+
       );
+
+
 
       addVisit(
+
         pendingDoubleVisit.score,
+
         doubleDarts
+
       );
 
+
+
       setDoubleDartsInLeg(
+
         (current) =>
+
           current + doubleDarts
+
       );
+
+
 
       setPendingDoubleVisit(null);
 
+
+
       return;
+
     }
 
+
+
     /*
+
      * Successful checkout.
+
      */
+
     const checkoutDarts =
+
       getCheckoutDartsFromDoubleAttempts(
+
         remainder,
+
         doubleDarts
+
       );
 
+
+
     const completedVisits =
+
       visitsInLeg + 1;
 
+
+
     const totalDarts =
+
       visitsInLeg * 3 +
+
       checkoutDarts;
 
+
+
     const totalDoubleDarts =
+
       doubleDartsInLeg +
+
       doubleDarts;
 
+
+
     /*
+
      * The checkout visit itself also gets
+
      * stored with its double-attempt count.
+
      */
+
     const completedVisitScores: AssessmentVisit[] = [
+
       ...visitScores,
+
       {
+
         score: remainder,
+
         doubleDarts,
+
       },
+
     ];
+
+
+
+    /*
+     * Save the complete pre-checkout state so
+     * Undo can cross a completed-leg boundary.
+     */
+    pushUndoSnapshot();
+
+
 
     const result: LegResult = {
+
       darts: totalDarts,
+
       visits: completedVisits,
+
       visitScores:
+
         completedVisitScores,
+
       checkoutDarts,
+
       doubleDarts:
+
         totalDoubleDarts,
+
       checkoutDoubleDarts:
+
         doubleDarts,
+
     };
 
+
+
     const updatedLegs = [
+
       ...legs,
+
       result,
+
     ];
+
+
 
     setLegs(updatedLegs);
 
+
+
     setPendingDoubleVisit(null);
-    setUndoStack([]);
-    setScoreInput("");
-
-    if (leg >= TOTAL_LEGS) {
-      const totalDartsUsed =
-        updatedLegs.reduce(
-          (sum, item) =>
-            sum + item.darts,
-          0
-        );
-
-      setCheckout101Result({
-        legs: updatedLegs,
-        totalDarts:
-          totalDartsUsed,
-        averageDarts: Number(
-          (
-            totalDartsUsed /
-            updatedLegs.length
-          ).toFixed(1)
-        ),
-      });
-
-      return;
-    }
-
-    setLeg(
-      (current) => current + 1
-    );
-
-    setRemainder(
-      START_SCORE
-    );
-
-    setVisitsInLeg(0);
-    setVisitScores([]);
-    setDoubleDartsInLeg(0);
-  }
-
-  function handleBust() {
-    pushUndoSnapshot();
 
     setScoreInput("");
 
-    setVisitsInLeg(
-      (current) => current + 1
-    );
+
 
     /*
-     * Busts count as a zero-score visit.
+     * Keep the undo stack across completed legs.
+     * The final result is saved only when Continue
+     * is pressed, so an undone final checkout can
+     * never leave stale calculation data behind.
      */
-    addVisit(0, 0);
+    if (leg >= TOTAL_LEGS) {
+
+      return;
+
+    }
+
+
+
+    setLeg(
+
+      (current) => current + 1
+
+    );
+
+
+
+    setRemainder(
+
+      START_SCORE
+
+    );
+
+
+
+    setVisitsInLeg(0);
+
+    setVisitScores([]);
+
+    setDoubleDartsInLeg(0);
+
   }
 
+
+
+  function handleBust() {
+
+    pushUndoSnapshot();
+
+
+
+    setScoreInput("");
+
+
+
+    setVisitsInLeg(
+
+      (current) => current + 1
+
+    );
+
+
+
+    /*
+
+     * Busts count as a zero-score visit.
+
+     */
+
+    addVisit(0, 0);
+
+  }
+
+
+
   function handleUndo() {
+
     setUndoStack((current) => {
+
       if (!current.length) {
+
         return current;
+
       }
 
+
+
       const previous =
+
         current[
-          current.length - 1
+
+        current.length - 1
+
         ];
 
+
+
       setRemainder(
+
         previous.remainder
+
       );
+
+
 
       setLeg(
+
         previous.leg
+
       );
+
+
 
       setVisitsInLeg(
+
         previous.visitsInLeg
+
       );
+
+
 
       setVisitScores(
+
         previous.visitScores
+
       );
 
+
+
       setDoubleDartsInLeg(
+
         previous.doubleDartsInLeg
+
       );
+
+
+
+      setLegs(
+
+        previous.legs
+
+      );
+
+
+
+      setPendingDoubleVisit(null);
 
       setScoreInput("");
 
+
+
       return current.slice(
+
         0,
+
         -1
+
       );
+
     });
+
   }
+
+
 
   const complete =
+
     legs.length === TOTAL_LEGS;
 
+
+
   function continueAssessment() {
+
+    if (legs.length !== TOTAL_LEGS) {
+
+      return;
+
+    }
+
+
+
+    const totalDartsUsed =
+
+      legs.reduce(
+
+        (sum, item) =>
+
+          sum + item.darts,
+
+        0
+
+      );
+
+
+
+    setCheckout101Result({
+
+      legs,
+
+      totalDarts:
+
+        totalDartsUsed,
+
+      averageDarts: Number(
+
+        (
+
+          totalDartsUsed /
+
+          legs.length
+
+        ).toFixed(1)
+
+      ),
+
+    });
+
+
+
     nav(
+
       "/skills-assessment/170"
+
     );
+
   }
 
+
+
   React.useEffect(() => {
+
     function handleKeyboard(
+
       event: KeyboardEvent
+
     ) {
+
       if (pendingDoubleVisit) {
+
+        const shortcutIndex =
+
+          Number(event.key) - 1;
+
+
+
+        if (
+
+          Number.isInteger(shortcutIndex) &&
+
+          shortcutIndex >= 0 &&
+
+          shortcutIndex <
+
+          pendingDoubleVisit.options.length
+
+        ) {
+
+          event.preventDefault();
+
+
+
+          confirmDoubleDarts(
+
+            pendingDoubleVisit.options[
+
+            shortcutIndex
+
+            ]
+
+          );
+
+        }
+
+
+
         return;
+
       }
 
+
+
       if (
+
         event.key >= "0" &&
+
         event.key <= "9"
+
       ) {
+
         event.preventDefault();
+
+
 
         appendDigit(
+
           event.key
+
         );
 
+
+
         return;
+
       }
 
+
+
       if (
+
         event.key ===
+
         "Backspace"
+
       ) {
+
         event.preventDefault();
+
+
 
         backspace();
 
+
+
         return;
+
       }
 
+
+
       if (
+
         event.key === "Enter"
+
       ) {
+
         event.preventDefault();
+
+
 
         commitScore();
 
+
+
         return;
+
       }
+
+
 
       if (
+
         event.key ===
+
         "Escape"
+
       ) {
+
         event.preventDefault();
 
+
+
         setScoreInput("");
+
       }
+
     }
 
+
+
     window.addEventListener(
+
       "keydown",
+
       handleKeyboard
+
     );
+
+
 
     return () => {
+
       window.removeEventListener(
+
         "keydown",
+
         handleKeyboard
+
       );
+
     };
+
   }, [
+
     pendingDoubleVisit,
+
     scoreInput,
+
     remainder,
+
     visitsInLeg,
+
     enteredValue,
+
     isEnteredScoreValid,
+
     isEnteredLeftValid,
+
   ]);
 
+
+
   if (complete) {
+
     const totalDarts =
+
       legs.reduce(
+
         (sum, item) =>
+
           sum + item.darts,
+
         0
+
       );
+
+
 
     const averageDarts =
+
       Number(
+
         (
+
           totalDarts /
+
           TOTAL_LEGS
+
         ).toFixed(1)
+
       );
+
+
 
     const totalDoubleDarts =
+
       legs.reduce(
+
         (sum, item) =>
+
           sum +
+
           item.doubleDarts,
+
         0
+
       );
 
+
+
     const doublePercentage =
+
       totalDoubleDarts > 0
+
         ? Number(
-            (
-              (TOTAL_LEGS /
-                totalDoubleDarts) *
-              100
-            ).toFixed(1)
-          )
+
+          (
+
+            (TOTAL_LEGS /
+
+              totalDoubleDarts) *
+
+            100
+
+          ).toFixed(1)
+
+        )
+
         : 0;
 
+
+
     return (
+
       <div className="page">
+
         <section className="hero card">
+
           <div>
+
             <div className="title">
+
               {t(
+
                 "Skills Assessment"
+
               )}{" "}
+
               ·{" "}
+
               {t(
+
                 "101 Double Out"
+
               )}
+
             </div>
+
+
 
             <div className="subtitle">
+
               <h2>
+
                 {t(
+
                   "101 test complete"
+
                 )}
+
               </h2>
 
+
+
               <p>
+
                 {t(
+
                   "You completed all five 101 Double Out legs."
+
                 )}
+
               </p>
+
             </div>
+
           </div>
+
         </section>
 
+
+
         <div className="card result-card">
+
           <div className="result-main">
+
             <div className="row bullout-stat-row">
+
               <div className="pill pill-stat">
+
                 <div className="pill-label">
+
                   {t("Legs")}
+
                 </div>
 
+
+
                 <div className="pill-value">
+
                   {TOTAL_LEGS}
+
                 </div>
+
               </div>
 
+
+
               <div className="pill pill-stat">
+
                 <div className="pill-label">
+
                   {t(
+
                     "Total darts"
+
                   )}
+
                 </div>
 
+
+
                 <div className="pill-value">
+
                   {totalDarts}
+
                 </div>
+
               </div>
 
+
+
               <div className="pill pill-stat">
+
                 <div className="pill-label">
+
                   {t(
+
                     "Average darts"
+
                   )}
+
                 </div>
 
+
+
                 <div className="pill-value">
+
                   {averageDarts}
+
                 </div>
+
               </div>
+
+
 
               <div className="pill pill-stat">
+
                 <div className="pill-label">
+
                   {t(
+
                     "Double %"
+
                   )}
+
                 </div>
 
+
+
                 <div className="pill-value">
+
                   {doublePercentage}%
+
                 </div>
+
               </div>
+
             </div>
+
+
 
             <button
+
               type="button"
-              className="btn"
+
+              className="btn outline"
+
               style={{
+
                 width: "100%",
+
                 marginTop: 20,
+
               }}
+
               onClick={
-                continueAssessment
+
+                handleUndo
+
               }
+
+              disabled={
+
+                !undoStack.length
+
+              }
+
+              data-hotkey="0"
+
             >
-              {t("Continue")}
+
+              {t("Undo")}
+
             </button>
+
+
+
+            <button
+
+              type="button"
+
+              className="btn"
+
+              style={{
+
+                width: "100%",
+
+                marginTop: 10,
+
+              }}
+
+              onClick={
+
+                continueAssessment
+
+              }
+
+            >
+
+              {t("Continue")}
+
+            </button>
+
           </div>
+
         </div>
+
       </div>
+
     );
+
   }
 
+
+
   return (
+
     <div className="page">
+
       <section className="hero card">
+
         <div>
+
           <div className="title">
+
             {t(
+
               "Skills Assessment"
+
             )}{" "}
+
             ·{" "}
+
             {t(
+
               "101 Double Out"
+
             )}
+
           </div>
+
+
 
           <div className="subtitle">
+
             <h2>
+
               {t(
+
                 "101 Double Out"
+
               )}
+
             </h2>
+
+
 
             <p>
+
               {t(
+
                 "Finish 101 five times. Each leg must end on a double."
+
               )}
+
             </p>
+
           </div>
+
         </div>
+
       </section>
 
+
+
       <div className="game-surface assessment-surface">
+
         <div className="bullout-header">
+
           <div>
-            <div className="muted">
-              {t("Leg")} {leg}{" "}
-              {t("of")}{" "}
-              {TOTAL_LEGS}
-            </div>
 
             <div className="muted">
-              {t(
-                "Enter the score from each visit."
-              )}
+
+              {t("Leg")} {leg}{" "}
+
+              {t("of")}{" "}
+
+              {TOTAL_LEGS}
+
             </div>
+
+
+
+            <div className="muted">
+
+              {t(
+
+                "Enter the score from each visit."
+
+              )}
+
+            </div>
+
           </div>
+
+
 
           <div className="objective-pill">
+
             <div className="objective-label">
+
               {t(
+
                 "Score left"
+
               )}
+
             </div>
+
+
 
             <div className="objective-value">
+
               {remainder}
+
             </div>
+
           </div>
+
         </div>
 
+
+
         <div
+
           className="assessment-board"
+
           style={{
+
             marginTop: 16,
+
             marginBottom: 28,
+
           }}
+
         >
+
           <DartboardHighlight
+
             segments={
+
               suggestedSegments
+
             }
+
           />
 
+
+
           <div
+
             style={{
+
               marginTop: 10,
+
               fontSize: 30,
+
               fontWeight: 900,
+
               textAlign:
+
                 "center",
+
               letterSpacing: 1,
+
               textTransform:
+
                 "uppercase",
+
             }}
+
           >
+
             {suggestedRoute.length
+
               ? suggestedRoute.join(
-                  " "
-                )
+
+                " "
+
+              )
+
               : "—"}
+
           </div>
+
         </div>
 
+
+
         <div
+
           className="bullout-main"
+
           style={{
+
             display: "grid",
+
             gridTemplateColumns:
+
               "2fr 1fr",
+
             gap: 12,
+
             alignItems: "start",
+
           }}
+
         >
+
           <div
+
             className="card"
+
             style={{
+
               width: "100%",
+
             }}
+
           >
+
             <div
+
               className="row"
+
               style={{
+
                 justifyContent:
+
                   "space-between",
+
                 alignItems:
+
                   "center",
+
               }}
+
             >
+
               <div
+
                 style={{
+
                   minHeight: 82,
+
                   display: "flex",
+
                   flexDirection:
+
                     "column",
+
                   justifyContent:
+
                     "flex-start",
+
                 }}
+
               >
+
                 <div className="small muted">
+
                   {t(
+
                     "Entered score"
+
                   )}
+
                 </div>
 
+
+
                 <div
+
                   className="title-lg"
+
                   style={{
+
                     height: 40,
+
                     lineHeight:
+
                       "36px",
+
                   }}
+
                 >
+
                   {scoreInput ||
+
                     "—"}
+
                 </div>
 
+
+
                 <div
+
                   className="muted small"
+
                   style={{
+
                     minHeight: 18,
+
                     lineHeight:
+
                       "18px",
+
                   }}
+
                 >
+
                   {scoreInput
+
                     ? isEnteredScoreValid
+
                       ? t(
-                          "Valid score"
-                        )
+
+                        "Valid score"
+
+                      )
+
                       : t(
-                          "Not a possible 3-dart score"
-                        )
+
+                        "Not a possible 3-dart score"
+
+                      )
+
                     : "\u00A0"}
+
                 </div>
+
               </div>
+
+
 
               <div
+
                 style={{
+
                   display: "flex",
+
                   gap: 8,
+
                   flexWrap:
+
                     "wrap",
+
                   justifyContent:
+
                     "flex-end",
+
                 }}
+
               >
+
                 <button
+
                   className="btn secondary"
+
                   type="button"
+
                   onClick={
+
                     handleBust
+
                   }
+
                 >
+
                   {t("Bust")}
+
                 </button>
 
+
+
                 <button
+
                   className="btn secondary"
+
                   type="button"
+
                   onClick={
+
                     commitLeft
+
                   }
+
                   disabled={
+
                     !scoreInput ||
+
                     !isEnteredLeftValid
+
                   }
+
                 >
+
                   {t("Left")}
+
                 </button>
 
+
+
                 <button
+
                   className="btn outline"
+
                   type="button"
+
                   onClick={
+
                     handleUndo
+
                   }
+
                   disabled={
+
                     !undoStack.length
+
                   }
+
                   data-hotkey="0"
+
                 >
+
                   {t("Undo")}
+
                 </button>
+
               </div>
+
             </div>
 
+
+
             <div
+
               style={{
+
                 marginTop: 12,
+
               }}
+
             >
+
               <div
+
                 style={{
+
                   display: "grid",
+
                   gridTemplateColumns:
+
                     "repeat(3, 1fr)",
+
                   gap: 10,
+
                 }}
+
               >
+
                 {[
+
                   "7",
+
                   "8",
+
                   "9",
+
                   "4",
+
                   "5",
+
                   "6",
+
                   "1",
+
                   "2",
+
                   "3",
+
                 ].map(
+
                   (digit) => (
+
                     <button
+
                       key={digit}
+
                       type="button"
+
                       className="btn"
+
                       onClick={() =>
+
                         appendDigit(
+
                           digit
+
                         )
+
                       }
+
                     >
+
                       {digit}
+
                     </button>
+
                   )
+
                 )}
 
+
+
                 <button
+
                   type="button"
+
                   className="btn outline"
+
                   onClick={
+
                     backspace
+
                   }
+
                   disabled={
+
                     !scoreInput
+
                   }
+
                 >
+
                   ⌫
+
                 </button>
 
+
+
                 <button
+
                   type="button"
+
                   className="btn"
+
                   onClick={() =>
+
                     appendDigit(
+
                       "0"
+
                     )
+
                   }
+
                 >
+
                   0
+
                 </button>
 
+
+
                 <button
+
                   type="button"
+
                   className="btn success"
+
                   onClick={
+
                     commitScore
+
                   }
+
                   disabled={
+
                     !scoreInput ||
+
                     !isEnteredScoreValid
+
                   }
+
                 >
+
                   {t("Enter")}
+
                 </button>
+
               </div>
+
             </div>
+
           </div>
+
+
 
           <div
+
             className="bullout-stats card"
+
             style={{
+
               width: "100%",
+
             }}
+
           >
+
             <div
+
               style={{
+
                 fontSize: 60,
+
                 fontWeight: 900,
+
                 textAlign:
+
                   "center",
+
                 letterSpacing: 1,
+
               }}
+
             >
+
               {remainder}
+
             </div>
 
+
+
             <div
+
               className="muted"
+
               style={{
+
                 textAlign:
+
                   "center",
+
               }}
+
             >
+
               {t("Score left")}
+
             </div>
+
+
 
             <div
+
               style={{
+
                 display: "grid",
+
                 gridTemplateColumns:
+
                   "repeat(2, minmax(0, 1fr))",
+
                 gap: 10,
+
                 marginTop: 16,
+
               }}
+
             >
+
               <div className="pill pill-stat">
+
                 <div className="pill-label">
+
                   {t("Leg")}
+
                 </div>
 
+
+
                 <div className="pill-value">
+
                   {leg}/{TOTAL_LEGS}
+
                 </div>
+
               </div>
 
+
+
               <div className="pill pill-stat">
+
                 <div className="pill-label">
+
                   {t("Visits")}
+
                 </div>
 
+
+
                 <div className="pill-value">
+
                   {visitsInLeg}
+
                 </div>
+
               </div>
 
+
+
               <div className="pill pill-stat">
+
                 <div className="pill-label">
+
                   {t(
+
                     "Darts / finish"
+
                   )}
+
                 </div>
 
+
+
                 <div className="pill-value">
+
                   {dartsPerFinish ??
+
                     "—"}
+
                 </div>
+
               </div>
+
+
 
               <div className="pill pill-stat">
+
                 <div className="pill-label">
+
                   {t(
+
                     "Double %"
+
                   )}
+
                 </div>
 
+
+
                 <div className="pill-value">
+
                   {
+
                     runningDoublePercentage
+
                   }
+
                   %
+
                 </div>
+
               </div>
+
             </div>
+
           </div>
+
         </div>
+
       </div>
 
+
+
       {pendingDoubleVisit && (
+
         <div
+
           className="assessment-modal-backdrop"
+
           role="presentation"
+
         >
+
           <div
+
             className="card assessment-modal"
+
             role="dialog"
+
             aria-modal="true"
+
             aria-labelledby="double-darts-title"
+
           >
+
             <h2 id="double-darts-title">
+
               {pendingDoubleVisit.type ===
-              "checkout"
+
+                "checkout"
+
                 ? t(
-                    "Checkout complete"
-                  )
+
+                  "Checkout complete"
+
+                )
+
                 : t(
-                    "Double attempts"
-                  )}
+
+                  "Double attempts"
+
+                )}
+
             </h2>
 
+
+
             <p className="muted">
+
               {t(
+
                 "How many darts did you throw at a double this visit?"
+
               )}
+
             </p>
 
+
+
             <div
+
               style={{
+
                 display: "grid",
+
                 gridTemplateColumns: `repeat(${pendingDoubleVisit.options.length}, 1fr)`,
+
                 gap: 10,
+
                 marginTop: 16,
+
               }}
+
             >
+
               {pendingDoubleVisit.options.map(
-                (darts) => (
+
+                (darts, index) => (
+
                   <button
+
                     key={darts}
+
                     type="button"
+
                     className="btn"
+
+                    data-hotkey={String(
+
+                      index + 1
+
+                    )}
+
+                    aria-keyshortcuts={String(
+
+                      index + 1
+
+                    )}
+
                     onClick={() =>
+
                       confirmDoubleDarts(
+
                         darts
+
                       )
+
                     }
+
                   >
+
                     {darts}
+
                   </button>
+
                 )
+
               )}
+
             </div>
+
           </div>
+
         </div>
+
       )}
 
+
+
       <style>{`
+
         @media (max-width: 720px) {
+
           .bullout-main {
+
             grid-template-columns: 1fr !important;
+
           }
+
         }
+
       `}</style>
+
     </div>
+
   );
+
 }

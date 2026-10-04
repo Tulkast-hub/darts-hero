@@ -1,9 +1,18 @@
-import React, { useMemo } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import React, {
+  useMemo,
+  useState,
+} from "react";
+import {
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { useTheme } from "../theme/useTheme";
 import RankBadge from "./RankBadge";
 import { useXpStore } from "../xp/useXpStore";
-import { getRankStateFromXp, XP_CAPS } from "../xp/rank";
+import {
+  getRankStateFromXp,
+  XP_CAPS,
+} from "../xp/rank";
 import { useAuthStore } from "../auth/useAuthStore";
 import { useAbortStore } from "../session/useAbortStore";
 import { useAssessmentStore } from "../skills-assessment/useAssessmentStore";
@@ -19,6 +28,11 @@ export default function NavBar({
   const loc = useLocation();
 
   const [theme, setTheme] = useTheme();
+
+  const [
+    showCancelAssessmentModal,
+    setShowCancelAssessmentModal,
+  ] = useState(false);
 
   const totalXp = useXpStore(
     (s) => s.state.totalXp
@@ -76,7 +90,16 @@ export default function NavBar({
     [totalXp]
   );
 
-  function cancelAssessment() {
+  function requestCancelAssessment() {
+    setShowCancelAssessmentModal(true);
+  }
+
+  function closeCancelAssessmentModal() {
+    setShowCancelAssessmentModal(false);
+  }
+
+  function confirmCancelAssessment() {
+    setShowCancelAssessmentModal(false);
     resetAssessment();
     nav("/");
   }
@@ -98,192 +121,298 @@ export default function NavBar({
   }
 
   return (
-    <header
-      className="nav"
-      style={{
-        display: "block",
-      }}
-    >
-      {/* Main navbar */}
-      <div
-        className="nav-main-row"
+    <>
+      <header
+        className="nav"
         style={{
-          position: "relative",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
+          display: "block",
         }}
       >
+        {/* Main navbar */}
         <div
-          className="nav-left"
+          className="nav-main-row"
           style={{
-            flex: "1 1 0",
+            position: "relative",
             display: "flex",
-            justifyContent: "flex-start",
             alignItems: "center",
-          }}
-        >
-          {isHome ? (
-            <button
-              className="icon-btn"
-              onClick={onMenu}
-              aria-label={t("Open menu")}
-            >
-              ☰
-            </button>
-          ) : isAssessmentGame ? (
-            <button
-              type="button"
-              className="btn outline"
-              onClick={cancelAssessment}
-            >
-              {t("Cancel assessment")}
-            </button>
-          ) : isAssessmentResults ? (
-            <button
-              type="button"
-              className="btn outline"
-              onClick={finishAssessment}
-            >
-              {t("Finish")}
-            </button>
-          ) : (
-            <button
-              className="icon-btn"
-              onClick={handleBack}
-              aria-label={t("Back")}
-            >
-              ←
-            </button>
-          )}
-        </div>
-
-        <div
-          className="nav-center"
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: "50%",
-            transform:
-              "translate(-50%, -50%)",
-          }}
-        >
-          <img
-            src={HeroLogo}
-            alt={t("Darts Hero logo")}
-            className="logo-large"
-          />
-        </div>
-
-        <div
-          className="nav-right"
-          style={{
-            flex: "1 1 0",
-            display: "flex",
-            justifyContent: "flex-end",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <button
-              className="icon-btn"
-              onClick={toggleTheme}
-              aria-label={t("Theme")}
-            >
-              {theme === "light"
-                ? "🌙"
-                : "☀️"}
-            </button>
-
-            <button
-              className="icon-btn"
-              onClick={() =>
-                nav("/profile")
-              }
-              aria-label={t("Profile")}
-            >
-              👤
-            </button>
-          </div>
-
-          <div className="profile">
-            <div className="nav-title">
-              {name}
-            </div>
-
-            <div className="nav-subtitle">
-              <RankBadge
-                tier={overallRank.tier}
-                level={overallRank.level}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Rank progression */}
-      {isDesktop && (
-        <div
-          className="nav-rank-steps"
-          style={{
+            justifyContent:
+              "space-between",
             width: "100%",
-            marginTop: 10,
-            paddingTop: 10,
-            paddingBottom: 4,
-            borderTop:
-              "1px solid rgba(148, 163, 184, 0.25)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
-            flexWrap: "wrap",
           }}
         >
-          <span
-            className="muted small"
+          <div
+            className="nav-left"
             style={{
-              fontWeight: 800,
+              flex: "1 1 0",
+              display: "flex",
+              justifyContent:
+                "flex-start",
+              alignItems: "center",
             }}
           >
-            {t("Ranks")}:
-          </span>
+            {isHome ? (
+              <button
+                className="icon-btn"
+                onClick={onMenu}
+                aria-label={t(
+                  "Open menu"
+                )}
+              >
+                ☰
+              </button>
+            ) : isAssessmentGame ? (
+              <button
+                type="button"
+                className="btn outline"
+                onClick={
+                  requestCancelAssessment
+                }
+              >
+                {t(
+                  "Cancel assessment"
+                )}
+              </button>
+            ) : isAssessmentResults ? (
+              <button
+                type="button"
+                className="btn outline"
+                onClick={
+                  finishAssessment
+                }
+              >
+                {t("Finish")}
+              </button>
+            ) : (
+              <button
+                className="icon-btn"
+                onClick={handleBack}
+                aria-label={t("Back")}
+              >
+                ←
+              </button>
+            )}
+          </div>
 
-          <RankStep
-            label={t("Bronze")}
-            tier="Bronze"
-          />
+          <div
+            className="nav-center"
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: "50%",
+              transform:
+                "translate(-50%, -50%)",
+            }}
+          >
+            <img
+              src={HeroLogo}
+              alt={t(
+                "Darts Hero logo"
+              )}
+              className="logo-large"
+            />
+          </div>
 
-          <RankArrow />
+          <div
+            className="nav-right"
+            style={{
+              flex: "1 1 0",
+              display: "flex",
+              justifyContent:
+                "flex-end",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <button
+                className="icon-btn"
+                onClick={
+                  toggleTheme
+                }
+                aria-label={t(
+                  "Theme"
+                )}
+              >
+                {theme === "light"
+                  ? "🌙"
+                  : "☀️"}
+              </button>
 
-          <RankStep
-            label={t("Silver")}
-            tier="Silver"
-          />
+              <button
+                className="icon-btn"
+                onClick={() =>
+                  nav("/profile")
+                }
+                aria-label={t(
+                  "Profile"
+                )}
+              >
+                👤
+              </button>
+            </div>
 
-          <RankArrow />
+            <div className="profile">
+              <div className="nav-title">
+                {name}
+              </div>
 
-          <RankStep
-            label={t("Gold")}
-            tier="Gold"
-          />
+              <div className="nav-subtitle">
+                <RankBadge
+                  tier={
+                    overallRank.tier
+                  }
+                  level={
+                    overallRank.level
+                  }
+                />
+              </div>
+            </div>
+          </div>
+        </div>
 
-          <RankArrow />
+        {/* Rank progression */}
+        {isDesktop && (
+          <div
+            className="nav-rank-steps"
+            style={{
+              width: "100%",
+              marginTop: 10,
+              paddingTop: 10,
+              paddingBottom: 4,
+              borderTop:
+                "1px solid rgba(148, 163, 184, 0.25)",
+              display: "flex",
+              alignItems:
+                "center",
+              justifyContent:
+                "center",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
+            <span
+              className="muted small"
+              style={{
+                fontWeight: 800,
+              }}
+            >
+              {t("Ranks")}:
+            </span>
 
-          <RankStep
-            label={t("Platinum")}
-            tier="Platinum"
-          />
+            <RankStep
+              label={t("Bronze")}
+              tier="Bronze"
+            />
 
-          <RankArrow />
+            <RankArrow />
 
-          <RankStep
-            label={t("Diamond")}
-            tier="Diamond"
-          />
+            <RankStep
+              label={t("Silver")}
+              tier="Silver"
+            />
+
+            <RankArrow />
+
+            <RankStep
+              label={t("Gold")}
+              tier="Gold"
+            />
+
+            <RankArrow />
+
+            <RankStep
+              label={t(
+                "Platinum"
+              )}
+              tier="Platinum"
+            />
+
+            <RankArrow />
+
+            <RankStep
+              label={t(
+                "Diamond"
+              )}
+              tier="Diamond"
+            />
+          </div>
+        )}
+      </header>
+
+      {showCancelAssessmentModal && (
+        <div
+          className="assessment-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              closeCancelAssessmentModal();
+            }
+          }}
+        >
+          <div
+            className="card assessment-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cancel-assessment-title"
+            aria-describedby="cancel-assessment-description"
+          >
+            <h2
+              id="cancel-assessment-title"
+              style={{
+                marginTop: 0,
+              }}
+            >
+              {t(
+                "Cancel assessment?"
+              )}
+            </h2>
+
+            <p
+              id="cancel-assessment-description"
+              className="muted"
+            >
+              {t(
+                "Are you sure you want to cancel the assessment? Your current assessment progress will be lost."
+              )}
+            </p>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "1fr 1fr",
+                gap: 10,
+                marginTop: 18,
+              }}
+            >
+              <button
+                type="button"
+                className="btn outline"
+                onClick={
+                  closeCancelAssessmentModal
+                }
+              >
+                {t("Keep playing")}
+              </button>
+
+              <button
+                type="button"
+                className="btn"
+                onClick={
+                  confirmCancelAssessment
+                }
+              >
+                {t(
+                  "Cancel assessment"
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
-    </header>
+    </>
   );
 }
 
