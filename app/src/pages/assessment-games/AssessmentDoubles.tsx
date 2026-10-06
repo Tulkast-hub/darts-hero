@@ -238,6 +238,16 @@ export default function AssessmentDoubles() {
 
       if (complete) {
 
+        if (event.key === "Enter") {
+
+          event.preventDefault();
+
+          continueAssessment();
+
+        }
+
+
+
         return;
 
       }
@@ -444,13 +454,33 @@ export default function AssessmentDoubles() {
 
                 data-hotkey="1"
 
-              aria-keyshortcuts="1"
+                aria-keyshortcuts="1"
 
                 onClick={recordHit}
 
               >
 
                 {t("Double hit")}
+
+                {isDesktop && (
+
+                  <span
+
+                    className="muted small"
+
+                    style={{
+
+                      marginLeft: 8,
+
+                    }}
+
+                  >
+
+                    (1)
+
+                  </span>
+
+                )}
 
               </button>
 
@@ -464,13 +494,33 @@ export default function AssessmentDoubles() {
 
                 data-hotkey="2"
 
-              aria-keyshortcuts="2"
+                aria-keyshortcuts="2"
 
                 onClick={() => recordMisses(1)}
 
               >
 
                 {t("Miss")}
+
+                {isDesktop && (
+
+                  <span
+
+                    className="muted small"
+
+                    style={{
+
+                      marginLeft: 8,
+
+                    }}
+
+                  >
+
+                    (2)
+
+                  </span>
+
+                )}
 
               </button>
 
@@ -484,13 +534,33 @@ export default function AssessmentDoubles() {
 
                 data-hotkey="3"
 
-              aria-keyshortcuts="3"
+                aria-keyshortcuts="3"
 
                 onClick={() => recordMisses(2)}
 
               >
 
                 {t("Miss 2")}
+
+                {isDesktop && (
+
+                  <span
+
+                    className="muted small"
+
+                    style={{
+
+                      marginLeft: 8,
+
+                    }}
+
+                  >
+
+                    (3)
+
+                  </span>
+
+                )}
 
               </button>
 
@@ -504,13 +574,33 @@ export default function AssessmentDoubles() {
 
                 data-hotkey="4"
 
-              aria-keyshortcuts="4"
+                aria-keyshortcuts="4"
 
                 onClick={() => recordMisses(3)}
 
               >
 
                 {t("Miss 3")}
+
+                {isDesktop && (
+
+                  <span
+
+                    className="muted small"
+
+                    style={{
+
+                      marginLeft: 8,
+
+                    }}
+
+                  >
+
+                    (4)
+
+                  </span>
+
+                )}
 
               </button>
 
@@ -524,7 +614,7 @@ export default function AssessmentDoubles() {
 
                 data-hotkey="0"
 
-              aria-keyshortcuts="0"
+                aria-keyshortcuts="0"
 
                 onClick={undo}
 
@@ -533,6 +623,26 @@ export default function AssessmentDoubles() {
               >
 
                 {t("Undo")}
+
+                {isDesktop && (
+
+                  <span
+
+                    className="muted small"
+
+                    style={{
+
+                      marginLeft: 8,
+
+                    }}
+
+                  >
+
+                    (0)
+
+                  </span>
+
+                )}
 
               </button>
 
@@ -806,6 +916,26 @@ export default function AssessmentDoubles() {
 
               {t("Undo")}
 
+              {isDesktop && (
+
+                <span
+
+                  className="muted small"
+
+                  style={{
+
+                    marginLeft: 8,
+
+                  }}
+
+                >
+
+                  (0)
+
+                </span>
+
+              )}
+
             </button>
 
 
@@ -826,9 +956,31 @@ export default function AssessmentDoubles() {
 
               onClick={continueAssessment}
 
+              aria-keyshortcuts="Enter"
+
             >
 
               {t("Continue")}
+
+              {isDesktop && (
+
+                <span
+
+                  className="muted small"
+
+                  style={{
+
+                    marginLeft: 8,
+
+                  }}
+
+                >
+
+                  (Enter)
+
+                </span>
+
+              )}
 
             </button>
 

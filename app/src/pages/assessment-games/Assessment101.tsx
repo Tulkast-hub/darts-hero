@@ -76,23 +76,23 @@ type PendingDoubleVisit =
 
   | {
 
-    type: "visit";
+      type: "visit";
 
-    score: number;
+      score: number;
 
-    nextRemainder: number;
+      nextRemainder: number;
 
-    options: number[];
+      options: number[];
 
-  }
+    }
 
   | {
 
-    type: "checkout";
+      type: "checkout";
 
-    options: number[];
+      options: number[];
 
-  };
+    };
 
 
 
@@ -104,7 +104,7 @@ const TOTAL_LEGS = 5;
 
 export default function Assessment101() {
 
-  const { t } = useI18n();
+  const { t, isDesktop } = useI18n();
 
   const nav = useNavigate();
 
@@ -278,15 +278,15 @@ export default function Assessment101() {
 
       ? Number(
 
-        (
+          (
 
-          completedDarts /
+            completedDarts /
 
-          legs.length
+            legs.length
 
-        ).toFixed(1)
+          ).toFixed(1)
 
-      )
+        )
 
       : null;
 
@@ -326,17 +326,17 @@ export default function Assessment101() {
 
       ? Number(
 
-        (
+          (
 
-          (legs.length /
+            (legs.length /
 
-            totalDoubleAttempts) *
+              totalDoubleAttempts) *
 
-          100
+            100
 
-        ).toFixed(1)
+          ).toFixed(1)
 
-      )
+        )
 
       : 0;
 
@@ -1018,7 +1018,7 @@ export default function Assessment101() {
 
         current[
 
-        current.length - 1
+          current.length - 1
 
         ];
 
@@ -1180,7 +1180,7 @@ export default function Assessment101() {
 
           shortcutIndex <
 
-          pendingDoubleVisit.options.length
+            pendingDoubleVisit.options.length
 
         ) {
 
@@ -1192,11 +1192,53 @@ export default function Assessment101() {
 
             pendingDoubleVisit.options[
 
-            shortcutIndex
+              shortcutIndex
 
             ]
 
           );
+
+        }
+
+
+
+        return;
+
+      }
+
+
+
+      if (complete) {
+
+        if (
+
+          event.key === "0" &&
+
+          undoStack.length
+
+        ) {
+
+          event.preventDefault();
+
+          handleUndo();
+
+          return;
+
+        }
+
+
+
+        if (
+
+          event.key === "Enter"
+
+        ) {
+
+          event.preventDefault();
+
+          continueAssessment();
+
+          return;
 
         }
 
@@ -1322,6 +1364,10 @@ export default function Assessment101() {
 
     pendingDoubleVisit,
 
+    complete,
+
+    undoStack.length,
+
     scoreInput,
 
     remainder,
@@ -1392,17 +1438,17 @@ export default function Assessment101() {
 
         ? Number(
 
-          (
+            (
 
-            (TOTAL_LEGS /
+              (TOTAL_LEGS /
 
-              totalDoubleDarts) *
+                totalDoubleDarts) *
 
-            100
+              100
 
-          ).toFixed(1)
+            ).toFixed(1)
 
-        )
+          )
 
         : 0;
 
@@ -1596,9 +1642,31 @@ export default function Assessment101() {
 
               data-hotkey="0"
 
+              aria-keyshortcuts="0"
+
             >
 
               {t("Undo")}
+
+              {isDesktop && (
+
+                <span
+
+                  className="muted small"
+
+                  style={{
+
+                    marginLeft: 8,
+
+                  }}
+
+                >
+
+                  (0)
+
+                </span>
+
+              )}
 
             </button>
 
@@ -1624,9 +1692,31 @@ export default function Assessment101() {
 
               }
 
+              aria-keyshortcuts="Enter"
+
             >
 
               {t("Continue")}
+
+              {isDesktop && (
+
+                <span
+
+                  className="muted small"
+
+                  style={{
+
+                    marginLeft: 8,
+
+                  }}
+
+                >
+
+                  (Enter)
+
+                </span>
+
+              )}
 
             </button>
 
@@ -1814,9 +1904,9 @@ export default function Assessment101() {
 
               ? suggestedRoute.join(
 
-                " "
+                  " "
 
-              )
+                )
 
               : "—"}
 
@@ -1954,15 +2044,15 @@ export default function Assessment101() {
 
                       ? t(
 
-                        "Valid score"
+                          "Valid score"
 
-                      )
+                        )
 
                       : t(
 
-                        "Not a possible 3-dart score"
+                          "Not a possible 3-dart score"
 
-                      )
+                        )
 
                     : "\u00A0"}
 
@@ -2440,19 +2530,19 @@ export default function Assessment101() {
 
               {pendingDoubleVisit.type ===
 
-                "checkout"
+              "checkout"
 
                 ? t(
 
-                  "Checkout complete"
+                    "Checkout complete"
 
-                )
+                  )
 
                 : t(
 
-                  "Double attempts"
+                    "Double attempts"
 
-                )}
+                  )}
 
             </h2>
 
@@ -2500,17 +2590,17 @@ export default function Assessment101() {
 
                     data-hotkey={String(
 
-                      index + 1
+                    index + 1
 
-                    )}
+                  )}
 
-                    aria-keyshortcuts={String(
+                  aria-keyshortcuts={String(
 
-                      index + 1
+                    index + 1
 
-                    )}
+                  )}
 
-                    onClick={() =>
+                  onClick={() =>
 
                       confirmDoubleDarts(
 
@@ -2523,6 +2613,26 @@ export default function Assessment101() {
                   >
 
                     {darts}
+
+                    {isDesktop && (
+
+                      <span
+
+                        className="muted small"
+
+                        style={{
+
+                          marginLeft: 6,
+
+                        }}
+
+                      >
+
+                        ({index + 1})
+
+                      </span>
+
+                    )}
 
                   </button>
 

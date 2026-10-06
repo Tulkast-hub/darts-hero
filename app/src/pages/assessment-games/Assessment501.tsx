@@ -2590,7 +2590,19 @@ export default function Assessment501() {
 
                   >
 
-                    {darts}
+                  <>
+                      {darts}
+                      {isDesktop && (
+                        <span
+                          className="muted small"
+                          style={{
+                            marginLeft: 6,
+                          }}
+                        >
+                          ({index + 1})
+                        </span>
+                      )}
+                    </>
 
                   </button>
 

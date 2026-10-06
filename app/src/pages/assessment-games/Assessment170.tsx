@@ -104,7 +104,7 @@ const TOTAL_ATTEMPTS = 5;
 
 export default function Assessment170() {
 
-  const { t } = useI18n();
+  const { t, isDesktop } = useI18n();
 
   const nav = useNavigate();
 
@@ -850,6 +850,14 @@ export default function Assessment170() {
 
 
 
+    /*
+     * Save the complete pre-checkout state so
+     * Undo can cross a completed-attempt boundary.
+     */
+    pushUndoSnapshot();
+
+
+
     const result: AttemptResult = {
 
       darts: totalDarts,
@@ -886,20 +894,27 @@ export default function Assessment170() {
 
     setAttempts(updatedAttempts);
 
-  setPendingDoubleVisit(null);
-  setScoreInput("");
+    setPendingDoubleVisit(null);
 
-  /*
-   * Keep the undo history across completed attempts.
-   * The final result is saved only when Continue is
-   * pressed, so the last checkout can also be undone.
-   */
-  if (
-    attempt >=
-    TOTAL_ATTEMPTS
-  ) {
-    return;
-  }
+    setScoreInput("");
+
+
+
+    /*
+     * Keep Undo history across completed attempts.
+     * Save the final result only when Continue is pressed.
+     */
+    if (
+
+      attempt >=
+
+      TOTAL_ATTEMPTS
+
+    ) {
+
+      return;
+
+    }
 
 
 
@@ -1015,6 +1030,16 @@ export default function Assessment170() {
 
 
 
+      setAttempts(
+
+        previous.attempts
+
+      );
+
+
+
+      setPendingDoubleVisit(null);
+
       setScoreInput("");
 
 
@@ -1043,6 +1068,58 @@ export default function Assessment170() {
 
   function continueAssessment() {
 
+    if (
+
+      attempts.length !==
+
+      TOTAL_ATTEMPTS
+
+    ) {
+
+      return;
+
+    }
+
+
+
+    const totalDartsUsed =
+
+      attempts.reduce(
+
+        (sum, item) =>
+
+          sum + item.darts,
+
+        0
+
+      );
+
+
+
+    setFinish170Result({
+
+      attempts,
+
+      totalDarts:
+
+        totalDartsUsed,
+
+      averageDarts: Number(
+
+        (
+
+          totalDartsUsed /
+
+          attempts.length
+
+        ).toFixed(1)
+
+      ),
+
+    });
+
+
+
     nav(
 
       "/skills-assessment/scoring"
@@ -1066,6 +1143,88 @@ export default function Assessment170() {
         pendingDoubleVisit
 
       ) {
+
+        const shortcutIndex =
+
+          Number(event.key) - 1;
+
+
+
+        if (
+
+          Number.isInteger(
+
+            shortcutIndex
+
+          ) &&
+
+          shortcutIndex >= 0 &&
+
+          shortcutIndex <
+
+            pendingDoubleVisit.options.length
+
+        ) {
+
+          event.preventDefault();
+
+
+
+          confirmDoubleDarts(
+
+            pendingDoubleVisit.options[
+
+              shortcutIndex
+
+            ]
+
+          );
+
+        }
+
+
+
+        return;
+
+      }
+
+
+
+      if (complete) {
+
+        if (
+
+          event.key === "0" &&
+
+          undoStack.length
+
+        ) {
+
+          event.preventDefault();
+
+          handleUndo();
+
+          return;
+
+        }
+
+
+
+        if (
+
+          event.key === "Enter"
+
+        ) {
+
+          event.preventDefault();
+
+          continueAssessment();
+
+          return;
+
+        }
+
+
 
         return;
 
@@ -1188,6 +1347,10 @@ export default function Assessment170() {
   }, [
 
     pendingDoubleVisit,
+
+    complete,
+
+    undoStack.length,
 
     scoreInput,
 
@@ -1461,7 +1624,7 @@ export default function Assessment170() {
 
               type="button"
 
-              className="btn"
+              className="btn outline"
 
               style={{
 
@@ -1471,15 +1634,87 @@ export default function Assessment170() {
 
               }}
 
+              onClick={handleUndo}
+
+              disabled={!undoStack.length}
+
+              data-hotkey="0"
+
+              aria-keyshortcuts="0"
+
+            >
+
+              {t("Undo")}
+
+              {isDesktop && (
+
+                <span
+
+                  className="muted small"
+
+                  style={{
+
+                    marginLeft: 8,
+
+                  }}
+
+                >
+
+                  (0)
+
+                </span>
+
+              )}
+
+            </button>
+
+
+
+            <button
+
+              type="button"
+
+              className="btn"
+
+              style={{
+
+                width: "100%",
+
+                marginTop: 10,
+
+              }}
+
               onClick={
 
                 continueAssessment
 
               }
 
+              aria-keyshortcuts="Enter"
+
             >
 
               {t("Continue")}
+
+              {isDesktop && (
+
+                <span
+
+                  className="muted small"
+
+                  style={{
+
+                    marginLeft: 8,
+
+                  }}
+
+                >
+
+                  (Enter)
+
+                </span>
+
+              )}
 
             </button>
 
@@ -2417,7 +2652,7 @@ export default function Assessment170() {
 
               {pendingDoubleVisit.options.map(
 
-                (darts) => (
+                (darts, index) => (
 
                   <button
 
@@ -2426,6 +2661,18 @@ export default function Assessment170() {
                     type="button"
 
                     className="btn"
+
+                    data-hotkey={String(
+
+                      index + 1
+
+                    )}
+
+                    aria-keyshortcuts={String(
+
+                      index + 1
+
+                    )}
 
                     onClick={() =>
 
@@ -2440,6 +2687,26 @@ export default function Assessment170() {
                   >
 
                     {darts}
+
+                    {isDesktop && (
+
+                      <span
+
+                        className="muted small"
+
+                        style={{
+
+                          marginLeft: 6,
+
+                        }}
+
+                      >
+
+                        ({index + 1})
+
+                      </span>
+
+                    )}
 
                   </button>
 
