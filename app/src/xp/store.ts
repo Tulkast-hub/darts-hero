@@ -21,7 +21,6 @@ export function loadXpState(): XpState {
       scoring: 0,
       finishing: 0,
       doubles: 0,
-      bull: 0,
       other: 0,
     },
     drillXp: {},

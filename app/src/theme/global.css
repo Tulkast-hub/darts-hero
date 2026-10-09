@@ -689,7 +689,6 @@ select:focus {
 
 .objective-pill{
   padding: 14px 18px;
-  border-radius: 16px;
   border-radius:12px;
   background:#e9edf5;
   text-align:right;
@@ -709,6 +708,28 @@ select:focus {
 
 :root[data-theme="dark"] .objective-pill{
   background:#1d2538;
+}
+
+/* Shared game objective sticky behaviour */
+.game-objective-region {
+  position: relative;
+}
+
+.game-objective-sticky {
+  position: sticky;
+  top: 72px;
+  z-index: 4;
+}
+
+/* Bull Out button colours - light mode only */
+:root:not([data-theme="dark"]) #dt-app .bullout-btn-inner {
+  background: var(--accent-red);
+  color: #fff;
+}
+
+:root:not([data-theme="dark"]) #dt-app .bullout-btn-outer {
+  background: var(--accent-green);
+  color: #fff;
 }
 
 .title-lg {

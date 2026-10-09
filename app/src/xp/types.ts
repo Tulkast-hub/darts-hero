@@ -1,4 +1,4 @@
-export type XpCategory = "scoring" | "finishing" | "doubles" | "bull" | "other";
+export type XpCategory = "scoring" | "finishing" | "doubles" | "other";
 
 export type Tier = "Bronze" | "Silver" | "Gold" | "Platinum" | "Diamond";
 

@@ -44,26 +44,19 @@ export function computeXp(result: DrillResult): XpAward {
   let total = 0;
 
   if (!isLossLike) {
-    // Base win (matches card)
     total = winMag;
-    breakdown.push({ label: "Win", xp: winMag });
-
-    // Great win: objective complete + <= 50% usage
-    const eff = efficiencyRatio(result);
-    const greatWin = prog >= 1 && eff != null && eff <= 0.5;
-
-    if (greatWin) {
-      const bonus = Math.round(winMag * 0.5); // +50%
-      breakdown.push({ label: "Great win", xp: bonus });
-      total += bonus;
-    }
+    breakdown.push({
+      label: "Win",
+      xp: winMag,
+    });
   } else {
-    // Loss (matches card as penalty)
-    // Near loss: you only lose 30% of the loss XP
-    const nearLoss = prog >= 0.7; // within 30% of objective (your earlier rule)
-    const penalty = -Math.round(lossMag * (nearLoss ? 0.3 : 1));
-
-    breakdown.push({ label: nearLoss ? "Near loss" : "Loss", xp: penalty });
+    const penalty = -lossMag;
+  
+    breakdown.push({
+      label: "Loss",
+      xp: penalty,
+    });
+  
     total = penalty;
   }
 
