@@ -111,13 +111,8 @@ export default function DrillPage() {
 
   // Category rank drives the tier/level used by the drill to set objectives.
   // "bull" is legacy only; Bull Out belongs to the doubles category.
-  const rawCategory: XpCategory =
-    drillDef?.category ?? "other";
-
   const category: XpCategory =
-    rawCategory === "bull"
-      ? "doubles"
-      : rawCategory;
+  drillDef?.category ?? "other";
 
   const categoryXp =
     xpState.categoryXp?.[category] ?? 0;
@@ -503,11 +498,11 @@ export default function DrillPage() {
 
     <div className="page">
 
-      {/\* Game surface \*/}
+      {/* Game surface */}
 
       <Component onFinish={handleFinish} disabled={loading || showRules} tier={currentTier} level={currentLevel} />
 
-      {/\* Abort button \*/}
+      {/* Abort button */}
 
       <div style={{ marginTop: 12 }}>
 
@@ -519,7 +514,7 @@ export default function DrillPage() {
 
       </div>
 
-      {/\* Rules modal \*/}
+      {/* Rules modal */}
 
       {showRules && (
 
@@ -593,7 +588,7 @@ export default function DrillPage() {
 
       )}
 
-      {/\* Abort confirm modal \*/}
+      {/* Abort confirm modal */}
 
       {showAbortConfirm && (
 

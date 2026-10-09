@@ -64,7 +64,6 @@ export function computeXp(result: DrillResult): XpAward {
     scoring: 0,
     finishing: 0,
     doubles: 0,
-    bull: 0,
     other: 0,
   };
   byCategory[result.category] = total;

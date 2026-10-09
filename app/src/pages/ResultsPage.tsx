@@ -682,12 +682,8 @@ export default function ResultsPage() {
 
   }, [drillResult, canonicalKey, drillDef?.category, state.payload, lastMeta.tier, lastMeta.level, win]);
 
-  const rawCategory: XpCategory = effectiveResult?.category ?? "other";
-
   const category: XpCategory =
-    rawCategory === "bull"
-      ? "doubles"
-      : rawCategory;
+  drillDef?.category ?? "other";
 
   useEffect(() => {
 
