@@ -709,4 +709,314 @@ $excludeIds = leaderboard_excluded_user_ids();
     'nonce' => make_nonce(),
   ]);
 }
+/*
+ * --------------------------------------------------
+ * SKILLS ASSESSMENT HISTORY
+ * --------------------------------------------------
+ */
+
+// POST /skills-assessments
+if (route('POST', '/skills-assessments')) {
+    $user = auth_user($pdo, $config);
+
+    if (!$user) {
+        json_out(401, ['error' => 'Not authenticated']);
+    }
+
+    $uid = (int)$user['id'];
+    $body = read_json_body();
+
+    $uuid = (string)($body['assessmentUuid'] ?? '');
+
+    $gameResults = $body['gameResults'] ?? null;
+    $rawMetrics = $body['rawMetrics'] ?? null;
+    $skillScores = $body['skillScores'] ?? null;
+
+    $overallScore = $body['overallScore'] ?? null;
+    $rankBand = $body['rankBand'] ?? null;
+    $rankLevel = $body['rankLevel'] ?? null;
+
+    $calculationVersion = $body['calculationVersion'] ?? 1;
+
+    // Validate assessment identifier.
+    if (!preg_match(
+        '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
+        $uuid
+    )) {
+        json_out(400, ['error' => 'Invalid assessment UUID']);
+    }
+
+    // Validate the five game results.
+    if (
+        !is_array($gameResults) ||
+        !is_array($gameResults['doubles'] ?? null) ||
+        !is_array($gameResults['checkout101'] ?? null) ||
+        !is_array($gameResults['finish170'] ?? null) ||
+        !is_array($gameResults['scoring'] ?? null) ||
+        !is_array($gameResults['game501'] ?? null)
+    ) {
+        json_out(400, ['error' => 'Incomplete assessment results']);
+    }
+
+    if (
+        !is_array($rawMetrics) ||
+        !is_array($skillScores)
+    ) {
+        json_out(400, ['error' => 'Invalid assessment metrics']);
+    }
+
+    if (
+        !is_numeric($overallScore) ||
+        !is_finite((float)$overallScore) ||
+        (float)$overallScore < 0 ||
+        (float)$overallScore > 100
+    ) {
+        json_out(400, ['error' => 'Invalid overall score']);
+    }
+
+    $validBands = [
+        'Bronze',
+        'Silver',
+        'Gold',
+        'Platinum',
+        'Diamond',
+    ];
+
+    if (!in_array($rankBand, $validBands, true)) {
+        json_out(400, ['error' => 'Invalid assessment rank']);
+    }
+
+    if (
+        !is_int($rankLevel) ||
+        $rankLevel < 1 ||
+        $rankLevel > 5
+    ) {
+        json_out(400, ['error' => 'Invalid assessment level']);
+    }
+
+    if (
+        !is_int($calculationVersion) ||
+        $calculationVersion < 1 ||
+        $calculationVersion > 65535
+    ) {
+        json_out(400, ['error' => 'Invalid calculation version']);
+    }
+
+    $encodedResults = json_encode(
+        $gameResults,
+        JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+    );
+
+    $encodedMetrics = json_encode(
+        $rawMetrics,
+        JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+    );
+
+    $encodedSkills = json_encode(
+        $skillScores,
+        JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+    );
+
+    // Avoid unexpectedly large assessment payloads.
+    if (
+        strlen($encodedResults) +
+        strlen($encodedMetrics) +
+        strlen($encodedSkills) > 131072
+    ) {
+        json_out(413, ['error' => 'Assessment payload too large']);
+    }
+
+    // Return an existing assessment when the same UUID is retried.
+    $findExisting = $pdo->prepare("
+        SELECT id
+        FROM dh_skills_assessments
+        WHERE user_id = ?
+          AND assessment_uuid = ?
+        LIMIT 1
+    ");
+
+    $findExisting->execute([$uid, $uuid]);
+
+    $existing = $findExisting->fetch();
+
+    if ($existing) {
+        json_out(200, [
+            'ok' => true,
+            'id' => (int)$existing['id'],
+            'alreadySaved' => true,
+        ]);
+    }
+
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO dh_skills_assessments (
+                user_id,
+                assessment_uuid,
+                game_results,
+                raw_metrics,
+                skill_scores,
+                overall_score,
+                rank_band,
+                rank_level,
+                calculation_version
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+
+        $stmt->execute([
+            $uid,
+            $uuid,
+            $encodedResults,
+            $encodedMetrics,
+            $encodedSkills,
+            (float)$overallScore,
+            $rankBand,
+            $rankLevel,
+            $calculationVersion,
+        ]);
+
+        $id = (int)$pdo->lastInsertId();
+
+    } catch (PDOException $e) {
+        // Handle simultaneous retries safely.
+        if ($e->getCode() !== '23000') {
+            throw $e;
+        }
+
+        $findExisting->execute([$uid, $uuid]);
+        $existing = $findExisting->fetch();
+
+        if (!$existing) {
+            throw $e;
+        }
+
+        json_out(200, [
+            'ok' => true,
+            'id' => (int)$existing['id'],
+            'alreadySaved' => true,
+        ]);
+    }
+
+    json_out(201, [
+        'ok' => true,
+        'id' => $id,
+        'alreadySaved' => false,
+    ]);
+}
+
+
+// GET /skills-assessments
+if (route('GET', '/skills-assessments')) {
+    $user = auth_user($pdo, $config);
+
+    if (!$user) {
+        json_out(401, ['error' => 'Not authenticated']);
+    }
+
+    $uid = (int)$user['id'];
+
+    $stmt = $pdo->prepare("
+        SELECT
+            id,
+            assessment_uuid,
+            overall_score,
+            rank_band,
+            rank_level,
+            raw_metrics,
+            skill_scores,
+            calculation_version,
+            completed_at
+        FROM dh_skills_assessments
+        WHERE user_id = ?
+        ORDER BY completed_at DESC, id DESC
+    ");
+
+    $stmt->execute([$uid]);
+
+    $assessments = [];
+
+    foreach ($stmt->fetchAll() as $row) {
+        $assessments[] = [
+            'id' => (int)$row['id'],
+            'assessmentUuid' => $row['assessment_uuid'],
+            'overallScore' => (float)$row['overall_score'],
+            'rankBand' => $row['rank_band'],
+            'rankLevel' => (int)$row['rank_level'],
+            'rawMetrics' => json_decode(
+                (string)$row['raw_metrics'],
+                true
+            ),
+            'skillScores' => json_decode(
+                (string)$row['skill_scores'],
+                true
+            ),
+            'calculationVersion' => (int)$row['calculation_version'],
+            'completedAt' => $row['completed_at'],
+        ];
+    }
+
+    json_out(200, [
+        'ok' => true,
+        'assessments' => $assessments,
+    ]);
+}
+
+
+// GET /skills-assessments/{id}
+if (route_param(
+    'GET',
+    '#^/skills-assessments/([0-9]+)$#',
+    $m
+)) {
+    $user = auth_user($pdo, $config);
+
+    if (!$user) {
+        json_out(401, ['error' => 'Not authenticated']);
+    }
+
+    $uid = (int)$user['id'];
+    $id = (int)$m[1];
+
+    $stmt = $pdo->prepare("
+        SELECT *
+        FROM dh_skills_assessments
+        WHERE id = ?
+          AND user_id = ?
+        LIMIT 1
+    ");
+
+    $stmt->execute([$id, $uid]);
+
+    $row = $stmt->fetch();
+
+    if (!$row) {
+        json_out(404, ['error' => 'Assessment not found']);
+    }
+
+    json_out(200, [
+        'ok' => true,
+        'assessment' => [
+            'id' => (int)$row['id'],
+            'assessmentUuid' => $row['assessment_uuid'],
+            'gameResults' => json_decode(
+                (string)$row['game_results'],
+                true
+            ),
+            'rawMetrics' => json_decode(
+                (string)$row['raw_metrics'],
+                true
+            ),
+            'skillScores' => json_decode(
+                (string)$row['skill_scores'],
+                true
+            ),
+            'overallScore' => (float)$row['overall_score'],
+            'rankBand' => $row['rank_band'],
+            'rankLevel' => (int)$row['rank_level'],
+            'calculationVersion' => (int)$row['calculation_version'],
+            'completedAt' => $row['completed_at'],
+        ],
+    ]);
+}
+
 json_out(404, ['error' => 'Not found']);
