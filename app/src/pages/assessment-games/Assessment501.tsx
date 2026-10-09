@@ -550,12 +550,12 @@ export default function Assessment501() {
         setScoreInput("");
       }
     }
-    window\.addEventListener(
+    window.addEventListener(
       "keydown",
       handleKeyboard
     );
     return () => {
-      window\.removeEventListener(
+      window.removeEventListener(
         "keydown",
         handleKeyboard
       );
