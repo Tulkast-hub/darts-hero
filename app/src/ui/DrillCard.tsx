@@ -7,15 +7,23 @@ type Props = {
   keyName: string;
   title: string;
   blurb: string;
+  xpWin?: number;
+  xpLoss?: number;
 };
 
 export default function DrillCard({
   keyName,
   title,
   blurb,
+  xpWin,
+  xpLoss,
 }: Props) {
   const nav = useNavigate();
   const { t } = useI18n();
+
+  const hasXp =
+    typeof xpWin === "number" &&
+    typeof xpLoss === "number";
 
   return (
     <div
@@ -29,6 +37,18 @@ export default function DrillCard({
       <p className="muted">
         {t(blurb)}
       </p>
+
+      {hasXp && (
+        <div className="drill-card__xp">
+          <span className="drill-card__xp-win">
+            +{xpWin} XP
+          </span>
+
+          <span className="drill-card__xp-loss">
+            -{xpLoss} XP
+          </span>
+        </div>
+      )}
     </div>
   );
 }

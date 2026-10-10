@@ -272,6 +272,35 @@ h3 {
 .drill-card:hover {
   transform: translateY(-1px);
 }
+
+.drill-card__xp {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.drill-card__xp-win,
+.drill-card__xp-loss {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  line-height: 1;
+}
+
+.drill-card__xp-win {
+  color: var(--accent-green);
+  background: rgba(0, 132, 61, 0.1);
+}
+
+.drill-card__xp-loss {
+  color: var(--accent-red);
+  background: rgba(215, 38, 56, 0.1);
+}
+
 .drill-head {
   display: flex;
   justify-content: space-between;

@@ -102,23 +102,63 @@ function xp_category_for_game(string $gameKey, $result): string {
   ];
   return $fallback[$gameKey] ?? 'other';
 }
-function xp_values_for_game(string $gameKey): array {
-  static $xp = [
+function xp_config_for_games(): array {
+  return [
     // DOUBLING
-    'bull_out' => ['win' => 120, 'loss' => 120],
-    'doubles_world' => ['win' => 110, 'loss' => 55],
-    'checkouts_popular_leaves' => ['win' => 110, 'loss' => 55],
+    'bull_out' => [
+      'win' => 120,
+      'loss' => 120,
+    ],
+    'doubles_world' => [
+      'win' => 110,
+      'loss' => 55,
+    ],
+    'checkouts_popular_leaves' => [
+      'win' => 110,
+      'loss' => 55,
+    ],
+
     // SCORING
-    't20_scoring' => ['win' => 120, 'loss' => 60],
-    'scoring_ladder' => ['win' => 120, 'loss' => 60],
-    'scoring_bingo' => ['win' => 120, 'loss' => 60],
+    't20_scoring' => [
+      'win' => 120,
+      'loss' => 60,
+    ],
+    'scoring_ladder' => [
+      'win' => 120,
+      'loss' => 60,
+    ],
+    'scoring_bingo' => [
+      'win' => 120,
+      'loss' => 60,
+    ],
+
     // FINISHING
-    'checkout_41_up' => ['win' => 120, 'loss' => 60],
-    'checkout_121' => ['win' => 120, 'loss' => 60],
-    'checkout_25_repeat' => ['win' => 120, 'loss' => 60],
-    'three_dart_checkouts' => ['win' => 110, 'loss' => 55],
+    'checkout_41_up' => [
+      'win' => 120,
+      'loss' => 60,
+    ],
+    'checkout_121' => [
+      'win' => 120,
+      'loss' => 60,
+    ],
+    'checkout_25_repeat' => [
+      'win' => 120,
+      'loss' => 60,
+    ],
+    'three_dart_checkouts' => [
+      'win' => 110,
+      'loss' => 55,
+    ],
   ];
-  return $xp[$gameKey] ?? ['win' => 120, 'loss' => 120];
+}
+
+function xp_values_for_game(string $gameKey): array {
+  $xp = xp_config_for_games();
+
+  return $xp[$gameKey] ?? [
+    'win' => 120,
+    'loss' => 120,
+  ];
 }
 function compute_used_ratio($payload): ?float {
   if (!is_array($payload)) return null;
@@ -959,6 +999,14 @@ if (route('GET', '/skills-assessments')) {
         'ok' => true,
         'assessments' => $assessments,
     ]);
+}
+
+// GET /xp/config
+if (route('GET', '/xp/config')) {
+  json_out(200, [
+    'ok' => true,
+    'games' => xp_config_for_games(),
+  ]);
 }
 
 

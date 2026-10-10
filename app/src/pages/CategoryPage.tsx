@@ -1,4 +1,8 @@
-import React, { useMemo } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useParams } from "react-router-dom";
 
 import DrillCard from "../ui/DrillCard";
@@ -6,13 +10,21 @@ import RankBadge from "../ui/RankBadge";
 import XPBar from "../ui/XPBar";
 
 import { useXpStore } from "../xp/useXpStore";
-import { getRankStateFromXp, XP_CAPS } from "../xp/rank";
+import {
+  getRankStateFromXp,
+  XP_CAPS,
+} from "../xp/rank";
 import type { XpCategory } from "../xp/types";
 
 import {
   getDrillDef,
   type DrillKey,
 } from "../drills/registry";
+
+import {
+  getXpConfig,
+  type GameXpConfigMap,
+} from "../api";
 
 import { useI18n } from "../i18n/I18nProvider";
 
@@ -44,6 +56,30 @@ export default function CategoryPage() {
   const xpState = useXpStore(
     (s) => s.state
   );
+
+  const [xpConfig, setXpConfig] =
+    useState<GameXpConfigMap>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getXpConfig()
+      .then((config) => {
+        if (!cancelled) {
+          setXpConfig(config);
+        }
+      })
+      .catch((error) => {
+        console.error(
+          "Failed to load XP configuration",
+          error
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const groups: Record<
     string,
@@ -159,13 +195,18 @@ export default function CategoryPage() {
             (drill.key ??
               keyName) as DrillKey;
 
+          const gameXp =
+            xpConfig[canonicalKey];
+
           return (
-          <DrillCard
-            key={canonicalKey}
-            keyName={canonicalKey}
-            title={drill.title}
-            blurb={drill.blurb}
-          />
+            <DrillCard
+              key={canonicalKey}
+              keyName={canonicalKey}
+              title={drill.title}
+              blurb={drill.blurb}
+              xpWin={gameXp?.win}
+              xpLoss={gameXp?.loss}
+            />
           );
         })}
       </div>

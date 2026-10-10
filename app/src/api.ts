@@ -1,4 +1,3 @@
-
 // app/src/api.ts
 
 import type {
@@ -90,6 +89,39 @@ export type MeProgressResponse = {
   xpState: XpState;
   needsOnboarding?: boolean;
 };
+
+/*
+ * --------------------------------------------------
+ * XP CONFIG
+ * --------------------------------------------------
+ */
+
+export type GameXpConfig = {
+  win: number;
+  loss: number;
+};
+
+export type GameXpConfigMap = Record<
+  string,
+  GameXpConfig
+>;
+
+export type XpConfigResponse = {
+  ok: boolean;
+  games: GameXpConfigMap;
+};
+
+export async function getXpConfig():
+  Promise<GameXpConfigMap> {
+  const res = await apiFetch<XpConfigResponse>(
+    "xp/config",
+    {
+      method: "GET",
+    }
+  );
+
+  return res.games ?? {};
+}
 
 export async function getMe() {
   return apiFetch<MeResponse>("me", {
