@@ -106,25 +106,25 @@ function xp_config_for_games(): array {
   return [
     // DOUBLING
     'bull_out' => [
-      'win' => 120,
-      'loss' => 120,
+      'win' => 80,
+      'loss' => 40,
     ],
     'doubles_world' => [
-      'win' => 110,
-      'loss' => 55,
+      'win' => 140,
+      'loss' => 70,
     ],
     'checkouts_popular_leaves' => [
-      'win' => 110,
-      'loss' => 55,
+      'win' => 90,
+      'loss' => 45,
     ],
 
     // SCORING
     't20_scoring' => [
-      'win' => 120,
-      'loss' => 60,
+      'win' => 150,
+      'loss' => 75,
     ],
     'scoring_ladder' => [
-      'win' => 120,
+      'win' => 100,
       'loss' => 60,
     ],
     'scoring_bingo' => [
@@ -134,20 +134,20 @@ function xp_config_for_games(): array {
 
     // FINISHING
     'checkout_41_up' => [
-      'win' => 120,
-      'loss' => 60,
+      'win' => 150,
+      'loss' => 75,
     ],
     'checkout_121' => [
       'win' => 120,
       'loss' => 60,
     ],
     'checkout_25_repeat' => [
-      'win' => 120,
-      'loss' => 60,
+      'win' => 80,
+      'loss' => 40,
     ],
     'three_dart_checkouts' => [
-      'win' => 110,
-      'loss' => 55,
+      'win' => 90,
+      'loss' => 45,
     ],
   ];
 }
