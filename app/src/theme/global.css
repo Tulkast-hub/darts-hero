@@ -301,6 +301,26 @@ h3 {
   background: rgba(215, 38, 56, 0.1);
 }
 
+.drill-card__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.drill-card__stat-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted, currentColor);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
 .drill-head {
   display: flex;
   justify-content: space-between;
