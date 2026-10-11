@@ -199,14 +199,15 @@ export default function CategoryPage() {
             xpConfig[canonicalKey];
 
           return (
-            <DrillCard
-              key={canonicalKey}
-              keyName={canonicalKey}
-              title={drill.title}
-              blurb={drill.blurb}
-              xpWin={gameXp?.win}
-              xpLoss={gameXp?.loss}
-            />
+        <DrillCard
+          key={canonicalKey}
+          keyName={canonicalKey}
+          title={drill.title}
+          blurb={drill.blurb}
+          xpWin={gameXp?.win}
+          xpLoss={gameXp?.loss}
+          statCategories={drill.statCategories}
+        />
           );
         })}
       </div>
