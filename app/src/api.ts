@@ -111,16 +111,62 @@ export type XpConfigResponse = {
   games: GameXpConfigMap;
 };
 
-export async function getXpConfig():
-  Promise<GameXpConfigMap> {
-  const res = await apiFetch<XpConfigResponse>(
-    "xp/config",
-    {
-      method: "GET",
-    }
-  );
+let xpConfigCache: GameXpConfigMap | null =
+  null;
 
-  return res.games ?? {};
+let xpConfigPromise:
+  Promise<GameXpConfigMap> | null = null;
+
+/**
+ * Retrieve the game XP configuration.
+ *
+ * The server remains the source of truth.
+ *
+ * Results are cached in memory so switching
+ * between category pages does not trigger
+ * another request.
+ */
+export function getXpConfig():
+  Promise<GameXpConfigMap> {
+  if (xpConfigCache) {
+    return Promise.resolve(
+      xpConfigCache
+    );
+  }
+
+  if (xpConfigPromise) {
+    return xpConfigPromise;
+  }
+
+  xpConfigPromise =
+    apiFetch<XpConfigResponse>(
+      "xp/config",
+      {
+        method: "GET",
+      }
+    )
+      .then((res) => {
+        xpConfigCache =
+          res.games ?? {};
+
+        return xpConfigCache;
+      })
+      .finally(() => {
+        xpConfigPromise = null;
+      });
+
+  return xpConfigPromise;
+}
+
+/**
+ * Start loading XP configuration early.
+ *
+ * Useful from the app shell so the data
+ * is already available before a player
+ * opens a category page.
+ */
+export function preloadXpConfig() {
+  void getXpConfig();
 }
 
 export async function getMe() {

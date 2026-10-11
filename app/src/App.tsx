@@ -3,6 +3,7 @@ import AppRouter from "./router";
 import "./theme/global.css";
 import { useAuthStore } from "./auth/useAuthStore";
 import { useI18n } from "./i18n/I18nProvider";
+import { preloadXpConfig } from "./api";
 
 
 function applyInitialTheme() {
@@ -32,6 +33,7 @@ export default function App() {
   useEffect(() => {
     applyInitialTheme();
     // Initialize auth session from API cookie.
+    preloadXpConfig();
     void init();
   }, [init]);
 

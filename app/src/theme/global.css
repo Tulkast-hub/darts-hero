@@ -311,14 +311,14 @@ h3 {
 .drill-card__stat-pill {
   display: inline-flex;
   align-items: center;
-  padding: 3px 7px;
+  padding: 4px 8px;
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-muted, currentColor);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(110, 92, 230, 0.14);
+  border: 1px solid rgba(110, 92, 230, 0.28);
+  color: #8f7cf0;
 }
 
 .drill-head {
