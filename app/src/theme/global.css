@@ -1336,6 +1336,10 @@ select {
     max-width: 380px;
     height: auto;
   }
+
+  .title-lg {
+    font-size: 30px;
+  }
 }
 
 .assessment-modal-backdrop {

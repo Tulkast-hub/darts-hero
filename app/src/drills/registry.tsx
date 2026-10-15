@@ -442,6 +442,9 @@ export const DRILLS: DrillDef[] = [
     title: "Doubles Around the World",
     blurb: "Hit D1→D20 in order.",
     category: "doubles",
+    statCategories: [
+      "doubles",
+    ],
     Component: DoublesWorld,
     Rules: RulesDoublesWorld,
   },
