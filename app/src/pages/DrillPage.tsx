@@ -1,36 +1,67 @@
 // src/pages/DrillPage.tsx
 
-import React, { useEffect, useState } from "react";
+import React, {
+  useEffect,
+  useState,
+} from "react";
 
 import { useI18n } from "../i18n/I18nProvider";
 
-import { useNavigate, useParams } from "react-router-dom";
+import {
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
-import { getDrillDef } from "../drills/registry";
+import {
+  getDrillDef,
+} from "../drills/registry";
 
-import { startSession, endSession } from "../api";
+import type {
+  ScoringSection,
+} from "../drills/T20Scoring";
 
-import { getRankStateFromXp, XP_CAPS } from "../xp/rank";
+import {
+  startSession,
+  endSession,
+} from "../api";
 
-import { useXpStore } from "../xp/useXpStore";
+import {
+  getRankStateFromXp,
+  XP_CAPS,
+} from "../xp/rank";
 
-import { loadXpState, saveXpState } from "../xp/store";
+import {
+  useXpStore,
+} from "../xp/useXpStore";
 
-import type { DrillResult, Tier, XpCategory } from "../xp/types";
+import {
+  loadXpState,
+  saveXpState,
+} from "../xp/store";
 
-import { useAbortStore } from "../session/useAbortStore";
+import type {
+  DrillResult,
+  Tier,
+  XpCategory,
+} from "../xp/types";
 
-import { useAuthStore } from "../auth/useAuthStore";
+import {
+  useAbortStore,
+} from "../session/useAbortStore";
+
+import {
+  useAuthStore,
+} from "../auth/useAuthStore";
 
 type FinishResult = {
-
   payload: any;
-
   win: boolean;
-
 };
 
-const CATEGORY_LABELS: Record<string, string> = {
+const CATEGORY_LABELS: Record<
+  string,
+  string
+> = {
   scoring: "Scoring",
   finishing: "Finishing",
   doubles: "Doubling",
@@ -38,84 +69,220 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export default function DrillPage() {
+  const { t } =
+    useI18n();
 
-  const { t } = useI18n();
+  const { key } =
+    useParams();
 
-  const { key } = useParams();
+  const nav =
+    useNavigate();
 
-  const nav = useNavigate();
+  const setXpState =
+    useXpStore(
+      (s) => s.setState
+    );
 
-  const setXpState = useXpStore((s) => s.setState);
+  const xpState =
+    useXpStore(
+      (s) => s.state
+    );
 
-  const xpState = useXpStore((s) => s.state);
+  const [
+    sessionId,
+    setSessionId,
+  ] = useState<
+    number | null
+  >(null);
 
-  const [sessionId, setSessionId] = useState<number | null>(null);
+  const [
+    loading,
+    setLoading,
+  ] = useState(false);
 
-  const [loading, setLoading] = useState(false);
+  const [
+    showRules,
+    setShowRules,
+  ] = useState(true);
 
-  const [showRules, setShowRules] = useState(true);
+  const [
+    showAbortConfirm,
+    setShowAbortConfirm,
+  ] = useState(false);
 
-  const [showAbortConfirm, setShowAbortConfirm] = useState(false);
+  /**
+   * Runtime setup value.
+   *
+   * The registry defines:
+   * - available values
+   * - label
+   * - default
+   *
+   * DrillPage only stores the choice
+   * for the current session.
+   */
+  const [
+    scoringSection,
+    setScoringSection,
+  ] =
+    useState<ScoringSection>(
+      20
+    );
 
-  const setAbortHandler = useAbortStore((s) => s.setHandler);
+  const setAbortHandler =
+    useAbortStore(
+      (s) =>
+        s.setHandler
+    );
 
-  const status = useAuthStore((s) => s.status);
+  const status =
+    useAuthStore(
+      (s) => s.status
+    );
 
-  const drillKey = key || "";
+  const drillKey =
+    key || "";
 
-  // While inside a drill, make the global back button behave like "Abort".
+  const drillDef =
+    getDrillDef(
+      drillKey
+    );
 
-  useEffect(() => {
+  /*
+   * Reset game-specific setup whenever
+   * a different drill is opened.
+   *
+   * The default comes from the registry.
+   */
+  useEffect(
+    () => {
+      const setup =
+        drillDef?.setup
+          ?.scoringSection;
 
-    if (!drillKey) return;
+      if (setup) {
+        setScoringSection(
+          setup.default
+        );
+      } else {
+        setScoringSection(
+          20
+        );
+      }
+    },
+    [
+      drillKey,
+      drillDef,
+    ]
+  );
 
-    // If not authed, go to login (this removes WP dependency)
+  /*
+   * While inside a drill,
+   * make the global back button
+   * behave like Abort.
+   */
+  useEffect(
+    () => {
+      if (
+        !drillKey
+      ) {
+        return;
+      }
 
-    if (status !== "authed") {
+      /*
+       * If not authed,
+       * go to login.
+       */
+      if (
+        status !==
+        "authed"
+      ) {
+        nav(
+          "/login",
+          {
+            replace:
+              true,
+          }
+        );
 
-      nav("/login", { replace: true });
+        return;
+      }
 
-      return;
+      setSessionId(
+        null
+      );
 
-    }
+      setShowRules(
+        true
+      );
 
-    setSessionId(null);
+      setLoading(
+        true
+      );
 
-    setShowRules(true);
+      startSession(
+        drillKey
+      )
+        .then(
+          ({ id }) =>
+            setSessionId(
+              id
+            )
+        )
+        .catch(
+          (e) => {
+            const msg =
+              String(
+                e?.message ||
+                  ""
+              );
 
-    setLoading(true);
+            if (
+              msg
+                .toLowerCase()
+                .includes(
+                  "not authenticated"
+                )
+            ) {
+              nav(
+                "/login",
+                {
+                  replace:
+                    true,
+                }
+              );
+            }
+          }
+        )
+        .finally(
+          () =>
+            setLoading(
+              false
+            )
+        );
+    },
+    [
+      drillKey,
+      status,
+      nav,
+    ]
+  );
 
-    startSession(drillKey)
-
-      .then(({ id }) => setSessionId(id))
-
-      .catch((e) => {
-
-        // If session start fails due to auth/cookie issues, send to login
-
-        const msg = String(e?.message || "");
-
-        if (msg.toLowerCase().includes("not authenticated")) {
-
-          nav("/login", { replace: true });
-
-        }
-
-      })
-
-      .finally(() => setLoading(false));
-
-  }, [drillKey, status, nav]);
-
-  const drillDef = getDrillDef(drillKey);
-
-  // Category rank drives the tier/level used by the drill to set objectives.
-  // "bull" is legacy only; Bull Out belongs to the doubles category.
+  /*
+   * Category rank drives the tier/level
+   * used by the drill to set objectives.
+   *
+   * "bull" is legacy only.
+   * Bull Out belongs to doubles.
+   */
   const category: XpCategory =
-  drillDef?.category ?? "other";
+    drillDef?.category ??
+    "other";
 
   const categoryXp =
-    xpState.categoryXp?.[category] ?? 0;
+    xpState.categoryXp?.[
+      category
+    ] ?? 0;
 
   const categoryRank =
     getRankStateFromXp(
@@ -130,307 +297,568 @@ export default function DrillPage() {
   const currentLevel: number =
     categoryRank.level;
 
-  const title = drillDef?.title ?? "Drill";
+  const title =
+    drillDef?.title ??
+    "Drill";
 
-  async function handleFinish(resultIn: FinishResult) {
+  async function handleFinish(
+    resultIn: FinishResult
+  ) {
+    if (
+      !sessionId ||
+      !drillKey
+    ) {
+      return;
+    }
 
-    if (!sessionId || !drillKey) return;
-
-    setLoading(true);
+    setLoading(
+      true
+    );
 
     try {
+      const xpBeforeState =
+        loadXpState();
 
-      const xpBeforeState = loadXpState();
+      const drillResult =
+        toDrillResult(
+          drillKey,
+          resultIn.win,
+          resultIn.payload
+        );
 
-      const drillResult = toDrillResult(drillKey, resultIn.win, resultIn.payload);
+      /*
+       * Server is the source
+       * of truth for XP.
+       */
+      const res =
+        await endSession(
+          sessionId,
+          drillKey,
+          resultIn.payload,
+          drillResult
+        );
 
-      // Server is the source of truth for XP/progression (syncs across devices).
+      const xpAfterState =
+        res.xpState;
 
-      const res = await endSession(sessionId, drillKey, resultIn.payload, drillResult);
+      saveXpState(
+        xpAfterState as any
+      );
 
-      const xpAfterState = res.xpState;
+      setXpState(
+        xpAfterState as any
+      );
 
-      saveXpState(xpAfterState as any);
-
-      setXpState(xpAfterState as any);
-
-      const cat = drillResult.category;
+      const cat =
+        drillResult.category;
 
       const xpAward = {
-
-        total: res.xp,
+        total:
+          res.xp,
 
         byCategory: {
-
           scoring: 0,
-
           finishing: 0,
-
           doubles: 0,
-
           other: 0,
 
-          [cat]: res.xp,
-
+          [cat]:
+            res.xp,
         } as any,
 
-        breakdown: [{ label: "Session XP", xp: res.xp }],
+        breakdown: [
+          {
+            label:
+              "Session XP",
 
-        multiplier: 1,
+            xp:
+              res.xp,
+          },
+        ],
 
+        multiplier:
+          1,
       };
 
-      nav(`/result/${drillKey}`, {
+      nav(
+        `/result/${drillKey}`,
+        {
+          state: {
+            win:
+              resultIn.win,
 
-        state: {
+            xp:
+              res.xp,
 
-          win: resultIn.win,
+            xpAward,
 
-          xp: res.xp,
+            xpBeforeState,
 
-          xpAward,
+            xpAfterState,
 
-          xpBeforeState,
+            drillResult,
 
-          xpAfterState,
+            payload:
+              resultIn.payload,
 
-          drillResult,
-
-          payload: resultIn.payload,
-
-          drillKey,
-
-        },
-
-      });
-
+            drillKey,
+          },
+        }
+      );
     } finally {
-
-      setLoading(false);
-
+      setLoading(
+        false
+      );
     }
 
     // eslint-disable-next-line no-console
-
-    console.log("DRILL PAYLOAD", resultIn.payload);
-
+    console.log(
+      "DRILL PAYLOAD",
+      resultIn.payload
+    );
   }
 
   function requestAbort() {
-
-    setShowAbortConfirm(true);
-
+    setShowAbortConfirm(
+      true
+    );
   }
 
-  // While inside a drill, make the global NavBar back button behave like "Abort".
+  /*
+   * Global NavBar back
+   * behaves like Abort.
+   */
+  useEffect(
+    () => {
+      setAbortHandler(
+        () =>
+          requestAbort
+      );
 
-  useEffect(() => {
+      return () =>
+        setAbortHandler(
+          null
+        );
 
-    setAbortHandler(() => requestAbort);
-
-    return () => setAbortHandler(null);
-
-    // We intentionally re-register when the drill changes.
-
-  }, [setAbortHandler, drillKey]);
+      // We intentionally re-register when the drill changes.
+    },
+    [
+      setAbortHandler,
+      drillKey,
+    ]
+  );
 
   async function handleAbortConfirm() {
+    setShowAbortConfirm(
+      false
+    );
 
-    setShowAbortConfirm(false);
-
-    if (!sessionId || !drillKey) {
-
+    if (
+      !sessionId ||
+      !drillKey
+    ) {
       nav(-1);
 
       return;
-
     }
 
-    setLoading(true);
+    setLoading(
+      true
+    );
 
     try {
+      const xpBeforeState =
+        loadXpState();
 
-      const xpBeforeState = loadXpState();
+      const drillResult =
+        toDrillResult(
+          drillKey,
+          false,
+          {
+            aborted:
+              true,
+          }
+        );
 
-      const drillResult = toDrillResult(drillKey, false, { aborted: true });
+      const res =
+        await endSession(
+          sessionId,
+          drillKey,
+          {
+            aborted:
+              true,
+          },
+          drillResult
+        );
 
-      const res = await endSession(sessionId, drillKey, { aborted: true }, drillResult);
+      const xpAfterState =
+        res.xpState;
 
-      const xpAfterState = res.xpState;
+      saveXpState(
+        xpAfterState as any
+      );
 
-      saveXpState(xpAfterState as any);
+      setXpState(
+        xpAfterState as any
+      );
 
-      setXpState(xpAfterState as any);
-
-      const cat = drillResult.category;
+      const cat =
+        drillResult.category;
 
       const xpAward = {
-
-        total: res.xp,
+        total:
+          res.xp,
 
         byCategory: {
-
           scoring: 0,
-
           finishing: 0,
-
           doubles: 0,
-
           other: 0,
 
-          [cat]: res.xp,
-
+          [cat]:
+            res.xp,
         } as any,
 
-        breakdown: [{ label: "Session XP", xp: res.xp }],
+        breakdown: [
+          {
+            label:
+              "Session XP",
 
-        multiplier: 1,
+            xp:
+              res.xp,
+          },
+        ],
 
+        multiplier:
+          1,
       };
 
-      nav(`/result/${drillKey}`, {
+      nav(
+        `/result/${drillKey}`,
+        {
+          state: {
+            win:
+              false,
 
-        state: {
+            xp:
+              res.xp,
 
-          win: false,
+            xpAward,
 
-          xp: res.xp,
+            xpBeforeState,
 
-          xpAward,
+            xpAfterState,
 
-          xpBeforeState,
+            drillResult,
 
-          xpAfterState,
+            payload: {
+              aborted:
+                true,
+            },
 
-          drillResult,
-
-          payload: { aborted: true },
-
-          drillKey,
-
-        },
-
-      });
-
+            drillKey,
+          },
+        }
+      );
     } finally {
-
-      setLoading(false);
-
+      setLoading(
+        false
+      );
     }
-
   }
 
-  function toTier(v: any): Tier {
-
-    if (v === "Bronze" || v === "Silver" || v === "Gold" || v === "Platinum" || v === "Diamond") return v;
+  function toTier(
+    v: any
+  ): Tier {
+    if (
+      v === "Bronze" ||
+      v === "Silver" ||
+      v === "Gold" ||
+      v === "Platinum" ||
+      v === "Diamond"
+    ) {
+      return v;
+    }
 
     return "Bronze";
-
   }
 
-  function toDrillResult(k: string, win: boolean, payload: any): DrillResult {
+  function toDrillResult(
+    k: string,
+    win: boolean,
+    payload: any
+  ): DrillResult {
+    const tier =
+      toTier(
+        payload?.tier
+      );
 
-    const tier = toTier(payload?.tier);
-
-    const level = typeof payload?.level === "number" ? payload.level : 1;
+    const level =
+      typeof payload?.level ===
+      "number"
+        ? payload.level
+        : 1;
 
     const throws_used =
-
-      payload?.throws_used ?? payload?.throwsUsed ?? payload?.throws ?? payload?.darts_used ?? undefined;
+      payload?.throws_used ??
+      payload?.throwsUsed ??
+      payload?.throws ??
+      payload?.darts_used ??
+      undefined;
 
     const max_throws =
+      payload?.max_throws ??
+      payload?.maxThrows ??
+      payload?.max_throws_total ??
+      payload?.maxThrowsTotal ??
+      undefined;
 
-      payload?.max_throws ?? payload?.maxThrows ?? payload?.max_throws_total ?? payload?.maxThrowsTotal ?? undefined;
+    let progress:
+      | number
+      | undefined =
+      typeof payload?.progress ===
+      "number"
+        ? payload.progress
+        : undefined;
 
-    let progress: number | undefined = typeof payload?.progress === "number" ? payload.progress : undefined;
+    let objective:
+      | {
+          label: string;
 
-    let objective: { label: string; current?: number; target?: number; unit?: string } | undefined;
+          current?: number;
 
-    if (progress == null) {
+          target?: number;
 
-      if (k === "checkouts_popular_leaves") {
+          unit?: string;
+        }
+      | undefined;
 
-        const cur = payload?.total_checkouts ?? payload?.totalCheckouts;
+    if (
+      progress == null
+    ) {
+      if (
+        k ===
+        "checkouts_popular_leaves"
+      ) {
+        const cur =
+          payload?.total_checkouts ??
+          payload?.totalCheckouts;
 
-        const req = payload?.required_checkouts ?? payload?.requiredCheckouts;
+        const req =
+          payload?.required_checkouts ??
+          payload?.requiredCheckouts;
 
-        if (typeof cur === "number" && typeof req === "number" && req > 0) progress = cur / req;
-
+        if (
+          typeof cur ===
+            "number" &&
+          typeof req ===
+            "number" &&
+          req > 0
+        ) {
+          progress =
+            cur / req;
+        }
       }
 
-      if (k === "scoring_ladder") {
+      if (
+        k ===
+        "scoring_ladder"
+      ) {
+        const cur =
+          payload?.current_step;
 
-        const cur = payload?.current_step;
+        const goal =
+          payload?.goal_steps;
 
-        const goal = payload?.goal_steps;
-
-        if (typeof cur === "number" && typeof goal === "number" && goal > 0) progress = cur / goal;
-
+        if (
+          typeof cur ===
+            "number" &&
+          typeof goal ===
+            "number" &&
+          goal > 0
+        ) {
+          progress =
+            cur / goal;
+        }
       }
 
-      if (k === "scoring_bingo") {
+      if (
+        k ===
+        "scoring_bingo"
+      ) {
+        const cc =
+          payload?.completed_count;
 
-        const cc = payload?.completed_count;
-
-        if (typeof cc === "number") progress = cc / 9;
-
+        if (
+          typeof cc ===
+          "number"
+        ) {
+          progress =
+            cc / 9;
+        }
       }
 
-      if (k === "t20_scoring") {
+      if (
+        k ===
+        "t20_scoring"
+      ) {
+        const points =
+          payload?.total_points ??
+          payload?.points ??
+          payload?.total;
 
-        const points = payload?.total_points ?? payload?.points ?? payload?.total;
+        const target =
+          payload?.target_points ??
+          payload?.target;
 
-        const target = payload?.target_points ?? payload?.target;
-
-        if (typeof points === "number" && typeof target === "number" && target > 0) progress = points / target;
-
+        if (
+          typeof points ===
+            "number" &&
+          typeof target ===
+            "number" &&
+          target > 0
+        ) {
+          progress =
+            points /
+            target;
+        }
       }
-
     }
 
-    if (k === "checkouts_popular_leaves") {
+    if (
+      k ===
+      "checkouts_popular_leaves"
+    ) {
+      const current =
+        payload?.total_checkouts ??
+        payload?.totalCheckouts;
 
-      const current = payload?.total_checkouts ?? payload?.totalCheckouts;
+      const target =
+        payload?.required_checkouts ??
+        payload?.requiredCheckouts;
 
-      const target = payload?.required_checkouts ?? payload?.requiredCheckouts;
+      if (
+        typeof current ===
+          "number" &&
+        typeof target ===
+          "number"
+      ) {
+        objective = {
+          label:
+            "Checkouts",
 
-      if (typeof current === "number" && typeof target === "number") objective = { label: "Checkouts", current, target, unit: "outs" };
+          current,
 
-    } else if (k === "scoring_ladder") {
+          target,
 
-      const current = payload?.current_step;
+          unit:
+            "outs",
+        };
+      }
+    } else if (
+      k ===
+      "scoring_ladder"
+    ) {
+      const current =
+        payload?.current_step;
 
-      const target = payload?.goal_steps;
+      const target =
+        payload?.goal_steps;
 
-      if (typeof current === "number" && typeof target === "number") objective = { label: "Steps", current, target, unit: "steps" };
+      if (
+        typeof current ===
+          "number" &&
+        typeof target ===
+          "number"
+      ) {
+        objective = {
+          label:
+            "Steps",
 
-    } else if (k === "scoring_bingo") {
+          current,
 
-      const current = payload?.completed_count;
+          target,
 
-      if (typeof current === "number") objective = { label: "Tiles", current, target: 9, unit: "tiles" };
+          unit:
+            "steps",
+        };
+      }
+    } else if (
+      k ===
+      "scoring_bingo"
+    ) {
+      const current =
+        payload?.completed_count;
 
-    } else if (k === "t20_scoring") {
+      if (
+        typeof current ===
+        "number"
+      ) {
+        objective = {
+          label:
+            "Tiles",
 
-      const current = payload?.total_points ?? payload?.points ?? payload?.total;
+          current,
 
-      const target = payload?.target_points ?? payload?.target;
+          target:
+            9,
 
-      if (typeof current === "number" && typeof target === "number") objective = { label: "Target points", current, target, unit: "pts" };
+          unit:
+            "tiles",
+        };
+      }
+    } else if (
+      k ===
+      "t20_scoring"
+    ) {
+      const current =
+        payload?.total_points ??
+        payload?.points ??
+        payload?.total;
 
+      const target =
+        payload?.target_points ??
+        payload?.target;
+
+      if (
+        typeof current ===
+          "number" &&
+        typeof target ===
+          "number"
+      ) {
+        objective = {
+          label:
+            "Target points",
+
+          current,
+
+          target,
+
+          unit:
+            "pts",
+        };
+      }
     }
 
-    // Bull Out always belongs to the doubles category.
-  const forcedCategory: XpCategory | undefined =
-    k === "bull_out"
-      ? "doubles"
-      : undefined;
+    /*
+     * Bull Out always belongs
+     * to doubles.
+     */
+    const forcedCategory:
+      | XpCategory
+      | undefined =
+      k === "bull_out"
+        ? "doubles"
+        : undefined;
 
     return {
+      game_key:
+        k,
 
-      game_key: k,
-
-      category: forcedCategory ?? drillDef?.category ?? "other",
+      category:
+        forcedCategory ??
+        drillDef?.category ??
+        "other",
 
       tier,
 
@@ -438,196 +866,362 @@ export default function DrillPage() {
 
       win,
 
-      aborted: Boolean(payload?.aborted),
+      aborted:
+        Boolean(
+          payload?.aborted
+        ),
 
-      throws_used: typeof throws_used === "number" ? throws_used : undefined,
+      throws_used:
+        typeof throws_used ===
+        "number"
+          ? throws_used
+          : undefined,
 
-      max_throws: typeof max_throws === "number" ? max_throws : undefined,
+      max_throws:
+        typeof max_throws ===
+        "number"
+          ? max_throws
+          : undefined,
 
-      progress: typeof progress === "number" ? progress : undefined,
+      progress:
+        typeof progress ===
+        "number"
+          ? progress
+          : undefined,
 
       objective,
 
-      stats: payload ?? undefined,
-
+      stats:
+        payload ??
+        undefined,
     };
-
   }
 
-  // NavBar back integration
+  /* --------------------------------------------------
+     NAVBAR BACK
+  -------------------------------------------------- */
 
-  useEffect(() => {
+  useEffect(
+    () => {
+      function onDrillBack() {
+        if (
+          showRules
+        ) {
+          nav(-1);
+        } else {
+          requestAbort();
+        }
+      }
 
-    function onDrillBack() {
+      window.addEventListener(
+        "dt-drill-back",
+        onDrillBack
+      );
 
-      if (showRules) nav(-1);
+      return () =>
+        window.removeEventListener(
+          "dt-drill-back",
+          onDrillBack
+        );
+    },
+    [
+      showRules,
+      nav,
+    ]
+  );
 
-      else requestAbort();
-
-    }
-
-    window.addEventListener("dt-drill-back", onDrillBack);
-
-    return () => window.removeEventListener("dt-drill-back", onDrillBack);
-
-  }, [showRules, nav]);
-
-  if (!drillKey || !drillDef) {
-
+  if (
+    !drillKey ||
+    !drillDef
+  ) {
     return (
-
       <div className="page">
-
         <div className="card">
-
-          <p>{t("Unknown drill.")}</p>
-
+          <p>
+            {t(
+              "Unknown drill."
+            )}
+          </p>
         </div>
-
       </div>
-
     );
-
   }
 
-  const Component = drillDef.Component;
+  const Component =
+    drillDef.Component;
 
-  const Rules = drillDef.Rules;
+  const Rules =
+    drillDef.Rules;
+
+  /*
+   * Setup configuration is defined
+   * by the registry.
+   */
+  const scoringSectionSetup =
+    drillDef.setup
+      ?.scoringSection;
 
   return (
-
     <div className="page">
-
       {/* Game surface */}
-
-      <Component onFinish={handleFinish} disabled={loading || showRules} tier={currentTier} level={currentLevel} />
+      <Component
+        onFinish={
+          handleFinish
+        }
+        disabled={
+          loading ||
+          showRules
+        }
+        tier={
+          currentTier
+        }
+        level={
+          currentLevel
+        }
+        scoringSection={
+          scoringSection
+        }
+      />
 
       {/* Abort button */}
-
-      <div style={{ marginTop: 12 }}>
-
-        <button className="btn danger" onClick={requestAbort}>
-
+      <div
+        style={{
+          marginTop: 12,
+        }}
+      >
+        <button
+          className="btn danger"
+          onClick={
+            requestAbort
+          }
+        >
           Abort game
-
         </button>
-
       </div>
 
-      {/* Rules modal */}
-
+      {/* Rules / setup modal */}
       {showRules && (
-
         <div className="overlay open">
-
           <div className="overlay-inner">
-
             <div className="overlay-panel">
-
               <div className="overlay-panel-head">
-
                 <div className="overlay-panel-title">
+                  <h3
+                    style={{
+                      margin: 0,
+                    }}
+                  >
+                    {t(
+                      drillDef.title
+                    )}
+                  </h3>
 
-                  <h3 style={{ margin: 0 }}>{t(drillDef.title)}</h3>
-
-                  <div className="muted" style={{ marginTop: 6 }}>
-
-                    {t(drillDef.blurb)}
-
+                  <div
+                    className="muted"
+                    style={{
+                      marginTop:
+                        6,
+                    }}
+                  >
+                    {t(
+                      drillDef.blurb
+                    )}
                   </div>
-
                 </div>
 
                 <div className="pill pill-stat overlay-badge">
-
-                  <div className="pill-label">{t("Category")}</div>
-
-                  <div className="pill-value">
-
-                    {t(CATEGORY_LABELS[drillDef.category] ?? drillDef.category)}
-
+                  <div className="pill-label">
+                    {t(
+                      "Category"
+                    )}
                   </div>
 
+                  <div className="pill-value">
+                    {t(
+                      CATEGORY_LABELS[
+                        drillDef
+                          .category
+                      ] ??
+                        drillDef
+                          .category
+                    )}
+                  </div>
                 </div>
-
               </div>
 
-              <div className="overlay-rules" style={{ marginTop: 12 }}>
-
+              {/* Rules */}
+              <div
+                className="overlay-rules"
+                style={{
+                  marginTop:
+                    12,
+                }}
+              >
                 <Rules />
-
               </div>
 
-              <div className="row" style={{ justifyContent: "flex-end", marginTop: 16 }}>
-
-              <button className="btn outline" onClick={() => nav("/")}>{t("Back to Home")}</button>
-
-                <button
-
-                  className="btn"
-
-                  style={{ marginLeft: 8 }}
-
-                  onClick={() => setShowRules(false)}
-
-                  disabled={loading || !sessionId}
-
+              {/* Registry-driven setup */}
+              {scoringSectionSetup && (
+                <div
+                  style={{
+                    marginTop:
+                      20,
+                  }}
                 >
+                  <div
+                    className="small muted"
+                    style={{
+                      marginBottom:
+                        8,
+                    }}
+                  >
+                    {t(
+                      scoringSectionSetup.label
+                    )}
+                  </div>
 
-                  {t("Start game")}
+                  <div
+                    className="row"
+                    style={{
+                      gap: 8,
+                      flexWrap:
+                        "wrap",
+                    }}
+                  >
+                    {scoringSectionSetup.options.map(
+                      (
+                        section
+                      ) => (
+                        <button
+                          key={
+                            section
+                          }
+                          type="button"
+                          className={
+                            scoringSection ===
+                            section
+                              ? "btn"
+                              : "btn outline"
+                          }
+                          onClick={() =>
+                            setScoringSection(
+                              section
+                            )
+                          }
+                        >
+                          {
+                            section
+                          }
+                          s
+                        </button>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
 
+              {/* Modal actions */}
+              <div
+                className="row"
+                style={{
+                  justifyContent:
+                    "flex-end",
+
+                  marginTop:
+                    16,
+                }}
+              >
+                <button
+                  className="btn outline"
+                  onClick={() =>
+                    nav("/")
+                  }
+                >
+                  {t(
+                    "Back to Home"
+                  )}
                 </button>
 
+                <button
+                  className="btn"
+                  style={{
+                    marginLeft:
+                      8,
+                  }}
+                  onClick={() =>
+                    setShowRules(
+                      false
+                    )
+                  }
+                  disabled={
+                    loading ||
+                    !sessionId
+                  }
+                >
+                  {t(
+                    "Start game"
+                  )}
+                </button>
               </div>
-
             </div>
-
           </div>
-
         </div>
-
       )}
 
       {/* Abort confirm modal */}
-
       {showAbortConfirm && (
-
         <div className="overlay open">
-
           <div className="overlay-panel">
-
-            <h3>{t("Abort game?")}</h3>
+            <h3>
+              {t(
+                "Abort game?"
+              )}
+            </h3>
 
             <p className="muted">
-
-              {t("Are you sure you want to abort? This counts as a loss and you will lose XP.")}
-
+              {t(
+                "Are you sure you want to abort? This counts as a loss and you will lose XP."
+              )}
             </p>
 
-            <div className="row" style={{ justifyContent: "flex-end" }}>
-
-              <button className="btn outline" onClick={() => setShowAbortConfirm(false)}>
-
-                {t("No, continue")}
-
+            <div
+              className="row"
+              style={{
+                justifyContent:
+                  "flex-end",
+              }}
+            >
+              <button
+                className="btn outline"
+                onClick={() =>
+                  setShowAbortConfirm(
+                    false
+                  )
+                }
+              >
+                {t(
+                  "No, continue"
+                )}
               </button>
 
-              <button className="btn danger" style={{ marginLeft: 8 }} onClick={handleAbortConfirm}>
-
-                {t("Yes, abort")}
-
+              <button
+                className="btn danger"
+                style={{
+                  marginLeft:
+                    8,
+                }}
+                onClick={
+                  handleAbortConfirm
+                }
+              >
+                {t(
+                  "Yes, abort"
+                )}
               </button>
-
             </div>
-
           </div>
-
         </div>
-
       )}
-
     </div>
-
   );
-
 }
