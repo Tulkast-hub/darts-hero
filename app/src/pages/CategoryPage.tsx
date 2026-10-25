@@ -94,11 +94,11 @@ export default function CategoryPage() {
     doubling: [
       "bull_out",
       "doubles_world",
-      "checkout_25_repeat",
+      "three_dart_checkouts",
     ],
 
     finishing: [
-      "three_dart_checkouts",
+      "checkout_25_repeat",
       "checkout_121",
       "checkout_41_up",
     ],

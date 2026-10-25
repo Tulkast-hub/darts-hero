@@ -1246,17 +1246,7 @@ export default function DoublesWorld({
       */}
       <div>
         <div
-          className="bullout-header"
-          style={{
-            position:
-              "sticky",
-            top: 68,
-            zIndex: 4,
-            background:
-              "var(--bg)",
-            paddingTop: 4,
-            paddingBottom: 4,
-          }}
+          className="bullout-header game-objective-sticky"
         >
           <div>
             <div className="muted">

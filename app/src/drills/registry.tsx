@@ -7,7 +7,11 @@ import ThreeDartCheckouts from "./ThreeDartCheckouts";
 import Checkout121 from "./Checkout121";
 import Checkout41 from "./Checkout41";
 import Finish25 from "./Finish25";
-import T20Scoring from "./T20Scoring";
+
+import T20Scoring, {
+  type ScoringSection,
+} from "./T20Scoring";
+
 import ScoringLadder from "./ScoringLadder";
 import ScoringBingo from "./ScoringBingo";
 
@@ -57,12 +61,36 @@ export type DrillComponentProps = {
   level: number;
 
   /** Optional: used by Versus Mode to swap players after 3 darts */
-  onDartsUsed?: (count: number) => void;
+  onDartsUsed?: (
+    count: number
+  ) => void;
 
   /** Optional: Versus Mode can request the drill to undo N actions */
   externalUndo?: {
     token: number;
     steps: number;
+  };
+
+  /**
+   * Optional setup value used by scoring drills.
+   *
+   * For the Scoring drill this is selected
+   * before the game starts.
+   */
+  scoringSection?: ScoringSection;
+};
+
+/**
+ * Optional configuration displayed in the
+ * rules/start modal before a drill begins.
+ */
+export type DrillSetup = {
+  scoringSection?: {
+    label: string;
+
+    options: ScoringSection[];
+
+    default: ScoringSection;
   };
 };
 
@@ -82,6 +110,12 @@ export type DrillDef = {
    * player's most recent win in this game.
    */
   statCategories?: StatCategory[];
+
+  /**
+   * Optional configuration shown before the
+   * game starts.
+   */
+  setup?: DrillSetup;
 
   Component: React.ComponentType<DrillComponentProps>;
 
@@ -391,25 +425,43 @@ const RulesT20Scoring: React.FC = () => {
     <>
       <p>
         {t(
-          "• You throw 100 visits at 20."
+          "• Choose whether you want to practise scoring on 20s, 19s or 18s."
         )}
       </p>
 
       <p>
         {t(
-          "• Each visit earns ladder points based on your score."
+          "• You have 50 visits using your selected scoring section."
         )}
       </p>
 
       <p>
         {t(
-          "• Your rank goal is a total number of ladder points (varies by tier/level)."
+          "• Each visit earns points depending on the score you make."
         )}
       </p>
 
       <p>
         {t(
-          "• The game ends as soon as you hit your point goal, or after 100 throws."
+          "• Score thresholds automatically adjust to the selected section."
+        )}
+      </p>
+
+      <p>
+        {t(
+          "• Bronze includes an additional lower scoring band. Silver and above use the standard scoring bands."
+        )}
+      </p>
+
+      <p>
+        {t(
+          "• Your goal is to reach the required number of points for your current rank."
+        )}
+      </p>
+
+      <p>
+        {t(
+          "• The game ends when you reach the objective or complete all 50 visits."
         )}
       </p>
     </>
@@ -423,9 +475,14 @@ const RulesT20Scoring: React.FC = () => {
 export const DRILLS: DrillDef[] = [
   {
     key: "bull_out",
+
     title: "Bull Out",
-    blurb: "Score on bull with limited darts.",
-    category: "doubles",
+
+    blurb:
+      "Score on bull with limited darts.",
+
+    category:
+      "doubles",
 
     statCategories: [
       "doubles",
@@ -433,90 +490,217 @@ export const DRILLS: DrillDef[] = [
       "finishing",
     ],
 
-    Component: BullOut,
-    Rules: RulesBullOut,
+    Component:
+      BullOut,
+
+    Rules:
+      RulesBullOut,
   },
 
   {
-    key: "doubles_world",
-    title: "Doubles Around the World",
-    blurb: "Hit D1→D20 in order.",
-    category: "doubles",
+    key:
+      "doubles_world",
+
+    title:
+      "Doubles Around the World",
+
+    blurb:
+      "Hit D1→D20 in order.",
+
+    category:
+      "doubles",
+
     statCategories: [
       "doubles",
     ],
-    Component: DoublesWorld,
-    Rules: RulesDoublesWorld,
+
+    Component:
+      DoublesWorld,
+
+    Rules:
+      RulesDoublesWorld,
   },
 
   {
-    key: "three_dart_checkouts",
-    title: "3-Dart Checkouts",
+    key:
+      "three_dart_checkouts",
+
+    title:
+      "3-Dart Checkouts",
+
     blurb:
       "Practice 40, 32, 36 and 24 with 3-dart checkout attempts.",
-    category: "finishing",
-    Component: ThreeDartCheckouts,
-    Rules: RulesThreeDartCheckouts,
+
+    category:
+      "finishing",
+
+    Component:
+      ThreeDartCheckouts,
+
+    Rules:
+      RulesThreeDartCheckouts,
   },
 
   {
-    key: "checkout_121",
-    title: "121+ Ladder",
+    key:
+      "checkout_121",
+
+    title:
+      "121+ Ladder",
+
     blurb:
       "Try to checkout 121+ in 9 darts, step down on fail.",
-    category: "finishing",
-    Component: Checkout121,
-    Rules: RulesCheckout121,
+
+    category:
+      "finishing",
+
+    statCategories: [
+      "finishing",
+      "setup",
+      "doubles",
+    ],
+
+    Component:
+      Checkout121,
+
+    Rules:
+      RulesCheckout121,
   },
 
   {
-    key: "checkout_41_up",
-    title: "41+ Checkout Ladder",
+    key:
+      "checkout_41_up",
+
+    title:
+      "41+",
+
     blurb:
-      "Finish 41+ with 3 darts per visit.",
-    category: "finishing",
-    Component: Checkout41,
-    Rules: RulesCheckout41Up,
+      "Work your way through increasingly difficult checkouts.",
+
+    category:
+      "finishing",
+
+    statCategories: [
+      "doubles",
+      "finishing",
+    ],
+
+    Component:
+      Checkout41,
+
+    Rules:
+      RulesCheckout41Up,
   },
 
   {
-    key: "checkout_25_repeat",
-    title: "Finish 25",
+    key:
+      "checkout_25_repeat",
+
+    title:
+      "Finish 25",
+
     blurb:
-      "Repeat 25 finishes in 3-dart visits.",
-    category: "finishing",
-    Component: Finish25,
-    Rules: RulesCheckout25Repeat,
+      "Practice repeated 25 checkouts.",
+
+    category:
+      "finishing",
+
+    statCategories: [
+      "doubles",
+      "finishing",
+    ],
+
+    Component:
+      Finish25,
+
+    Rules:
+      RulesCheckout25Repeat,
   },
 
   {
-    key: "t20_scoring",
-    title: "T20 Scoring",
+    key:
+      "t20_scoring",
+
+    title:
+      "Scoring",
+
     blurb:
-      "Score target points with limited throws.",
-    category: "scoring",
-    Component: T20Scoring,
-    Rules: RulesT20Scoring,
+      "Practise scoring on 20s, 19s or 18s over 50 visits.",
+
+    category:
+      "scoring",
+
+    statCategories: [
+      "scoring",
+      "consistency",
+    ],
+
+    setup: {
+      scoringSection: {
+        label:
+          "Scoring section",
+
+        options: [
+          20,
+          19,
+          18,
+        ],
+
+        default:
+          20,
+      },
+    },
+
+    Component:
+      T20Scoring,
+
+    Rules:
+      RulesT20Scoring,
   },
 
   {
-    key: "scoring_ladder",
-    title: "Scoring Ladder",
+    key:
+      "scoring_ladder",
+
+    title:
+      "Scoring Ladder",
+
     blurb:
       "Climb targets with limited darts.",
-    category: "scoring",
-    Component: ScoringLadder,
-    Rules: RulesScoringLadder,
+
+    category:
+      "scoring",
+
+    statCategories: [
+      "scoring",
+      "consistency",
+    ],
+
+    Component:
+      ScoringLadder,
+
+    Rules:
+      RulesScoringLadder,
   },
 
   {
-    key: "scoring_bingo",
-    title: "Scoring Bingo",
+    key:
+      "scoring_bingo",
+
+    title:
+      "Scoring Bingo",
+
     blurb:
       "Hit all tiles to win.",
-    category: "scoring",
-    Component: ScoringBingo,
-    Rules: RulesScoringBingo,
+
+    category:
+      "scoring",
+
+    Component:
+      ScoringBingo,
+
+    Rules:
+      RulesScoringBingo,
   },
 ];
 
@@ -529,29 +713,45 @@ const DRILL_ALIASES: Record<
   DrillKey
 > = {
   // Legacy keys / URLs
-  checkout_41: "checkout_41_up",
-  checkout_41_plus: "checkout_41_up",
-  finish_25: "checkout_25_repeat",
-  checkout_25: "checkout_25_repeat",
+  checkout_41:
+    "checkout_41_up",
+
+  checkout_41_plus:
+    "checkout_41_up",
+
+  finish_25:
+    "checkout_25_repeat",
+
+  checkout_25:
+    "checkout_25_repeat",
+
   three_dart_checkouts:
     "three_dart_checkouts",
+
   checkouts_popular_leaves:
     "three_dart_checkouts",
 };
 
 export function getDrillDef(
-  key: string | undefined | null
+  key:
+    | string
+    | undefined
+    | null
 ): DrillDef | undefined {
   if (!key) {
     return undefined;
   }
 
   const resolved =
-    DRILL_ALIASES[key] ??
+    DRILL_ALIASES[
+      key
+    ] ??
     (key as DrillKey);
 
   return DRILLS.find(
-    (d) => d.key === resolved
+    (drill) =>
+      drill.key ===
+      resolved
   );
 }
 
@@ -559,6 +759,8 @@ export function drillsByCategory(
   category: XpCategory
 ): DrillDef[] {
   return DRILLS.filter(
-    (d) => d.category === category
+    (drill) =>
+      drill.category ===
+      category
   );
 }
