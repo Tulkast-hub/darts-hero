@@ -696,6 +696,10 @@ export const DRILLS: DrillDef[] = [
     category:
       "scoring",
 
+    statCategories: [
+      "scoring",
+      "consistency",
+    ],
     Component:
       ScoringBingo,
 

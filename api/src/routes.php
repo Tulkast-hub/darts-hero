@@ -179,20 +179,189 @@ function compute_progress_ratio($result): ?float {
 }
 function compute_xp_award(string $gameKey, $payload, $result): int {
   $vals = xp_values_for_game($gameKey);
+
   $winXp  = (int)$vals['win'];
   $lossXp = (int)$vals['loss'];
-  $win = is_array($result) ? !empty($result['win']) : false;
-  $aborted = is_array($result) ? !empty($result['aborted']) : false;
+
+  $win =
+    is_array($result)
+      ? !empty($result['win'])
+      : false;
+
+  $aborted =
+    is_array($result)
+      ? !empty($result['aborted'])
+      : false;
+
+  /*
+   * --------------------------------------------------
+   * SCORING BINGO
+   * --------------------------------------------------
+   *
+   * Rules:
+   *
+   * - Abort = full configured loss
+   * - Completely empty board = full configured loss
+   * - Full board = full configured win XP
+   * - Partial board = +/- 10 XP per completed /
+   *   incomplete row, column and diagonal
+   * - Partial loss can never exceed configured loss
+   */
+  if (
+    $gameKey === 'scoring_bingo' &&
+    is_array($payload)
+  ) {
+    /*
+     * Abort always takes precedence.
+     */
+    if ($aborted) {
+      return -$lossXp;
+    }
+
+    $boardComplete =
+      !empty(
+        $payload['board_complete']
+      );
+
+    $boardEmpty =
+      !empty(
+        $payload['board_empty']
+      );
+
+    /*
+     * Complete card:
+     * award normal configured win XP.
+     */
+    if ($boardComplete) {
+      return $winXp;
+    }
+
+    /*
+     * Completely empty card:
+     * full configured loss.
+     */
+    if ($boardEmpty) {
+      return -$lossXp;
+    }
+
+    /*
+     * Partial game.
+     *
+     * Prefer the frontend-calculated
+     * raw line XP.
+     */
+    $lineXpRaw =
+      $payload['line_xp_raw']
+      ?? null;
+
+    if (
+      is_numeric($lineXpRaw)
+    ) {
+      $award =
+        (int)$lineXpRaw;
+
+      /*
+       * Do not allow partial loss
+       * to exceed configured loss.
+       */
+      $award =
+        max(
+          $award,
+          -$lossXp
+        );
+
+      /*
+       * Also prevent a partial game
+       * from exceeding the configured
+       * full win.
+       *
+       * Normally impossible with
+       * 8 lines x 10 XP, but keeps
+       * the backend defensive.
+       */
+      $award =
+        min(
+          $award,
+          $winXp
+        );
+
+      return $award;
+    }
+
+    /*
+     * Defensive fallback:
+     * calculate it server-side if
+     * line_xp_raw is missing.
+     */
+    $completedLines =
+      $payload[
+        'completed_line_count'
+      ] ?? null;
+
+    $incompleteLines =
+      $payload[
+        'incomplete_line_count'
+      ] ?? null;
+
+    if (
+      is_numeric(
+        $completedLines
+      ) &&
+      is_numeric(
+        $incompleteLines
+      )
+    ) {
+      $award =
+        (
+          (int)$completedLines *
+          10
+        ) -
+        (
+          (int)$incompleteLines *
+          10
+        );
+
+      $award =
+        max(
+          $award,
+          -$lossXp
+        );
+
+      $award =
+        min(
+          $award,
+          $winXp
+        );
+
+      return $award;
+    }
+
+    /*
+     * If payload is malformed,
+     * fail safely as a normal loss.
+     */
+    return -$lossXp;
+  }
+
+  /*
+   * --------------------------------------------------
+   * ALL OTHER GAMES
+   * --------------------------------------------------
+   */
+
   // Abort counts as a normal loss.
   if ($aborted) {
     return -$lossXp;
   }
+
   // Normal win XP.
   if ($win) {
     return $winXp;
   }
+
   // Normal loss penalty.
   return -$lossXp;
+
   /*
    * LEGACY XP MODIFIERS
    *
@@ -211,6 +380,7 @@ function compute_xp_award(string $gameKey, $payload, $result): int {
    * }
    */
 }
+
 function leaderboard_excluded_user_ids(): array {
   return [
     1,

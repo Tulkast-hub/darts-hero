@@ -1,11 +1,22 @@
 // src/drills/T20Scoring.tsx
-import React, { useMemo, useState } from "react";
+
+import React, {
+  useMemo,
+  useState,
+} from "react";
+
 import DartboardHighlight, {
   tokensToSegments,
 } from "../ui/DartboardHighlight";
-import type { Tier } from "../xp/types";
 
-export type ScoringSection = 20 | 19 | 18;
+import type {
+  Tier,
+} from "../xp/types";
+
+export type ScoringSection =
+  | 20
+  | 19
+  | 18;
 
 type FinishResult = {
   payload: any;
@@ -13,11 +24,20 @@ type FinishResult = {
 };
 
 type Props = {
-  onFinish: (result: FinishResult) => void;
+  onFinish: (
+    result: FinishResult
+  ) => void;
+
   disabled?: boolean;
+
   tier: Tier;
+
   level: number;
-  onDartsUsed?: (count: number) => void;
+
+  onDartsUsed?: (
+    count: number
+  ) => void;
+
   externalUndo?: {
     token: number;
     steps: number;
@@ -32,7 +52,6 @@ type Props = {
 
 type ThrowKind =
   | "MISS"
-  | "LOW"
   | "GT_BASE"
   | "GT_4X"
   | "GT_5X"
@@ -53,7 +72,6 @@ type RankConfigScoring = {
 };
 
 type ScoreBands = {
-  bronzeLow: number;
   base: number;
   fourX: number;
   fiveX: number;
@@ -70,7 +88,6 @@ type ScoringStats = {
   bestStreak: number;
   avgPointsPerVisit: number;
 
-  low: number;
   gtBase: number;
   gt4x: number;
   gt5x: number;
@@ -104,23 +121,55 @@ function getRankConfigScoring(
    * New objectives over 50 visits:
    * half the value and round upward where needed.
    */
-  if (tier === "Bronze") {
-    target = level <= 3 ? 5 : 10;
-  } else if (tier === "Silver") {
-    target = level <= 3 ? 23 : 30;
-  } else if (tier === "Gold") {
-    target = level <= 3 ? 40 : 50;
-  } else if (tier === "Platinum") {
-    target = level <= 3 ? 63 : 75;
-  } else if (tier === "Diamond") {
-    target = level <= 3 ? 100 : 125;
+  if (
+    tier === "Bronze"
+  ) {
+    target =
+      level <= 3
+        ? 5
+        : 10;
+  } else if (
+    tier === "Silver"
+  ) {
+    target =
+      level <= 3
+        ? 23
+        : 30;
+  } else if (
+    tier === "Gold"
+  ) {
+    target =
+      level <= 3
+        ? 40
+        : 50;
+  } else if (
+    tier === "Platinum"
+  ) {
+    target =
+      level <= 3
+        ? 63
+        : 75;
+  } else if (
+    tier === "Diamond"
+  ) {
+    target =
+      level <= 3
+        ? 100
+        : 125;
   }
 
   return {
-    labelLong: `Score at least ${target} points in ${MAX_VISITS} visits`,
-    objectiveShort: `${target} pts`,
-    targetPoints: target,
-    maxVisits: MAX_VISITS,
+    labelLong:
+      `Score at least ${target} points in ${MAX_VISITS} visits`,
+
+    objectiveShort:
+      `${target} pts`,
+
+    targetPoints:
+      target,
+
+    maxVisits:
+      MAX_VISITS,
   };
 }
 
@@ -133,43 +182,39 @@ function getScoreBands(
 ): ScoreBands {
   /*
    * 20s:
-   * Bronze extra: 45–60
-   * >60          = 1
-   * >80          = 2
-   * >100         = 3
-   * >120         = 5
-   * >140         = 7
-   * 180          = 10
+   *
+   * Miss / <60
+   * ≥60  = 1 pt
+   * ≥80  = 2 pts
+   * ≥100 = 3 pts
+   * ≥120 = 5 pts
+   * ≥140 = 7 pts
+   * 180  = 10 pts
    *
    * 19s:
-   * Bronze extra: 43–57
-   * >57
-   * >76
-   * >95
-   * >114
-   * >133
-   * 171
+   *
+   * Miss / <57
+   * ≥57  = 1 pt
+   * ≥76  = 2 pts
+   * ≥95  = 3 pts
+   * ≥114 = 5 pts
+   * ≥133 = 7 pts
+   * 171  = 10 pts
    *
    * 18s:
-   * Bronze extra: 41–54
-   * >54
-   * >72
-   * >90
-   * >108
-   * >126
-   * 162
+   *
+   * Miss / <54
+   * ≥54  = 1 pt
+   * ≥72  = 2 pts
+   * ≥90  = 3 pts
+   * ≥108 = 5 pts
+   * ≥126 = 7 pts
+   * 162  = 10 pts
    */
 
-  const base =
-    section * 3;
-
   return {
-    bronzeLow:
-      Math.ceil(
-        base * 0.75
-      ),
-
-    base,
+    base:
+      section * 3,
 
     fourX:
       section * 4,
@@ -195,20 +240,38 @@ function getScoreBands(
 function computeStats(
   events: ThrowEvent[]
 ): ScoringStats {
-  let totalPoints = 0;
-  let scoringVisits = 0;
+  let totalPoints =
+    0;
 
-  let bestStreak = 0;
-  let currentStreak = 0;
+  let scoringVisits =
+    0;
 
-  let low = 0;
-  let gtBase = 0;
-  let gt4x = 0;
-  let gt5x = 0;
-  let gt6x = 0;
-  let gt7x = 0;
-  let maxHits = 0;
-  let misses = 0;
+  let bestStreak =
+    0;
+
+  let currentStreak =
+    0;
+
+  let gtBase =
+    0;
+
+  let gt4x =
+    0;
+
+  let gt5x =
+    0;
+
+  let gt6x =
+    0;
+
+  let gt7x =
+    0;
+
+  let maxHits =
+    0;
+
+  let misses =
+    0;
 
   events.forEach(
     (event) => {
@@ -216,10 +279,14 @@ function computeStats(
         event.points;
 
       if (
-        event.points > 0
+        event.points >
+        0
       ) {
-        scoringVisits += 1;
-        currentStreak += 1;
+        scoringVisits +=
+          1;
+
+        currentStreak +=
+          1;
 
         if (
           currentStreak >
@@ -229,39 +296,44 @@ function computeStats(
             currentStreak;
         }
       } else {
-        currentStreak = 0;
-        misses += 1;
+        currentStreak =
+          0;
+
+        misses +=
+          1;
       }
 
       switch (
         event.kind
       ) {
-        case "LOW":
-          low += 1;
-          break;
-
         case "GT_BASE":
-          gtBase += 1;
+          gtBase +=
+            1;
           break;
 
         case "GT_4X":
-          gt4x += 1;
+          gt4x +=
+            1;
           break;
 
         case "GT_5X":
-          gt5x += 1;
+          gt5x +=
+            1;
           break;
 
         case "GT_6X":
-          gt6x += 1;
+          gt6x +=
+            1;
           break;
 
         case "GT_7X":
-          gt7x += 1;
+          gt7x +=
+            1;
           break;
 
         case "MAX":
-          maxHits += 1;
+          maxHits +=
+            1;
           break;
 
         default:
@@ -289,7 +361,9 @@ function computeStats(
           (
             totalPoints /
             visitsUsed
-          ).toFixed(2)
+          ).toFixed(
+            2
+          )
         )
       : 0;
 
@@ -301,7 +375,6 @@ function computeStats(
     bestStreak,
     avgPointsPerVisit,
 
-    low,
     gtBase,
     gt4x,
     gt5x,
@@ -335,7 +408,10 @@ export default function T20Scoring({
   const [
     finished,
     setFinished,
-  ] = useState(false);
+  ] =
+    useState(
+      false
+    );
 
   const rankConfig =
     useMemo(
@@ -364,13 +440,17 @@ export default function T20Scoring({
   const scoringSegments =
     useMemo(
       () =>
-        tokensToSegments([
-          String(
-            scoringSection
-          ),
-          `D${scoringSection}`,
-          `T${scoringSection}`,
-        ]),
+        tokensToSegments(
+          [
+            String(
+              scoringSection
+            ),
+
+            `D${scoringSection}`,
+
+            `T${scoringSection}`,
+          ]
+        ),
       [
         scoringSection,
       ]
@@ -391,9 +471,6 @@ export default function T20Scoring({
     rankConfig.maxVisits -
     stats.visitsUsed;
 
-  const isBronze =
-    tier === "Bronze";
-
   /* --------------------------------------------------
      FINISH
   -------------------------------------------------- */
@@ -402,7 +479,9 @@ export default function T20Scoring({
     win: boolean,
     history: ThrowEvent[]
   ) {
-    if (finished) {
+    if (
+      finished
+    ) {
       return;
     }
 
@@ -440,10 +519,12 @@ export default function T20Scoring({
         rankConfig.maxVisits,
 
       /*
-       * Keep these for compatibility with
-       * the existing generic results/session
-       * handling where one action is treated
-       * as one "throw".
+       * Keep these for compatibility
+       * with the generic result/session
+       * handling.
+       *
+       * One action represents one
+       * complete 3-dart visit.
        */
       throws_used:
         finalStats.visitsUsed,
@@ -468,9 +549,6 @@ export default function T20Scoring({
         finalStats.scoringVisits,
 
       score_bands: {
-        bronze_low:
-          scoreBands.bronzeLow,
-
         base:
           scoreBands.base,
 
@@ -491,9 +569,6 @@ export default function T20Scoring({
       },
 
       hit_counts: {
-        low:
-          finalStats.low,
-
         gt_base:
           finalStats.gtBase,
 
@@ -580,8 +655,8 @@ export default function T20Scoring({
     }
 
     /*
-     * One scoring action is one
-     * complete 3-dart visit.
+     * One scoring action represents
+     * one complete 3-dart visit.
      */
     onDartsUsed?.(
       3
@@ -589,6 +664,7 @@ export default function T20Scoring({
 
     const newHistory = [
       ...throwHistory,
+
       {
         kind,
         points,
@@ -631,20 +707,6 @@ export default function T20Scoring({
     recordVisit(
       "MISS",
       0
-    );
-  }
-
-  /**
-   * Bronze-only lower scoring band.
-   *
-   * 20s: 45–60
-   * 19s: 43–57
-   * 18s: 41–54
-   */
-  function handleLow() {
-    recordVisit(
-      "LOW",
-      1
     );
   }
 
@@ -795,7 +857,8 @@ export default function T20Scoring({
           <div
             className="small muted"
             style={{
-              marginTop: 3,
+              marginTop:
+                3,
             }}
           >
             Practice the{" "}
@@ -825,7 +888,9 @@ export default function T20Scoring({
 
       <div
         style={{
-          marginTop: 12,
+          marginTop:
+            12,
+
           textAlign:
             "center",
         }}
@@ -833,8 +898,11 @@ export default function T20Scoring({
         <div
           className="muted small hidden-sm"
           style={{
-            marginTop: 8,
-            marginBottom: 20,
+            marginTop:
+              8,
+
+            marginBottom:
+              20,
           }}
         >
           Any stray dart counts. Another section can be used if your target is blocked.
@@ -845,7 +913,8 @@ export default function T20Scoring({
           <div
             className="bull-board-wrapper card"
             style={{
-              flex: 1,
+              flex:
+                1,
 
               display:
                 "flex",
@@ -864,178 +933,176 @@ export default function T20Scoring({
               <div
                 className="row"
                 style={{
-                  gap: 8,
+                  gap:
+                    8,
+
                   flexWrap:
                     "wrap",
                 }}
               >
-                {/* Bronze-only extra scoring band */}
-                {isBronze && (
-                  <button
-                    className="btn outline"
-                    style={{
-                      flex: 1,
-                      minWidth: 140,
-                    }}
-                    disabled={
-                      !canPress
-                    }
-                    data-hotkey="1"
-                    onClick={
-                      handleLow
-                    }
-                  >
-                    {
-                      scoreBands.bronzeLow
-                    }
-                    –
-                    {
-                      scoreBands.base
-                    }{" "}
-                    (1 pt)
-                  </button>
-                )}
-
-                {/* Normal scoring bands */}
+                {/* Miss */}
                 <button
-                  className="btn outline"
+                  className="btn secondary"
                   style={{
-                    flex: 1,
-                    minWidth: 140,
+                    flex:
+                      1,
+
+                    minWidth:
+                      140,
                   }}
                   disabled={
                     !canPress
                   }
-                  data-hotkey={
-                    isBronze
-                      ? "2"
-                      : "1"
+                  data-hotkey="1"
+                  onClick={
+                    handleMiss
                   }
+                >
+                  Miss / &lt;{" "}
+                  {
+                    scoreBands.base
+                  }
+                </button>
+
+                {/* Base */}
+                <button
+                  className="btn outline"
+                  style={{
+                    flex:
+                      1,
+
+                    minWidth:
+                      140,
+                  }}
+                  disabled={
+                    !canPress
+                  }
+                  data-hotkey="2"
                   onClick={
                     handleGtBase
                   }
                 >
-                  &gt;{" "}
+                  ≥{" "}
                   {
                     scoreBands.base
                   }{" "}
                   (1 pt)
                 </button>
 
+                {/* 4x */}
                 <button
                   className="btn outline"
                   style={{
-                    flex: 1,
-                    minWidth: 140,
+                    flex:
+                      1,
+
+                    minWidth:
+                      140,
                   }}
                   disabled={
                     !canPress
                   }
-                  data-hotkey={
-                    isBronze
-                      ? "3"
-                      : "2"
-                  }
+                  data-hotkey="3"
                   onClick={
                     handleGt4x
                   }
                 >
-                  &gt;{" "}
+                  ≥{" "}
                   {
                     scoreBands.fourX
                   }{" "}
                   (2 pts)
                 </button>
 
+                {/* 5x */}
                 <button
                   className="btn outline"
                   style={{
-                    flex: 1,
-                    minWidth: 140,
+                    flex:
+                      1,
+
+                    minWidth:
+                      140,
                   }}
                   disabled={
                     !canPress
                   }
-                  data-hotkey={
-                    isBronze
-                      ? "4"
-                      : "3"
-                  }
+                  data-hotkey="4"
                   onClick={
                     handleGt5x
                   }
                 >
-                  &gt;{" "}
+                  ≥{" "}
                   {
                     scoreBands.fiveX
                   }{" "}
                   (3 pts)
                 </button>
 
+                {/* 6x */}
                 <button
                   className="btn outline"
                   style={{
-                    flex: 1,
-                    minWidth: 140,
+                    flex:
+                      1,
+
+                    minWidth:
+                      140,
                   }}
                   disabled={
                     !canPress
                   }
-                  data-hotkey={
-                    isBronze
-                      ? "5"
-                      : "4"
-                  }
+                  data-hotkey="5"
                   onClick={
                     handleGt6x
                   }
                 >
-                  &gt;{" "}
+                  ≥{" "}
                   {
                     scoreBands.sixX
                   }{" "}
                   (5 pts)
                 </button>
 
+                {/* 7x */}
                 <button
                   className="btn outline"
                   style={{
-                    flex: 1,
-                    minWidth: 140,
+                    flex:
+                      1,
+
+                    minWidth:
+                      140,
                   }}
                   disabled={
                     !canPress
                   }
-                  data-hotkey={
-                    isBronze
-                      ? "6"
-                      : "5"
-                  }
+                  data-hotkey="6"
                   onClick={
                     handleGt7x
                   }
                 >
-                  &gt;{" "}
+                  ≥{" "}
                   {
                     scoreBands.sevenX
                   }{" "}
                   (7 pts)
                 </button>
 
+                {/* Maximum */}
                 <button
                   className="btn outline"
                   style={{
-                    flex: 1,
-                    minWidth: 140,
+                    flex:
+                      1,
+
+                    minWidth:
+                      140,
                   }}
                   disabled={
                     !canPress
                   }
-                  data-hotkey={
-                    isBronze
-                      ? "7"
-                      : "6"
-                  }
+                  data-hotkey="7"
                   onClick={
                     handleMax
                   }
@@ -1046,36 +1113,15 @@ export default function T20Scoring({
                   (10 pts)
                 </button>
 
-                {/* Miss */}
-                <button
-                  className="btn secondary"
-                  style={{
-                    flex: 1,
-                    minWidth: 140,
-                  }}
-                  disabled={
-                    !canPress
-                  }
-                  data-hotkey={
-                    isBronze
-                      ? "8"
-                      : "7"
-                  }
-                  onClick={
-                    handleMiss
-                  }
-                >
-                  {isBronze
-                    ? `< ${scoreBands.bronzeLow}`
-                    : `≤ ${scoreBands.base}`}
-                </button>
-
                 {/* Undo */}
                 <button
                   className="btn"
                   style={{
-                    flex: 1,
-                    minWidth: 140,
+                    flex:
+                      1,
+
+                    minWidth:
+                      140,
                   }}
                   disabled={
                     !canUndo
@@ -1159,7 +1205,8 @@ export default function T20Scoring({
             {/* Secondary stats */}
             <div
               style={{
-                marginTop: 12,
+                marginTop:
+                  12,
               }}
             >
               <div className="row bullout-stat-row">
@@ -1190,7 +1237,7 @@ export default function T20Scoring({
 
                 <div className="pill pill-stat">
                   <div className="pill-label">
-                    &gt;{" "}
+                    ≥{" "}
                     {
                       scoreBands.base
                     }
@@ -1207,12 +1254,13 @@ export default function T20Scoring({
               <div
                 className="row bullout-stat-row"
                 style={{
-                  marginTop: 8,
+                  marginTop:
+                    8,
                 }}
               >
                 <div className="pill pill-stat">
                   <div className="pill-label">
-                    &gt;{" "}
+                    ≥{" "}
                     {
                       scoreBands.fiveX
                     }
@@ -1227,7 +1275,7 @@ export default function T20Scoring({
 
                 <div className="pill pill-stat">
                   <div className="pill-label">
-                    &gt;{" "}
+                    ≥{" "}
                     {
                       scoreBands.sevenX
                     }
@@ -1259,7 +1307,8 @@ export default function T20Scoring({
             {/* Consistency */}
             <div
               style={{
-                marginTop: 14,
+                marginTop:
+                  14,
               }}
             >
               <div className="small muted">
