@@ -53,6 +53,9 @@ import {
   useAuthStore,
 } from "../auth/useAuthStore";
 
+import RankBadge from "../ui/RankBadge";
+import XPBar from "../ui/XPBar";
+
 type FinishResult = {
   payload: any;
   win: boolean;
@@ -110,17 +113,6 @@ export default function DrillPage() {
     setShowAbortConfirm,
   ] = useState(false);
 
-  /**
-   * Runtime setup value.
-   *
-   * The registry defines:
-   * - available values
-   * - label
-   * - default
-   *
-   * DrillPage only stores the choice
-   * for the current session.
-   */
   const [
     scoringSection,
     setScoringSection,
@@ -148,12 +140,10 @@ export default function DrillPage() {
       drillKey
     );
 
-  /*
-   * Reset game-specific setup whenever
-   * a different drill is opened.
-   *
-   * The default comes from the registry.
-   */
+  /* --------------------------------------------------
+     GAME SETUP
+  -------------------------------------------------- */
+
   useEffect(
     () => {
       const setup =
@@ -176,11 +166,10 @@ export default function DrillPage() {
     ]
   );
 
-  /*
-   * While inside a drill,
-   * make the global back button
-   * behave like Abort.
-   */
+  /* --------------------------------------------------
+     SESSION START
+  -------------------------------------------------- */
+
   useEffect(
     () => {
       if (
@@ -189,10 +178,6 @@ export default function DrillPage() {
         return;
       }
 
-      /*
-       * If not authed,
-       * go to login.
-       */
       if (
         status !==
         "authed"
@@ -268,21 +253,21 @@ export default function DrillPage() {
     ]
   );
 
-  /*
-   * Category rank drives the tier/level
-   * used by the drill to set objectives.
-   *
-   * "bull" is legacy only.
-   * Bull Out belongs to doubles.
-   */
+  /* --------------------------------------------------
+     CATEGORY XP / RANK
+  -------------------------------------------------- */
+
   const category: XpCategory =
     drillDef?.category ??
     "other";
 
   const categoryXp =
-    xpState.categoryXp?.[
-      category
-    ] ?? 0;
+    Math.max(
+      0,
+      xpState.categoryXp?.[
+        category
+      ] ?? 0
+    );
 
   const categoryRank =
     getRankStateFromXp(
@@ -297,9 +282,17 @@ export default function DrillPage() {
   const currentLevel: number =
     categoryRank.level;
 
-  const title =
-    drillDef?.title ??
-    "Drill";
+  const categoryLabel =
+    t(
+      CATEGORY_LABELS[
+        category
+      ] ??
+        category
+    );
+
+  /* --------------------------------------------------
+     FINISH
+  -------------------------------------------------- */
 
   async function handleFinish(
     resultIn: FinishResult
@@ -326,10 +319,6 @@ export default function DrillPage() {
           resultIn.payload
         );
 
-      /*
-       * Server is the source
-       * of truth for XP.
-       */
       const res =
         await endSession(
           sessionId,
@@ -418,16 +407,16 @@ export default function DrillPage() {
     );
   }
 
+  /* --------------------------------------------------
+     ABORT
+  -------------------------------------------------- */
+
   function requestAbort() {
     setShowAbortConfirm(
       true
     );
   }
 
-  /*
-   * Global NavBar back
-   * behaves like Abort.
-   */
   useEffect(
     () => {
       setAbortHandler(
@@ -439,8 +428,6 @@ export default function DrillPage() {
         setAbortHandler(
           null
         );
-
-      // We intentionally re-register when the drill changes.
     },
     [
       setAbortHandler,
@@ -567,6 +554,10 @@ export default function DrillPage() {
     }
   }
 
+  /* --------------------------------------------------
+     RESULT NORMALISATION
+  -------------------------------------------------- */
+
   function toTier(
     v: any
   ): Tier {
@@ -624,11 +615,8 @@ export default function DrillPage() {
     let objective:
       | {
           label: string;
-
           current?: number;
-
           target?: number;
-
           unit?: string;
         }
       | undefined;
@@ -840,10 +828,6 @@ export default function DrillPage() {
       }
     }
 
-    /*
-     * Bull Out always belongs
-     * to doubles.
-     */
     const forcedCategory:
       | XpCategory
       | undefined =
@@ -930,6 +914,10 @@ export default function DrillPage() {
     ]
   );
 
+  /* --------------------------------------------------
+     INVALID DRILL
+  -------------------------------------------------- */
+
   if (
     !drillKey ||
     !drillDef
@@ -953,13 +941,13 @@ export default function DrillPage() {
   const Rules =
     drillDef.Rules;
 
-  /*
-   * Setup configuration is defined
-   * by the registry.
-   */
   const scoringSectionSetup =
     drillDef.setup
       ?.scoringSection;
+
+  /* --------------------------------------------------
+     RENDER
+  -------------------------------------------------- */
 
   return (
     <div className="page">
@@ -983,6 +971,62 @@ export default function DrillPage() {
         }
       />
 
+      {/* Category XP footer */}
+      <div
+        style={{
+          marginTop: 18,
+        }}
+      >
+        <div
+          className="row"
+          style={{
+            justifyContent:
+              "space-between",
+
+            alignItems:
+              "center",
+
+            marginBottom:
+              10,
+          }}
+        >
+          <div>
+            <div className="small muted">
+              {t(
+                "Category XP"
+              )}
+            </div>
+
+            <strong>
+              {
+                categoryLabel
+              }
+            </strong>
+          </div>
+
+          <RankBadge
+            tier={
+              categoryRank.tier
+            }
+            level={
+              categoryRank.level
+            }
+          />
+        </div>
+
+        <XPBar
+          label={`${t(
+            "Category XP"
+          )} · ${categoryLabel}`}
+          value={
+            categoryXp
+          }
+          max={
+            XP_CAPS.categoryTierMax
+          }
+        />
+      </div>
+
       {/* Abort button */}
       <div
         style={{
@@ -995,7 +1039,9 @@ export default function DrillPage() {
             requestAbort
           }
         >
-          Abort game
+          {t(
+            "Abort game"
+          )}
         </button>
       </div>
 
@@ -1008,7 +1054,8 @@ export default function DrillPage() {
                 <div className="overlay-panel-title">
                   <h3
                     style={{
-                      margin: 0,
+                      margin:
+                        0,
                     }}
                   >
                     {t(
@@ -1037,14 +1084,9 @@ export default function DrillPage() {
                   </div>
 
                   <div className="pill-value">
-                    {t(
-                      CATEGORY_LABELS[
-                        drillDef
-                          .category
-                      ] ??
-                        drillDef
-                          .category
-                    )}
+                    {
+                      categoryLabel
+                    }
                   </div>
                 </div>
               </div>
@@ -1083,7 +1125,9 @@ export default function DrillPage() {
                   <div
                     className="row"
                     style={{
-                      gap: 8,
+                      gap:
+                        8,
+
                       flexWrap:
                         "wrap",
                     }}
