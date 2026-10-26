@@ -534,6 +534,11 @@ export const DRILLS: DrillDef[] = [
     category:
       "finishing",
 
+    statCategories: [
+      "doubles",
+      "finishing",
+    ],
+
     Component:
       ThreeDartCheckouts,
 
@@ -572,7 +577,7 @@ export const DRILLS: DrillDef[] = [
       "checkout_41_up",
 
     title:
-      "41+",
+      "41+ Checkout Ladder",
 
     blurb:
       "Work your way through increasingly difficult checkouts.",
