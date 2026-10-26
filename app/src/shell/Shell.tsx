@@ -15,6 +15,7 @@ import type {
 } from "../xp/types";
 import { XP_CAPS } from "../xp/rank";
 import { useI18n } from "../i18n/I18nProvider";
+import { getDrillDef } from "../drills/registry";
 
 function slugToCategory(
   slug: string
@@ -210,28 +211,48 @@ export default function Shell() {
     /*
      * Drill XP
      */
-    else if (
-      path.startsWith(
-        "/drill/"
+/*
+ * Drill pages use the XP of the
+ * category the drill belongs to.
+ *
+ * This is also the XP track that
+ * determines the drill's tier/level.
+ */
+else if (
+  path.startsWith(
+    "/drill/"
+  )
+) {
+  const drillKey =
+    path.split("/")[2] ||
+    "";
+
+  const drillDef =
+    getDrillDef(
+      drillKey
+    );
+
+  const category =
+    drillDef?.category ??
+    "other";
+
+  label =
+    `${t(
+      prettyCategoryName(
+        category === "doubles"
+          ? "doubling"
+          : category
       )
-    ) {
-      const drillKey =
-        path.split("/")[2] ||
-        "";
+    )} XP`;
 
-      label =
-        `${t(
-          "Drill XP"
-        )} · ${drillKey}`;
+  value =
+    xpState.categoryXp?.[
+      category
+    ] ?? 0;
 
-      value =
-        xpState.drillXp?.[
-          drillKey
-        ] ?? 0;
-
-      max =
-        XP_CAPS.drillTierMax;
-    }
+  max =
+    XP_CAPS.categoryTierMax;
+}
 
     return {
       label,
