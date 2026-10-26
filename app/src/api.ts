@@ -270,6 +270,123 @@ export async function endSession(
   );
 }
 
+/*
+ * --------------------------------------------------
+ * TRAINING STATISTICS
+ * --------------------------------------------------
+ */
+
+export type TrainingStatKey =
+  | "doubles"
+  | "scoring"
+  | "setup"
+  | "finishing"
+  | "overallAverage"
+  | "consistency";
+
+export type TrainingStatSummary = {
+  score: number | null;
+  gamesUsed: number;
+};
+
+export type TrainingStatGame = {
+  gameKey: string;
+  tier:
+    | "Bronze"
+    | "Silver"
+    | "Gold"
+    | "Platinum"
+    | "Diamond";
+  level: number;
+  score: number;
+  endedAt: string;
+  statCategories: TrainingStatKey[];
+};
+
+export type TrainingStatsResponse = {
+  ok: boolean;
+  stats: Record<
+    TrainingStatKey,
+    TrainingStatSummary
+  >;
+  games: TrainingStatGame[];
+};
+
+export async function getTrainingStats():
+  Promise<TrainingStatsResponse> {
+  return apiFetch<TrainingStatsResponse>(
+    "training-stats",
+    {
+      method: "GET",
+    }
+  );
+}
+
+/*
+ * --------------------------------------------------
+ * TRAINING / DRILL HISTORY
+ * --------------------------------------------------
+ */
+
+export type TrainingHistoryObjective = {
+  label?: string;
+  current?: number;
+  target?: number;
+  unit?: string;
+  [key: string]: any;
+};
+
+export type TrainingHistoryItem = {
+  id: number;
+  gameKey: string;
+  originalGameKey?: string | null;
+  category:
+    | "scoring"
+    | "finishing"
+    | "doubles"
+    | "other";
+  startedAt: string;
+  endedAt: string | null;
+  tier:
+    | "Bronze"
+    | "Silver"
+    | "Gold"
+    | "Platinum"
+    | "Diamond"
+    | null;
+  level: number | null;
+  win: boolean;
+  aborted: boolean;
+  xpAwarded: number;
+  objective: TrainingHistoryObjective | null;
+};
+
+export type TrainingHistoryResponse = {
+  ok: boolean;
+  history: TrainingHistoryItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+};
+
+export async function getTrainingHistory(
+  limit = 50,
+  offset = 0
+): Promise<TrainingHistoryResponse> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+
+  return apiFetch<TrainingHistoryResponse>(
+    `training-history?${params.toString()}`,
+    {
+      method: "GET",
+    }
+  );
+}
+
 /**
  * Optional helper for the Create User page.
  * This calls POST /admin/create-user.

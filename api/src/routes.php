@@ -381,6 +381,140 @@ function compute_xp_award(string $gameKey, $payload, $result): int {
    */
 }
 
+
+
+/*
+ * --------------------------------------------------
+ * TRAINING STATISTICS / HISTORY HELPERS
+ * --------------------------------------------------
+ */
+
+/**
+ * Resolve legacy drill keys to the canonical keys used by the app registry.
+ *
+ * Keeping this server-side prevents old saved sessions from becoming a
+ * separate contribution in Training Statistics or Game History.
+ */
+function canonical_training_game_key(string $gameKey): string {
+  static $aliases = [
+    'checkout_41' => 'checkout_41_up',
+    'checkout_41_plus' => 'checkout_41_up',
+    'finish_25' => 'checkout_25_repeat',
+    'checkout_25' => 'checkout_25_repeat',
+    'checkouts_popular_leaves' => 'three_dart_checkouts',
+  ];
+
+  return $aliases[$gameKey] ?? $gameKey;
+}
+
+/**
+ * Mirror src/drills/registry.ts -> statCategories.
+ *
+ * These are deliberately separate from the main XP categories. A drill can
+ * contribute to more than one training-stat category.
+ */
+function training_stat_categories_for_game(string $gameKey): array {
+  $gameKey = canonical_training_game_key($gameKey);
+
+  static $map = [
+    'bull_out' => [
+      'doubles',
+      'setup',
+      'finishing',
+    ],
+    'doubles_world' => [
+      'doubles',
+    ],
+    'three_dart_checkouts' => [
+      'doubles',
+      'finishing',
+    ],
+    'checkout_121' => [
+      'finishing',
+      'setup',
+      'doubles',
+    ],
+    'checkout_41_up' => [
+      'doubles',
+      'finishing',
+    ],
+    'checkout_25_repeat' => [
+      'doubles',
+      'finishing',
+    ],
+    't20_scoring' => [
+      'scoring',
+      'consistency',
+    ],
+    'scoring_ladder' => [
+      'scoring',
+      'consistency',
+    ],
+    'scoring_bingo' => [
+      'scoring',
+      'consistency',
+    ],
+  ];
+
+  return $map[$gameKey] ?? [];
+}
+
+/**
+ * Convert a rank to the 0-100-style score used by Training Statistics.
+ *
+ * Bronze I = 3, Bronze II = 7 ... Diamond V = 99.
+ */
+function training_rank_score(string $tier, int $level): ?int {
+  static $tierIndex = [
+    'Bronze' => 0,
+    'Silver' => 1,
+    'Gold' => 2,
+    'Platinum' => 3,
+    'Diamond' => 4,
+  ];
+
+  if (!isset($tierIndex[$tier])) {
+    return null;
+  }
+
+  if ($level < 1 || $level > 5) {
+    return null;
+  }
+
+  $rankIndex = ($tierIndex[$tier] * 5) + $level;
+
+  return ($rankIndex * 4) - 1;
+}
+
+function empty_training_stats(): array {
+  return [
+    'doubles' => [
+      'score' => null,
+      'gamesUsed' => 0,
+    ],
+    'scoring' => [
+      'score' => null,
+      'gamesUsed' => 0,
+    ],
+    'setup' => [
+      'score' => null,
+      'gamesUsed' => 0,
+    ],
+    'finishing' => [
+      'score' => null,
+      'gamesUsed' => 0,
+    ],
+    'overallAverage' => [
+      'score' => null,
+      'gamesUsed' => 0,
+    ],
+    'consistency' => [
+      'score' => null,
+      'gamesUsed' => 0,
+    ],
+  ];
+}
+
 function leaderboard_excluded_user_ids(): array {
   return [
     1,
@@ -881,6 +1015,260 @@ if (route_param('POST', '#^/session/(\d+)$#', $m)) {
     'nonce' => make_nonce(),
   ]);
 }
+
+
+/*
+ * --------------------------------------------------
+ * TRAINING STATISTICS
+ * --------------------------------------------------
+ *
+ * A stat category is the average rank-score of the player's most recent
+ * successful result for each contributing drill.
+ *
+ * Important:
+ * - losses do not directly lower a stat
+ * - aborted sessions are ignored
+ * - a drill with no win yet is excluded
+ * - only the most recent WIN for each drill contributes
+ * - no separate training-stat table is required
+ */
+if (route('GET', '/training-stats')) {
+  $user = auth_user($pdo, $config);
+
+  if (!$user) {
+    json_out(401, ['error' => 'Not authenticated']);
+  }
+
+  $uid = (int)$user['id'];
+
+  $stmt = $pdo->prepare("
+    SELECT
+      id,
+      game_key,
+      result,
+      ended_at
+    FROM dh_sessions_run
+    WHERE user_id = ?
+      AND ended_at IS NOT NULL
+    ORDER BY ended_at DESC, id DESC
+  ");
+
+  $stmt->execute([$uid]);
+
+  /*
+   * Because rows are newest first, the first valid win we encounter for a
+   * canonical game is that game's most recent win.
+   */
+  $latestWins = [];
+
+  foreach ($stmt->fetchAll() as $row) {
+    $rawGameKey = (string)$row['game_key'];
+    $gameKey = canonical_training_game_key($rawGameKey);
+
+    if (isset($latestWins[$gameKey])) {
+      continue;
+    }
+
+    $statCategories = training_stat_categories_for_game($gameKey);
+
+    if (!$statCategories) {
+      continue;
+    }
+
+    $result = json_decode((string)($row['result'] ?? ''), true);
+
+    if (!is_array($result)) {
+      continue;
+    }
+
+    if (empty($result['win']) || !empty($result['aborted'])) {
+      continue;
+    }
+
+    $tier = (string)($result['tier'] ?? '');
+    $levelRaw = $result['level'] ?? null;
+
+    if (!is_numeric($levelRaw)) {
+      continue;
+    }
+
+    $level = (int)$levelRaw;
+    $score = training_rank_score($tier, $level);
+
+    if ($score === null) {
+      continue;
+    }
+
+    $latestWins[$gameKey] = [
+      'gameKey' => $gameKey,
+      'tier' => $tier,
+      'level' => $level,
+      'score' => $score,
+      'endedAt' => $row['ended_at'],
+      'statCategories' => $statCategories,
+    ];
+  }
+
+  $stats = empty_training_stats();
+  $totals = [];
+
+  foreach (array_keys($stats) as $statKey) {
+    $totals[$statKey] = 0;
+  }
+
+  foreach ($latestWins as $game) {
+    foreach ($game['statCategories'] as $statKey) {
+      if (!array_key_exists($statKey, $stats)) {
+        continue;
+      }
+
+      $totals[$statKey] += (int)$game['score'];
+      $stats[$statKey]['gamesUsed']++;
+    }
+  }
+
+  foreach ($stats as $statKey => &$stat) {
+    if ($stat['gamesUsed'] > 0) {
+      $stat['score'] = (int)round(
+        $totals[$statKey] / $stat['gamesUsed']
+      );
+    }
+  }
+  unset($stat);
+
+  json_out(200, [
+    'ok' => true,
+    'stats' => $stats,
+    'games' => array_values($latestWins),
+  ]);
+}
+
+/*
+ * --------------------------------------------------
+ * TRAINING / DRILL HISTORY
+ * --------------------------------------------------
+ *
+ * Returns completed drill sessions newest first. This endpoint intentionally
+ * returns a compact summary rather than the full payload/result blobs.
+ */
+if (route('GET', '/training-history')) {
+  $user = auth_user($pdo, $config);
+
+  if (!$user) {
+    json_out(401, ['error' => 'Not authenticated']);
+  }
+
+  $uid = (int)$user['id'];
+
+  $limit = isset($_GET['limit']) && is_numeric($_GET['limit'])
+    ? (int)$_GET['limit']
+    : 50;
+
+  $offset = isset($_GET['offset']) && is_numeric($_GET['offset'])
+    ? (int)$_GET['offset']
+    : 0;
+
+  $limit = max(1, min(100, $limit));
+  $offset = max(0, $offset);
+
+  $countStmt = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM dh_sessions_run
+    WHERE user_id = ?
+      AND ended_at IS NOT NULL
+  ");
+  $countStmt->execute([$uid]);
+  $total = (int)$countStmt->fetchColumn();
+
+  /*
+   * LIMIT/OFFSET are validated integers above, so inserting them into the SQL
+   * avoids driver-specific issues with binding LIMIT values.
+   */
+  $stmt = $pdo->prepare("
+    SELECT
+      id,
+      game_key,
+      started_at,
+      ended_at,
+      payload,
+      result,
+      xp_awarded
+    FROM dh_sessions_run
+    WHERE user_id = ?
+      AND ended_at IS NOT NULL
+    ORDER BY ended_at DESC, id DESC
+    LIMIT {$limit} OFFSET {$offset}
+  ");
+
+  $stmt->execute([$uid]);
+
+  $history = [];
+
+  foreach ($stmt->fetchAll() as $row) {
+    $rawGameKey = (string)$row['game_key'];
+    $gameKey = canonical_training_game_key($rawGameKey);
+
+    $result = json_decode((string)($row['result'] ?? ''), true);
+    $payload = json_decode((string)($row['payload'] ?? ''), true);
+
+    if (!is_array($result)) {
+      $result = [];
+    }
+
+    if (!is_array($payload)) {
+      $payload = [];
+    }
+
+    $tier = isset($result['tier']) && is_string($result['tier'])
+      ? $result['tier']
+      : (
+          isset($payload['tier']) && is_string($payload['tier'])
+            ? $payload['tier']
+            : null
+        );
+
+    $levelRaw = $result['level'] ?? $payload['level'] ?? null;
+    $level = is_numeric($levelRaw)
+      ? (int)$levelRaw
+      : null;
+
+    $objective = null;
+
+    if (is_array($result['objective'] ?? null)) {
+      $objective = $result['objective'];
+    } elseif (is_array($payload['objective'] ?? null)) {
+      $objective = $payload['objective'];
+    }
+
+    $history[] = [
+      'id' => (int)$row['id'],
+      'gameKey' => $gameKey,
+      'originalGameKey' => $rawGameKey !== $gameKey
+        ? $rawGameKey
+        : null,
+      'category' => xp_category_for_game($gameKey, $result),
+      'startedAt' => $row['started_at'],
+      'endedAt' => $row['ended_at'],
+      'tier' => $tier,
+      'level' => $level,
+      'win' => !empty($result['win']),
+      'aborted' => !empty($result['aborted']),
+      'xpAwarded' => (int)($row['xp_awarded'] ?? 0),
+      'objective' => $objective,
+    ];
+  }
+
+  json_out(200, [
+    'ok' => true,
+    'history' => $history,
+    'total' => $total,
+    'limit' => $limit,
+    'offset' => $offset,
+    'hasMore' => ($offset + count($history)) < $total,
+  ]);
+}
+
+
 // GET /leaderboard -> list users sorted by total_xp desc
 if (route('GET', '/leaderboard')) {
   $user = auth_user($pdo, $config);

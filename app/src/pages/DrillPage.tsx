@@ -574,6 +574,25 @@ export default function DrillPage() {
     return "Bronze";
   }
 
+  function getCategoryPath(
+    category: XpCategory
+  ) {
+    switch (category) {
+      case "scoring":
+        return "/category/scoring";
+  
+      case "doubles":
+        return "/category/doubling";
+  
+      case "finishing":
+        return "/category/finishing";
+  
+      default:
+        return "/";
+    }
+  }
+  
+
   function toDrillResult(
     k: string,
     win: boolean,
@@ -1178,11 +1197,15 @@ export default function DrillPage() {
                 <button
                   className="btn outline"
                   onClick={() =>
-                    nav("/")
+                    nav(
+                      getCategoryPath(
+                        category
+                      )
+                    )
                   }
                 >
                   {t(
-                    "Back to Home"
+                    "Back to Drills"
                   )}
                 </button>
 

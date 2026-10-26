@@ -10,7 +10,11 @@ import { useI18n } from "../i18n/I18nProvider";
 
 import {
   getSkillsAssessmentHistory,
+  getTrainingStats,
+  getTrainingHistory,
   type SkillsAssessmentHistoryItem,
+  type TrainingStatsResponse,
+  type TrainingHistoryItem,
 } from "../api";
 
 import {
@@ -20,11 +24,83 @@ import {
 import RankBadge from "../ui/RankBadge";
 import SkillsRadar from "../ui/SkillsRadar";
 
+import {
+  getDrillDef,
+} from "../drills/registry";
+
 const HISTORY_PAGE_SIZE = 5;
+const TRAINING_HISTORY_PAGE_SIZE = 10;
 
 export default function StatsPage() {
   const { t, lang } = useI18n();
   const nav = useNavigate();
+
+  /*
+   * --------------------------------------------------
+   * TRAINING STATISTICS
+   * --------------------------------------------------
+   */
+
+  const [
+    trainingStats,
+    setTrainingStats,
+  ] = useState<TrainingStatsResponse | null>(null);
+
+  const [
+    trainingStatsLoading,
+    setTrainingStatsLoading,
+  ] = useState(true);
+
+  const [
+    trainingStatsError,
+    setTrainingStatsError,
+  ] = useState<string | null>(null);
+
+  const [
+    trainingStatsReloadKey,
+    setTrainingStatsReloadKey,
+  ] = useState(0);
+
+  /*
+   * --------------------------------------------------
+   * TRAINING HISTORY
+   * --------------------------------------------------
+   */
+
+  const [
+    trainingHistory,
+    setTrainingHistory,
+  ] = useState<TrainingHistoryItem[]>([]);
+
+  const [
+    trainingHistoryTotal,
+    setTrainingHistoryTotal,
+  ] = useState(0);
+
+  const [
+    trainingHistoryHasMore,
+    setTrainingHistoryHasMore,
+  ] = useState(false);
+
+  const [
+    trainingHistoryLoading,
+    setTrainingHistoryLoading,
+  ] = useState(true);
+
+  const [
+    trainingHistoryLoadingMore,
+    setTrainingHistoryLoadingMore,
+  ] = useState(false);
+
+  const [
+    trainingHistoryError,
+    setTrainingHistoryError,
+  ] = useState<string | null>(null);
+
+  const [
+    trainingHistoryReloadKey,
+    setTrainingHistoryReloadKey,
+  ] = useState(0);
 
   /*
    * Saved assessment history.
@@ -65,7 +141,112 @@ export default function StatsPage() {
 
   /*
    * --------------------------------------------------
-   * LOAD HISTORY
+   * LOAD TRAINING STATISTICS
+   * --------------------------------------------------
+   */
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTrainingStats() {
+      setTrainingStatsLoading(true);
+      setTrainingStatsError(null);
+
+      try {
+        const response =
+          await getTrainingStats();
+
+        if (cancelled) {
+          return;
+        }
+
+        setTrainingStats(response);
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+
+        setTrainingStatsError(
+          err instanceof Error
+            ? err.message
+            : "Could not load training statistics."
+        );
+      } finally {
+        if (!cancelled) {
+          setTrainingStatsLoading(false);
+        }
+      }
+    }
+
+    void loadTrainingStats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [trainingStatsReloadKey]);
+
+  /*
+   * --------------------------------------------------
+   * LOAD TRAINING HISTORY
+   * --------------------------------------------------
+   */
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTrainingHistory() {
+      setTrainingHistoryLoading(true);
+      setTrainingHistoryError(null);
+
+      try {
+        const response =
+          await getTrainingHistory(
+            TRAINING_HISTORY_PAGE_SIZE,
+            0
+          );
+
+        if (cancelled) {
+          return;
+        }
+
+        setTrainingHistory(
+          response.history
+        );
+
+        setTrainingHistoryTotal(
+          response.total
+        );
+
+        setTrainingHistoryHasMore(
+          response.hasMore
+        );
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+
+        setTrainingHistoryError(
+          err instanceof Error
+            ? err.message
+            : "Could not load training history."
+        );
+      } finally {
+        if (!cancelled) {
+          setTrainingHistoryLoading(false);
+        }
+      }
+    }
+
+    void loadTrainingHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [trainingHistoryReloadKey]);
+
+  /*
+   * --------------------------------------------------
+   * LOAD ASSESSMENT HISTORY
    * --------------------------------------------------
    */
 
@@ -330,6 +511,61 @@ export default function StatsPage() {
    * --------------------------------------------------
    */
 
+  function retryTrainingStats() {
+    setTrainingStatsReloadKey(
+      (value) => value + 1
+    );
+  }
+
+  function retryTrainingHistory() {
+    setTrainingHistoryReloadKey(
+      (value) => value + 1
+    );
+  }
+
+  async function loadMoreTrainingHistory() {
+    if (
+      trainingHistoryLoadingMore ||
+      !trainingHistoryHasMore
+    ) {
+      return;
+    }
+
+    setTrainingHistoryLoadingMore(true);
+    setTrainingHistoryError(null);
+
+    try {
+      const response =
+        await getTrainingHistory(
+          TRAINING_HISTORY_PAGE_SIZE,
+          trainingHistory.length
+        );
+
+      setTrainingHistory(
+        (current) => [
+          ...current,
+          ...response.history,
+        ]
+      );
+
+      setTrainingHistoryTotal(
+        response.total
+      );
+
+      setTrainingHistoryHasMore(
+        response.hasMore
+      );
+    } catch (err) {
+      setTrainingHistoryError(
+        err instanceof Error
+          ? err.message
+          : "Could not load more training history."
+      );
+    } finally {
+      setTrainingHistoryLoadingMore(false);
+    }
+  }
+
   function retryHistory() {
     setReloadKey(
       (value) => value + 1
@@ -401,6 +637,56 @@ export default function StatsPage() {
     ).format(date);
   }
 
+  function formatTrainingDateTime(
+    value: string | null
+  ): string {
+    if (!value) {
+      return "—";
+    }
+
+    const normalized =
+      value.includes("T")
+        ? value
+        : value.replace(" ", "T");
+
+    const date =
+      new Date(normalized);
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat(
+      lang === "ro"
+        ? "ro-RO"
+        : "en-GB",
+      {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    ).format(date);
+  }
+
+  function getTrainingGameTitle(
+    gameKey: string
+  ): string {
+    const drill =
+      getDrillDef(
+        gameKey
+      );
+
+    return drill
+      ? t(drill.title)
+      : gameKey;
+  }
+
   return (
     <div className="page">
 
@@ -434,25 +720,313 @@ export default function StatsPage() {
           marginTop: 16,
         }}
       >
-        <h3
+        <div
           style={{
-            margin: 0,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
           }}
         >
-          {t("Training Statistics")}
-        </h3>
+          <div>
+            <h3
+              style={{
+                margin: 0,
+              }}
+            >
+              {t("Training Statistics")}
+            </h3>
 
-        <p
-          className="muted small"
+            <p
+              className="muted small"
+              style={{
+                marginTop: 6,
+                marginBottom: 0,
+              }}
+            >
+              {t(
+                "Each skill is the average rank of your most recent win in the drills that contribute to it."
+              )}
+            </p>
+          </div>
+        </div>
+
+        {trainingStatsLoading ? (
+          <div
+            className="stats-assessment-empty"
+            style={{
+              paddingTop: 24,
+              paddingBottom: 12,
+            }}
+          >
+            <div
+              className="loader"
+              style={{
+                margin:
+                  "0 auto 12px",
+              }}
+            />
+
+            <p className="muted small">
+              {t(
+                "Loading training statistics..."
+              )}
+            </p>
+          </div>
+        ) : trainingStatsError ? (
+          <div
+            className="stats-assessment-empty"
+            style={{
+              paddingTop: 20,
+              paddingBottom: 8,
+            }}
+          >
+            <p className="muted small">
+              {trainingStatsError}
+            </p>
+
+            <button
+              type="button"
+              className="btn outline"
+              onClick={
+                retryTrainingStats
+              }
+            >
+              {t("Retry")}
+            </button>
+          </div>
+        ) : trainingStats ? (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: 10,
+              marginTop: 16,
+            }}
+          >
+            <TrainingStatCard
+              label={t("Doubles")}
+              stat={
+                trainingStats.stats.doubles
+              }
+            />
+
+            <TrainingStatCard
+              label={t("Scoring")}
+              stat={
+                trainingStats.stats.scoring
+              }
+            />
+
+            <TrainingStatCard
+              label={t("Setup Play")}
+              stat={
+                trainingStats.stats.setup
+              }
+            />
+
+            <TrainingStatCard
+              label={t("Finishing")}
+              stat={
+                trainingStats.stats.finishing
+              }
+            />
+
+            <TrainingStatCard
+              label={t("Overall Average")}
+              stat={
+                trainingStats.stats.overallAverage
+              }
+            />
+
+            <TrainingStatCard
+              label={t("Consistency")}
+              stat={
+                trainingStats.stats.consistency
+              }
+            />
+          </div>
+        ) : null}
+      </section>
+
+      {/* TRAINING HISTORY */}
+
+      <section
+        className="card"
+        style={{
+          marginTop: 16,
+        }}
+      >
+        <div
           style={{
-            marginTop: 8,
-            marginBottom: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
           }}
         >
-          {t(
-            "Your training performance and progression will appear here as we build the new training system."
-          )}
-        </p>
+          <div>
+            <h3
+              style={{
+                margin: 0,
+              }}
+            >
+              {t("Game History")}
+            </h3>
+
+            <p
+              className="muted small"
+              style={{
+                marginTop: 6,
+                marginBottom: 0,
+              }}
+            >
+              {t(
+                "Your completed training drills, newest first."
+              )}
+            </p>
+          </div>
+
+          {!trainingHistoryLoading &&
+            !trainingHistoryError && (
+              <span className="muted small">
+                {trainingHistoryTotal}{" "}
+                {t("games")}
+              </span>
+            )}
+        </div>
+
+        {trainingHistoryLoading ? (
+          <div
+            className="stats-assessment-empty"
+            style={{
+              paddingTop: 24,
+              paddingBottom: 12,
+            }}
+          >
+            <div
+              className="loader"
+              style={{
+                margin:
+                  "0 auto 12px",
+              }}
+            />
+
+            <p className="muted small">
+              {t(
+                "Loading game history..."
+              )}
+            </p>
+          </div>
+        ) : trainingHistoryError &&
+          trainingHistory.length === 0 ? (
+          <div
+            className="stats-assessment-empty"
+            style={{
+              paddingTop: 20,
+              paddingBottom: 8,
+            }}
+          >
+            <p className="muted small">
+              {trainingHistoryError}
+            </p>
+
+            <button
+              type="button"
+              className="btn outline"
+              onClick={
+                retryTrainingHistory
+              }
+            >
+              {t("Retry")}
+            </button>
+          </div>
+        ) : trainingHistory.length === 0 ? (
+          <div className="stats-history-empty">
+            {t(
+              "No completed training games yet"
+            )}
+          </div>
+        ) : (
+          <>
+            <div
+              style={{
+                display: "grid",
+                gap: 8,
+                marginTop: 16,
+              }}
+            >
+              {trainingHistory.map(
+                (item) => (
+                  <TrainingHistoryRow
+                    key={item.id}
+                    item={item}
+                    title={
+                      getTrainingGameTitle(
+                        item.gameKey
+                      )
+                    }
+                    dateLabel={
+                      formatTrainingDateTime(
+                        item.endedAt
+                      )
+                    }
+                    t={t}
+                  />
+                )
+              )}
+            </div>
+
+            {trainingHistoryError && (
+              <div
+                className="muted small"
+                style={{
+                  marginTop: 10,
+                  textAlign: "center",
+                }}
+              >
+                {trainingHistoryError}
+              </div>
+            )}
+
+            {trainingHistoryHasMore && (
+              <button
+                type="button"
+                className="btn outline"
+                style={{
+                  width: "100%",
+                  marginTop: 12,
+                }}
+                onClick={
+                  loadMoreTrainingHistory
+                }
+                disabled={
+                  trainingHistoryLoadingMore
+                }
+              >
+                {trainingHistoryLoadingMore
+                  ? t("Loading...")
+                  : t("Load more")}
+              </button>
+            )}
+
+            <div
+              className="muted small"
+              style={{
+                marginTop: 8,
+                textAlign: "center",
+              }}
+            >
+              {t("Showing")}{" "}
+              {trainingHistory.length}{" "}
+              {t("of")}{" "}
+              {trainingHistoryTotal}
+            </div>
+          </>
+        )}
       </section>
 
       {/* SKILLS ASSESSMENT */}
@@ -1123,6 +1697,255 @@ export default function StatsPage() {
           </div>
         ) : null}
       </section>
+    </div>
+  );
+}
+
+/*
+ * --------------------------------------------------
+ * TRAINING STAT CARD
+ * --------------------------------------------------
+ */
+
+function TrainingStatCard({
+  label,
+  stat,
+}: {
+  label: string;
+  stat: {
+    score: number | null;
+    gamesUsed: number;
+  };
+}) {
+  const rank =
+    stat.score !== null
+      ? getEquivalentLevel(
+          stat.score
+        )
+      : null;
+
+  return (
+    <div
+      style={{
+        border:
+          "1px solid rgba(148, 163, 184, 0.2)",
+        borderRadius: 12,
+        padding: 14,
+        display: "grid",
+        gap: 8,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent:
+            "space-between",
+          gap: 10,
+        }}
+      >
+        <div
+          style={{
+            fontWeight: 800,
+          }}
+        >
+          {label}
+        </div>
+
+        {rank ? (
+          <RankBadge
+            tier={
+              rank.band
+            }
+            level={
+              rank.level
+            }
+          />
+        ) : (
+          <span className="muted small">
+            —
+          </span>
+        )}
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 6,
+        }}
+      >
+        <strong
+          style={{
+            fontSize: 28,
+            lineHeight: 1,
+            fontVariantNumeric:
+              "tabular-nums",
+          }}
+        >
+          {stat.score ??
+            "—"}
+        </strong>
+
+        {stat.score !== null && (
+          <span className="muted small">
+            / 100
+          </span>
+        )}
+      </div>
+
+      <div className="muted small">
+        {stat.gamesUsed > 0
+          ? `${stat.gamesUsed} ${
+              stat.gamesUsed === 1
+                ? "game"
+                : "games"
+            } used`
+          : "No qualifying wins yet"}
+      </div>
+    </div>
+  );
+}
+
+/*
+ * --------------------------------------------------
+ * TRAINING HISTORY ROW
+ * --------------------------------------------------
+ */
+
+function TrainingHistoryRow({
+  item,
+  title,
+  dateLabel,
+  t,
+}: {
+  item: TrainingHistoryItem;
+  title: string;
+  dateLabel: string;
+  t: (value: string) => string;
+}) {
+  const resultLabel =
+    item.aborted
+      ? t("Aborted")
+      : item.win
+        ? t("Win")
+        : t("Loss");
+
+  const objective =
+    item.objective;
+
+  const hasObjectiveProgress =
+    objective &&
+    typeof objective.current ===
+      "number" &&
+    typeof objective.target ===
+      "number";
+
+  return (
+    <div
+      style={{
+        border:
+          "1px solid rgba(148, 163, 184, 0.2)",
+        borderRadius: 10,
+        padding: "12px 14px",
+        display: "grid",
+        gap: 8,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent:
+            "space-between",
+          alignItems: "flex-start",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontWeight: 800,
+            }}
+          >
+            {title}
+          </div>
+
+          <div
+            className="muted small"
+            style={{
+              marginTop: 3,
+            }}
+          >
+            {dateLabel}
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            justifyContent:
+              "flex-end",
+          }}
+        >
+          {item.tier &&
+            item.level !== null && (
+              <RankBadge
+                tier={
+                  item.tier
+                }
+                level={
+                  item.level
+                }
+              />
+            )}
+
+          <span
+            className="pill"
+            style={{
+              fontWeight: 800,
+            }}
+          >
+            {resultLabel}
+          </span>
+        </div>
+      </div>
+
+      <div
+        className="muted small"
+        style={{
+          display: "flex",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <span>
+          {t("XP")}:{" "}
+          {item.xpAwarded > 0
+            ? `+${item.xpAwarded}`
+            : item.xpAwarded}
+        </span>
+
+        {hasObjectiveProgress && (
+          <span>
+            {objective.label
+              ? `${t(
+                  objective.label
+                )}: `
+              : ""}
+            {objective.current}/
+            {objective.target}
+            {objective.unit
+              ? ` ${t(
+                  objective.unit
+                )}`
+              : ""}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

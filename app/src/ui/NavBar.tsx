@@ -2,21 +2,32 @@ import React, {
   useMemo,
   useState,
 } from "react";
+
 import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
+
 import { useTheme } from "../theme/useTheme";
 import RankBadge from "./RankBadge";
 import { useXpStore } from "../xp/useXpStore";
+
+import type {
+  Tier,
+} from "../xp/types";
+
 import {
   getRankStateFromXp,
   XP_CAPS,
 } from "../xp/rank";
+
 import { useAuthStore } from "../auth/useAuthStore";
 import { useAbortStore } from "../session/useAbortStore";
+
 import { useAssessmentStore } from "../skills-assessment/useAssessmentStore";
+
 import HeroLogo from "../assets/img/hero.png";
+
 import { useI18n } from "../i18n/I18nProvider";
 
 export default function NavBar({
@@ -25,43 +36,65 @@ export default function NavBar({
   onMenu: () => void;
 }) {
   const nav = useNavigate();
-  const loc = useLocation();
 
-  const [theme, setTheme] = useTheme();
+  const loc =
+    useLocation();
+
+  const [
+    theme,
+    setTheme,
+  ] = useTheme();
 
   const [
     showCancelAssessmentModal,
     setShowCancelAssessmentModal,
-  ] = useState(false);
+  ] =
+    useState(false);
 
-  const totalXp = useXpStore(
-    (s) => s.state.totalXp
-  );
+  const totalXp =
+    useXpStore(
+      (s) =>
+        s.state.totalXp
+    );
 
-  const me = useAuthStore(
-    (s) => s.me
-  );
+  const me =
+    useAuthStore(
+      (s) => s.me
+    );
 
-  const abortHandler = useAbortStore(
-    (s) => s.handler
-  );
+  const abortHandler =
+    useAbortStore(
+      (s) =>
+        s.handler
+    );
 
-  const resetAssessment = useAssessmentStore(
-    (state) => state.resetAssessment
-  );
+  const resetAssessment =
+    useAssessmentStore(
+      (state) =>
+        state.resetAssessment
+    );
 
-  const { t, isDesktop } = useI18n();
+  const {
+    t,
+    isDesktop,
+  } = useI18n();
 
   const name =
     me?.display_name ||
     me?.login ||
     t("Player");
 
-  const pathname = loc.pathname;
+  const pathname =
+    loc.pathname;
 
   const isHome =
     pathname === "/" ||
     pathname === "";
+
+  const isDrill =
+    pathname.startsWith(
+      "/drill/"
+    );
 
   const isAssessmentResults =
     pathname ===
@@ -80,27 +113,42 @@ export default function NavBar({
         : "light"
     );
 
-  const overallRank = useMemo(
-    () =>
-      getRankStateFromXp(
-        totalXp ?? 0,
-        XP_CAPS.overallTierMax,
-        "Bronze"
-      ),
-    [totalXp]
-  );
+  const overallRank =
+    useMemo(
+      () =>
+        getRankStateFromXp(
+          totalXp ?? 0,
+          XP_CAPS.overallTierMax,
+          "Bronze"
+        ),
+      [
+        totalXp,
+      ]
+    );
+
+  /* --------------------------------------------------
+     ASSESSMENT
+  -------------------------------------------------- */
 
   function requestCancelAssessment() {
-    setShowCancelAssessmentModal(true);
+    setShowCancelAssessmentModal(
+      true
+    );
   }
 
   function closeCancelAssessmentModal() {
-    setShowCancelAssessmentModal(false);
+    setShowCancelAssessmentModal(
+      false
+    );
   }
 
   function confirmCancelAssessment() {
-    setShowCancelAssessmentModal(false);
+    setShowCancelAssessmentModal(
+      false
+    );
+
     resetAssessment();
+
     nav("/");
   }
 
@@ -108,16 +156,50 @@ export default function NavBar({
     nav("/");
   }
 
+  /* --------------------------------------------------
+     NAVIGATION
+  -------------------------------------------------- */
+
   function handleBack() {
+    /*
+     * Inside a drill, use the existing
+     * shared abort handler.
+     */
     if (
-      pathname.startsWith("/drill/") &&
+      isDrill &&
       abortHandler
     ) {
       abortHandler();
+
       return;
     }
 
     nav(-1);
+  }
+
+  function handleLogoClick() {
+    /*
+     * Clicking the logo while a drill
+     * is open should not silently leave
+     * the active session.
+     *
+     * Use the same abort modal as the
+     * Abort button / back navigation.
+     */
+    if (
+      isDrill &&
+      abortHandler
+    ) {
+      abortHandler();
+
+      return;
+    }
+
+    /*
+     * Everywhere else the logo
+     * behaves as Home.
+     */
+    nav("/");
   }
 
   return (
@@ -125,35 +207,53 @@ export default function NavBar({
       <header
         className="nav"
         style={{
-          display: "block",
+          display:
+            "block",
         }}
       >
         {/* Main navbar */}
         <div
           className="nav-main-row"
           style={{
-            position: "relative",
-            display: "flex",
-            alignItems: "center",
+            position:
+              "relative",
+
+            display:
+              "flex",
+
+            alignItems:
+              "center",
+
             justifyContent:
               "space-between",
-            width: "100%",
+
+            width:
+              "100%",
           }}
         >
+          {/* Left */}
           <div
             className="nav-left"
             style={{
-              flex: "1 1 0",
-              display: "flex",
+              flex:
+                "1 1 0",
+
+              display:
+                "flex",
+
               justifyContent:
                 "flex-start",
-              alignItems: "center",
+
+              alignItems:
+                "center",
             }}
           >
             {isHome ? (
               <button
                 className="icon-btn"
-                onClick={onMenu}
+                onClick={
+                  onMenu
+                }
                 aria-label={t(
                   "Open menu"
                 )}
@@ -180,46 +280,97 @@ export default function NavBar({
                   finishAssessment
                 }
               >
-                {t("Finish")}
+                {t(
+                  "Finish"
+                )}
               </button>
             ) : (
               <button
                 className="icon-btn"
-                onClick={handleBack}
-                aria-label={t("Back")}
+                onClick={
+                  handleBack
+                }
+                aria-label={t(
+                  "Back"
+                )}
               >
                 ←
               </button>
             )}
           </div>
 
+          {/* Logo */}
           <div
             className="nav-center"
             style={{
-              position: "absolute",
-              left: "50%",
-              top: "50%",
+              position:
+                "absolute",
+
+              left:
+                "50%",
+
+              top:
+                "50%",
+
               transform:
                 "translate(-50%, -50%)",
             }}
           >
-            <img
-              src={HeroLogo}
-              alt={t(
-                "Darts Hero logo"
+            <button
+              type="button"
+              onClick={
+                handleLogoClick
+              }
+              aria-label={t(
+                "Back to Home"
               )}
-              className="logo-large"
-            />
+              style={{
+                padding:
+                  0,
+
+                margin:
+                  0,
+
+                border:
+                  0,
+
+                background:
+                  "transparent",
+
+                cursor:
+                  "pointer",
+
+                display:
+                  "block",
+              }}
+            >
+              <img
+                src={
+                  HeroLogo
+                }
+                alt={t(
+                  "Darts Hero logo"
+                )}
+                className="logo-large"
+              />
+            </button>
           </div>
 
+          {/* Right */}
           <div
             className="nav-right"
             style={{
-              flex: "1 1 0",
-              display: "flex",
+              flex:
+                "1 1 0",
+
+              display:
+                "flex",
+
               justifyContent:
                 "flex-end",
-              alignItems: "center",
+
+              alignItems:
+                "center",
             }}
           >
             <div>
@@ -232,7 +383,8 @@ export default function NavBar({
                   "Theme"
                 )}
               >
-                {theme === "light"
+                {theme ===
+                "light"
                   ? "🌙"
                   : "☀️"}
               </button>
@@ -240,7 +392,9 @@ export default function NavBar({
               <button
                 className="icon-btn"
                 onClick={() =>
-                  nav("/profile")
+                  nav(
+                    "/profile"
+                  )
                 }
                 aria-label={t(
                   "Profile"
@@ -252,7 +406,9 @@ export default function NavBar({
 
             <div className="profile">
               <div className="nav-title">
-                {name}
+                {
+                  name
+                }
               </div>
 
               <div className="nav-subtitle">
@@ -274,46 +430,72 @@ export default function NavBar({
           <div
             className="nav-rank-steps"
             style={{
-              width: "100%",
-              marginTop: 10,
-              paddingTop: 10,
-              paddingBottom: 4,
+              width:
+                "100%",
+
+              marginTop:
+                10,
+
+              paddingTop:
+                10,
+
+              paddingBottom:
+                4,
+
               borderTop:
                 "1px solid rgba(148, 163, 184, 0.25)",
-              display: "flex",
+
+              display:
+                "flex",
+
               alignItems:
                 "center",
+
               justifyContent:
                 "center",
-              gap: 10,
-              flexWrap: "wrap",
+
+              gap:
+                10,
+
+              flexWrap:
+                "wrap",
             }}
           >
             <span
               className="muted small"
               style={{
-                fontWeight: 800,
+                fontWeight:
+                  800,
               }}
             >
-              {t("Ranks")}:
+              {t(
+                "Ranks"
+              )}
+              :
             </span>
 
             <RankStep
-              label={t("Bronze")}
+              label={t(
+                "Bronze"
+              )}
               tier="Bronze"
             />
 
             <RankArrow />
 
             <RankStep
-              label={t("Silver")}
+              label={t(
+                "Silver"
+              )}
               tier="Silver"
             />
 
             <RankArrow />
 
             <RankStep
-              label={t("Gold")}
+              label={t(
+                "Gold"
+              )}
               tier="Gold"
             />
 
@@ -338,11 +520,14 @@ export default function NavBar({
         )}
       </header>
 
+      {/* Cancel assessment modal */}
       {showCancelAssessmentModal && (
         <div
           className="assessment-modal-backdrop"
           role="presentation"
-          onMouseDown={(event) => {
+          onMouseDown={(
+            event
+          ) => {
             if (
               event.target ===
               event.currentTarget
@@ -361,7 +546,8 @@ export default function NavBar({
             <h2
               id="cancel-assessment-title"
               style={{
-                marginTop: 0,
+                marginTop:
+                  0,
               }}
             >
               {t(
@@ -380,11 +566,17 @@ export default function NavBar({
 
             <div
               style={{
-                display: "grid",
+                display:
+                  "grid",
+
                 gridTemplateColumns:
                   "1fr 1fr",
-                gap: 10,
-                marginTop: 18,
+
+                gap:
+                  10,
+
+                marginTop:
+                  18,
               }}
             >
               <button
@@ -394,7 +586,9 @@ export default function NavBar({
                   closeCancelAssessmentModal
                 }
               >
-                {t("Keep playing")}
+                {t(
+                  "Keep playing"
+                )}
               </button>
 
               <button
@@ -421,6 +615,7 @@ function RankStep({
   tier,
 }: {
   label: string;
+
   tier:
     | "Bronze"
     | "Silver"
@@ -431,25 +626,41 @@ function RankStep({
   return (
     <div
       style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
+        display:
+          "flex",
+
+        alignItems:
+          "center",
+
+        gap:
+          6,
       }}
     >
       <span
         className="small"
         style={{
-          fontWeight: 700,
-          whiteSpace: "nowrap",
+          fontWeight:
+            700,
+
+          whiteSpace:
+            "nowrap",
         }}
       >
-        {label}
+        {
+          label
+        }
       </span>
 
       <RankBadge
-        tier={tier}
-        level={1}
-        showLevel={false}
+        tier={
+          tier
+        }
+        level={
+          1
+        }
+        showLevel={
+          false
+        }
       />
     </div>
   );
@@ -461,7 +672,8 @@ function RankArrow() {
       className="muted"
       aria-hidden="true"
       style={{
-        fontWeight: 800,
+        fontWeight:
+          800,
       }}
     >
       →
