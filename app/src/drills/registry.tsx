@@ -399,7 +399,7 @@ const RulesScoringBingo: React.FC = () => {
     <>
       <p>
         {t(
-          "• You have 30 throws to complete a 3×3 bingo grid of exact scores."
+          "• You have 50 visits to complete a 3×3 bingo grid of exact scores."
         )}
       </p>
 
