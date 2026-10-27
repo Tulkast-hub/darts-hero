@@ -1603,57 +1603,179 @@ export default function ScoringBingo({
           marginTop: 12,
         }}
       >
-<div className="bingo-board">
-  <div className="bingo-grid-shell">
-    <div className="bingo-grid">
-      ...
-    </div>
+        <div className="bingo-board-wrap">
+          <div className="bingo-card">
+            {board.map(
+              (cell) => {
+                const have =
+                  countsByCell.get(
+                    cell.id
+                  ) ?? 0;
 
-    <svg
-      className="bingo-lines-svg"
-      viewBox="0 0 100 100"
-      preserveAspectRatio="none"
-      aria-hidden="true"
-    >
-      {completedLineIds.has("row-1") && (
-        <line x1="2" y1="16.666" x2="98" y2="16.666" className="bingo-svg-line" />
-      )}
+                const done =
+                  have >=
+                  cell.requiredHits;
 
-      {completedLineIds.has("row-2") && (
-        <line x1="2" y1="50" x2="98" y2="50" className="bingo-svg-line" />
-      )}
+                const partial =
+                  cell.requiredHits ===
+                    2 &&
+                  have === 1;
 
-      {completedLineIds.has("row-3") && (
-        <line x1="2" y1="83.333" x2="98" y2="83.333" className="bingo-svg-line" />
-      )}
+                return (
+                  <button
+                    key={
+                      cell.id
+                    }
+                    type="button"
+                    className={[
+                      "bingo-cell",
 
-      {completedLineIds.has("col-1") && (
-        <line x1="16.666" y1="2" x2="16.666" y2="98" className="bingo-svg-line" />
-      )}
+                      done
+                        ? "bingo-cell--done"
+                        : "",
 
-      {completedLineIds.has("col-2") && (
-        <line x1="50" y1="2" x2="50" y2="98" className="bingo-svg-line" />
-      )}
+                      partial
+                        ? "bingo-cell--partial"
+                        : "",
+                    ]
+                      .filter(
+                        Boolean
+                      )
+                      .join(
+                        " "
+                      )}
+                    onClick={() =>
+                      handleHit(
+                        cell.id
+                      )
+                    }
+                    disabled={
+                      !canPress ||
+                      done
+                    }
+                  >
+                    <span className="bingo-cell__score">
+                      {
+                        cell.value
+                      }
+                    </span>
 
-      {completedLineIds.has("col-3") && (
-        <line x1="83.333" y1="2" x2="83.333" y2="98" className="bingo-svg-line" />
-      )}
+                    {cell.requiredHits ===
+                      2 && (
+                      <span className="bingo-cell__hits">
+                        {have}/2
+                      </span>
+                    )}
+                  </button>
+                );
+              }
+            )}
+          </div>
 
-      {completedLineIds.has("diag-1") && (
-        <line x1="16.666" y1="16.666" x2="83.333" y2="83.333" className="bingo-svg-line" />
-      )}
+          {/* Completed bingo lines */}
+          <svg
+            className="bingo-lines-svg"
+            viewBox="0 0 300 300"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            {completedLineIds.has(
+              "row-1"
+            ) && (
+              <line
+                x1="5"
+                y1="50"
+                x2="295"
+                y2="50"
+                className="bingo-svg-line"
+              />
+            )}
 
-      {completedLineIds.has("diag-2") && (
-        <line x1="83.333" y1="16.666" x2="16.666" y2="83.333" className="bingo-svg-line" />
-      )}
-    </svg>
-  </div>
+            {completedLineIds.has(
+              "row-2"
+            ) && (
+              <line
+                x1="5"
+                y1="150"
+                x2="295"
+                y2="150"
+                className="bingo-svg-line"
+              />
+            )}
 
-  <div className="bingo-board-footer">
-    <span>Lines completed: {completedLineIds.size}/8</span>
-    <span>Current line XP: {currentLineXp}</span>
-  </div>
-</div>
+            {completedLineIds.has(
+              "row-3"
+            ) && (
+              <line
+                x1="5"
+                y1="250"
+                x2="295"
+                y2="250"
+                className="bingo-svg-line"
+              />
+            )}
+
+            {completedLineIds.has(
+              "column-1"
+            ) && (
+              <line
+                x1="50"
+                y1="5"
+                x2="50"
+                y2="295"
+                className="bingo-svg-line"
+              />
+            )}
+
+            {completedLineIds.has(
+              "column-2"
+            ) && (
+              <line
+                x1="150"
+                y1="5"
+                x2="150"
+                y2="295"
+                className="bingo-svg-line"
+              />
+            )}
+
+            {completedLineIds.has(
+              "column-3"
+            ) && (
+              <line
+                x1="250"
+                y1="5"
+                x2="250"
+                y2="295"
+                className="bingo-svg-line"
+              />
+            )}
+
+            {completedLineIds.has(
+              "diagonal-1"
+            ) && (
+              <line
+                x1="50"
+                y1="50"
+                x2="250"
+                y2="250"
+                className="bingo-svg-line"
+              />
+            )}
+
+            {completedLineIds.has(
+              "diagonal-2"
+            ) && (
+              <line
+                x1="250"
+                y1="50"
+                x2="50"
+                y2="250"
+                className="bingo-svg-line"
+              />
+            )}
+          </svg>
+        </div>
 
         <div className="bingo-card-footer">
           <span>
