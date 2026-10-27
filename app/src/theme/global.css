@@ -656,6 +656,211 @@ select:focus {
   grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.1fr);
 }
 
+/* --------------------------------------------------
+   SCORING BINGO
+-------------------------------------------------- */
+
+.bingo-board-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.bingo-card {
+  position: relative;
+  z-index: 1;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+
+  grid-template-rows:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+
+  gap: 10px;
+
+  width: 100%;
+}
+
+
+/* --------------------------------------------------
+   BINGO CELLS
+-------------------------------------------------- */
+
+.bingo-cell {
+  position: relative;
+
+  min-width: 0;
+  min-height: 120px;
+
+  border:
+    2px solid
+    rgba(0, 0, 0, 0.22);
+
+  border-radius: 18px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  background: transparent;
+  color: inherit;
+
+  cursor: pointer;
+
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+:root[data-theme="dark"]
+.bingo-cell {
+  border-color:
+    rgba(
+      255,
+      255,
+      255,
+      0.22
+    );
+}
+
+.bingo-cell:not(:disabled):hover {
+  transform:
+    translateY(-1px);
+}
+
+.bingo-cell:disabled {
+  cursor: not-allowed;
+}
+
+
+/* One of two required hits */
+
+.bingo-cell--partial {
+  background:
+    rgb(
+      250,
+      204,
+      21
+    );
+
+  color: #111827;
+}
+
+
+/* Completed cell */
+
+.bingo-cell--done {
+  background:
+    rgb(
+      34,
+      197,
+      94
+    );
+
+  color: #fff;
+}
+
+
+/* --------------------------------------------------
+   CELL CONTENT
+-------------------------------------------------- */
+
+.bingo-cell__score {
+  font-size:
+    clamp(
+      40px,
+      6vw,
+      64px
+    );
+
+  line-height: 1;
+
+  font-weight: 800;
+}
+
+.bingo-cell__hits {
+  margin-top: 10px;
+
+  font-size: 14px;
+
+  line-height: 1;
+
+  font-weight: 700;
+
+  opacity: 0.85;
+}
+
+.bingo-cell--done
+.bingo-cell__hits {
+  color: #fff;
+
+  opacity: 0.95;
+}
+
+
+/* --------------------------------------------------
+   COMPLETED BINGO LINES - SVG
+-------------------------------------------------- */
+
+.bingo-lines-svg {
+  position: absolute;
+
+  inset: 0;
+
+  width: 100%;
+  height: 100%;
+
+  pointer-events: none;
+
+  z-index: 3;
+
+  overflow: visible;
+}
+
+.bingo-svg-line {
+  stroke: currentColor;
+
+  /*
+   * The SVG viewBox is 300 x 300.
+   * 4 gives us a visible but not
+   * overly heavy strike-through.
+   */
+  stroke-width: 4;
+
+  stroke-linecap: round;
+
+  opacity: 0.85;
+}
+
+
+/* Light mode */
+
+:root:not(
+  [data-theme="dark"]
+)
+.bingo-svg-line {
+  stroke: #111827;
+}
+
+
+/* Dark mode */
+
+:root[data-theme="dark"]
+.bingo-svg-line {
+  stroke: #e5e7eb;
+}
+
 
 /* --------------------------------------------------
    XP INFO
@@ -667,6 +872,7 @@ select:focus {
   margin-top: 12px;
 
   display: flex;
+
   align-items: center;
 
   gap: 6px;
@@ -677,24 +883,24 @@ select:focus {
 
   border:
     1px solid
-    rgba(127, 127, 127, 0.3);
+    rgba(
+      127,
+      127,
+      127,
+      0.3
+    );
 
-  border-radius:
-    999px;
+  border-radius: 999px;
 
-  font-size:
-    13px;
+  font-size: 13px;
 
-  cursor:
-    help;
+  cursor: help;
 }
 
 .bingo-xp-info__icon {
-  font-size:
-    14px;
+  font-size: 14px;
 
-  opacity:
-    0.75;
+  opacity: 0.75;
 }
 
 
@@ -703,26 +909,20 @@ select:focus {
 -------------------------------------------------- */
 
 .bingo-card-footer {
-  margin-top:
-    12px;
+  margin-top: 12px;
 
-  display:
-    flex;
+  display: flex;
 
-  align-items:
-    center;
+  align-items: center;
 
   justify-content:
     space-between;
 
-  gap:
-    12px;
+  gap: 12px;
 
-  flex-wrap:
-    wrap;
+  flex-wrap: wrap;
 
-  font-size:
-    13px;
+  font-size: 13px;
 }
 
 
@@ -730,18 +930,17 @@ select:focus {
    MOBILE
 -------------------------------------------------- */
 
-@media (max-width: 600px) {
+@media (
+  max-width: 600px
+) {
   .bingo-card {
-    gap:
-      6px;
+    gap: 6px;
   }
 
   .bingo-cell {
-    min-height:
-      92px;
+    min-height: 92px;
 
-    border-radius:
-      12px;
+    border-radius: 12px;
   }
 
   .bingo-cell__score {
@@ -754,42 +953,52 @@ select:focus {
   }
 
   .bingo-cell__hits {
-    margin-top:
-      6px;
+    margin-top: 6px;
 
-    font-size:
-      12px;
+    font-size: 12px;
   }
 
-  .bingo-line--row-1,
-  .bingo-line--row-2,
-  .bingo-line--row-3,
-  .bingo-line--diagonal-1,
-  .bingo-line--diagonal-2 {
-    height:
-      4px;
-  }
-
-  .bingo-line--column-1,
-  .bingo-line--column-2,
-  .bingo-line--column-3 {
-    width:
-      4px;
-  }
+  /*
+   * No special SVG line sizing
+   * required on mobile.
+   *
+   * The SVG automatically scales
+   * with the bingo board.
+   */
 }
 
-@media (max-width: 480px){
+
+/* Very small screens */
+
+@media (
+  max-width: 480px
+) {
   .bullout-main,
   .bullout-main.aw-main {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      1fr;
   }
 
   .hidden-sm {
-    display:none;
+    display: none;
   }
 
   .bingo-card {
-    grid-auto-rows: 70px;   
+    grid-auto-rows:
+      70px;
+  }
+
+  .bingo-cell {
+    min-height: 70px;
+  }
+
+  .bingo-cell__score {
+    font-size:
+      clamp(
+        28px,
+        10vw,
+        42px
+      );
   }
 }
 
