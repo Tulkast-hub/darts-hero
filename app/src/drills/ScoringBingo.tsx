@@ -1679,99 +1679,86 @@ export default function ScoringBingo({
             preserveAspectRatio="none"
             aria-hidden="true"
           >
-            {completedLineIds.has(
-              "row-1"
-            ) && (
+            {/* Rows */}
+            {completedLines.row1 && (
               <line
-                x1="5"
+                className="bingo-svg-line bingo-svg-line--row"
+                x1="8"
                 y1="50"
-                x2="295"
+                x2="292"
                 y2="50"
-                className="bingo-svg-line"
               />
             )}
 
-            {completedLineIds.has(
-              "row-2"
-            ) && (
+            {completedLines.row2 && (
               <line
-                x1="5"
+                className="bingo-svg-line bingo-svg-line--row"
+                x1="8"
                 y1="150"
-                x2="295"
+                x2="292"
                 y2="150"
-                className="bingo-svg-line"
               />
             )}
 
-            {completedLineIds.has(
-              "row-3"
-            ) && (
+            {completedLines.row3 && (
               <line
-                x1="5"
+                className="bingo-svg-line bingo-svg-line--row"
+                x1="8"
                 y1="250"
-                x2="295"
+                x2="292"
                 y2="250"
-                className="bingo-svg-line"
               />
             )}
 
-            {completedLineIds.has(
-              "column-1"
-            ) && (
+            {/* Columns */}
+            {completedLines.col1 && (
               <line
+                className="bingo-svg-line bingo-svg-line--column"
                 x1="50"
-                y1="5"
+                y1="8"
                 x2="50"
-                y2="295"
-                className="bingo-svg-line"
+                y2="292"
               />
             )}
 
-            {completedLineIds.has(
-              "column-2"
-            ) && (
+            {completedLines.col2 && (
               <line
+                className="bingo-svg-line bingo-svg-line--column"
                 x1="150"
-                y1="5"
+                y1="8"
                 x2="150"
-                y2="295"
-                className="bingo-svg-line"
+                y2="292"
               />
             )}
 
-            {completedLineIds.has(
-              "column-3"
-            ) && (
+            {completedLines.col3 && (
               <line
+                className="bingo-svg-line bingo-svg-line--column"
                 x1="250"
-                y1="5"
+                y1="8"
                 x2="250"
-                y2="295"
-                className="bingo-svg-line"
+                y2="292"
               />
             )}
 
-            {completedLineIds.has(
-              "diagonal-1"
-            ) && (
+            {/* Diagonals */}
+            {completedLines.diag1 && (
               <line
-                x1="50"
-                y1="50"
-                x2="250"
-                y2="250"
-                className="bingo-svg-line"
+                className="bingo-svg-line bingo-svg-line--diagonal"
+                x1="-12"
+                y1="-12"
+                x2="312"
+                y2="312"
               />
             )}
 
-            {completedLineIds.has(
-              "diagonal-2"
-            ) && (
+            {completedLines.diag2 && (
               <line
-                x1="250"
-                y1="50"
-                x2="50"
-                y2="250"
-                className="bingo-svg-line"
+                className="bingo-svg-line bingo-svg-line--diagonal"
+                x1="312"
+                y1="-12"
+                x2="-12"
+                y2="312"
               />
             )}
           </svg>
