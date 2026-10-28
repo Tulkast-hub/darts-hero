@@ -170,7 +170,8 @@ article:has(#dt-app) > * {
 .app-footer {
   position: relative;
 
-  background: var(--bg);
+  background:
+    var(--bg);
 
   padding:
     10px
@@ -184,7 +185,7 @@ article:has(#dt-app) > * {
       0,
       0.08
     );
-}
+}}
 
 :root[data-theme="dark"]
 .app-footer {
@@ -1127,9 +1128,8 @@ select:focus {
 -------------------------------------------------- */
 
 /*
- * Empty on desktop and on drill
- * components that do not yet
- * provide a mobile objective.
+ * Absolutely hidden by default.
+ * This means DESKTOP never displays it.
  */
  .mobile-objective-slot {
   display: none;
@@ -1140,22 +1140,17 @@ select:focus {
 }
 
 
+/* Desktop objective */
+.objective-pill--desktop {
+  display: block;
+}
+
+
 @media (max-width: 600px) {
-  /*
-   * Don't stick the original
-   * drill header below the nav.
-   */
-  .game-objective-sticky {
-    position: static;
-  }
 
   /*
-   * Hide the objective pill
-   * contained in the normal
-   * desktop header.
-   *
-   * The drill title / description
-   * remains where it normally is.
+   * Hide objective from the
+   * normal drill header.
    */
   .objective-pill--desktop {
     display: none;
@@ -1163,8 +1158,8 @@ select:focus {
 
 
   /*
-   * Shell-owned objective area
-   * directly above the XP footer.
+   * Shell slot only exists
+   * visually on mobile.
    */
   .mobile-objective-slot:not(:empty) {
     display: block;
@@ -1173,55 +1168,37 @@ select:focus {
 
     background:
       var(--bg);
-
-    border-top:
-      1px solid
-      rgba(
-        0,
-        0,
-        0,
-        0.08
-      );
   }
 
 
-  :root[data-theme="dark"]
-  .mobile-objective-slot:not(:empty) {
-    border-top-color:
-      rgba(
-        255,
-        255,
-        255,
-        0.08
-      );
-  }
-
-
+  /*
+   * Full-width objective directly
+   * above the XP footer.
+   */
+  .mobile-objective-slot
   .objective-pill--mobile {
-    width: 100%;
-
-    min-height: 50px;
-
-    padding:
-      8px
-      16px;
-
     display: flex;
 
-    align-items: center;
+    width: 100%;
+
+    padding:
+      9px
+      16px;
+
+    border-radius:
+      0;
+
+    align-items:
+      center;
 
     justify-content:
-      space-between;
+      center;
 
-    gap: 16px;
+    gap:
+      8px;
 
-    /*
-     * Full-width bar rather
-     * than desktop pill shape.
-     */
-    border-radius: 0;
-
-    text-align: left;
+    text-align:
+      center;
 
     background:
       #e9edf5;
@@ -1229,25 +1206,44 @@ select:focus {
 
 
   :root[data-theme="dark"]
+  .mobile-objective-slot
   .objective-pill--mobile {
     background:
       #1d2538;
   }
 
 
-  .objective-pill--mobile
+  /*
+   * Inline text:
+   *
+   * OBJECTIVE  7 steps
+   */
+  .mobile-objective-slot
   .objective-label {
-    font-size: 12px;
+    font-size:
+      12px;
+
+    line-height:
+      1;
+
+    margin:
+      0;
   }
 
 
-  .objective-pill--mobile
+  .mobile-objective-slot
   .objective-value {
-    font-size: 20px;
+    font-size:
+      18px;
 
-    text-align: right;
+    line-height:
+      1;
 
-    white-space: nowrap;
+    margin:
+      0;
+
+    white-space:
+      nowrap;
   }
 }
 
