@@ -2065,9 +2065,6 @@ select {
     height: auto;
   }
 
-  .title-lg {
-    font-size: 30px;
-  }
 }
 
 .assessment-modal-backdrop {
@@ -2092,7 +2089,23 @@ select {
   text-align: center;
 }
 
+.t20scoring-controls .btn {
+  height: 64px;
 
+  padding: 8px 14px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+
+  line-height: 1.15;
+}
+
+.t20scoring-controls .row {
+  align-items: stretch;
+}
 /*
  * --------------------------------------------------
  * STATS PAGE

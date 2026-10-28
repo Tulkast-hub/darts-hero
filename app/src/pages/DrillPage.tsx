@@ -53,8 +53,6 @@ import {
   useAuthStore,
 } from "../auth/useAuthStore";
 
-import RankBadge from "../ui/RankBadge";
-import XPBar from "../ui/XPBar";
 
 type FinishResult = {
   payload: any;
@@ -989,62 +987,6 @@ export default function DrillPage() {
           scoringSection
         }
       />
-
-      {/* Category XP footer */}
-      <div
-        style={{
-          marginTop: 18,
-        }}
-      >
-        <div
-          className="row"
-          style={{
-            justifyContent:
-              "space-between",
-
-            alignItems:
-              "center",
-
-            marginBottom:
-              10,
-          }}
-        >
-          <div>
-            <div className="small muted">
-              {t(
-                "Category XP"
-              )}
-            </div>
-
-            <strong>
-              {
-                categoryLabel
-              }
-            </strong>
-          </div>
-
-          <RankBadge
-            tier={
-              categoryRank.tier
-            }
-            level={
-              categoryRank.level
-            }
-          />
-        </div>
-
-        <XPBar
-          label={`${t(
-            "Category XP"
-          )} · ${categoryLabel}`}
-          value={
-            categoryXp
-          }
-          max={
-            XP_CAPS.categoryTierMax
-          }
-        />
-      </div>
 
       {/* Abort button */}
       <div
