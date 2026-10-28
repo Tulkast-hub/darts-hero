@@ -1,7 +1,6 @@
+// src/drills/ScoringLadder.tsx
+
 import React, { useMemo, useState } from "react";
-import DartboardHighlight, {
-  tokensToSegments,
-} from "../ui/DartboardHighlight";
 import type { Tier } from "../xp/types";
 
 type FinishResult = {
@@ -21,253 +20,187 @@ type Props = {
   };
 };
 
-type ThrowKind =
-  | "MISS"
-  | "BASE60"
-  | "GT60"
-  | "GT80"
-  | "GT100"
-  | "GT120"
-  | "GT140"
-  | "H180";
+type LadderBand =
+  | "DOWN"
+  | "STAY"
+  | "UP_1"
+  | "UP_2"
+  | "UP_3";
 
-type ThrowEvent = {
-  kind: ThrowKind;
-  points: number;
+type LadderEvent = {
+  band: LadderBand;
+  delta: number;
 };
 
-type RankConfigScoring = {
-  labelLong: string;
-  objectiveShort: string;
-  targetPoints: number;
-  maxThrows: number;
+type RankConfig = {
+  low: number;
+  mid: number;
+  high: number;
+  up3At: number;
+  goalSteps: number;
 };
 
-type ScoringStats = {
-  totalPoints: number;
+type LadderStats = {
   throwsUsed: number;
-  scoringThrows: number;
-  accuracy: number;
-  bestStreak: number;
-  avgPointsPerThrow: number;
-  gt60: number;
-  gt80: number;
-  gt100: number;
-  gt120: number;
-  gt140: number;
-  h180: number;
-  misses: number;
-  neutral60: number;
+  currentStep: number;
+  bestStep: number;
+  down: number;
+  stay: number;
+  up1: number;
+  up2: number;
+  up3: number;
 };
 
-const MAX_THROWS = 100;
+const MAX_THROWS = 30;
 
-/* ---------- RANK CONFIG ---------- */
-
-function getRankConfigScoring(
+function getRankConfig(
   tier: Tier,
   level: number
-): RankConfigScoring {
-  let target = 5;
+): RankConfig {
+  const highLevel = level >= 4;
 
   if (tier === "Bronze") {
-    target =
-      level <= 3
-        ? 10
-        : 20;
-  } else if (
-    tier === "Silver"
-  ) {
-    target =
-      level <= 3
-        ? 45
-        : 60;
-  } else if (
-    tier === "Gold"
-  ) {
-    target =
-      level <= 3
-        ? 80
-        : 100;
-  } else if (
-    tier === "Platinum"
-  ) {
-    target =
-      level <= 3
-        ? 125
-        : 150;
-  } else if (
-    tier === "Diamond"
-  ) {
-    target =
-      level <= 3
-        ? 200
-        : 250;
+    return {
+      low: 45,
+      mid: 60,
+      high: 80,
+      up3At: 100,
+      goalSteps: highLevel ? 5 : 3,
+    };
+  }
+
+  if (tier === "Silver") {
+    return {
+      low: 60,
+      mid: 80,
+      high: 100,
+      up3At: 120,
+      goalSteps: highLevel ? 11 : 9,
+    };
+  }
+
+  if (tier === "Gold") {
+    if (highLevel) {
+      return {
+        low: 80,
+        mid: 100,
+        high: 120,
+        up3At: 140,
+        goalSteps: 5,
+      };
+    }
+
+    return {
+      low: 60,
+      mid: 80,
+      high: 100,
+      up3At: 140,
+      goalSteps: 13,
+    };
+  }
+
+  if (tier === "Platinum") {
+    return {
+      low: 80,
+      mid: 100,
+      high: 120,
+      up3At: 140,
+      goalSteps: highLevel ? 11 : 9,
+    };
+  }
+
+  if (highLevel) {
+    return {
+      low: 100,
+      mid: 120,
+      high: 140,
+      up3At: 180,
+      goalSteps: 9,
+    };
   }
 
   return {
-    labelLong:
-      `Score at least ${target} ladder points in ${MAX_THROWS} throws`,
-    objectiveShort:
-      `${target} pts`,
-    targetPoints:
-      target,
-    maxThrows:
-      MAX_THROWS,
+    low: 80,
+    mid: 100,
+    high: 120,
+    up3At: 180,
+    goalSteps: 15,
   };
 }
 
-/* ---------- STATS ---------- */
+function getDelta(
+  band: LadderBand
+): number {
+  switch (band) {
+    case "DOWN":
+      return -1;
+    case "STAY":
+      return 0;
+    case "UP_1":
+      return 1;
+    case "UP_2":
+      return 2;
+    case "UP_3":
+      return 3;
+    default:
+      return 0;
+  }
+}
 
 function computeStats(
-  events: ThrowEvent[]
-): ScoringStats {
-  let totalPoints = 0;
-  let scoringThrows = 0;
+  events: LadderEvent[]
+): LadderStats {
+  let currentStep = 0;
+  let bestStep = 0;
+  let down = 0;
+  let stay = 0;
+  let up1 = 0;
+  let up2 = 0;
+  let up3 = 0;
 
-  let bestStreak = 0;
-  let currentStreak = 0;
+  events.forEach((event) => {
+    currentStep = Math.max(
+      0,
+      currentStep + event.delta
+    );
 
-  let gt60 = 0;
-  let gt80 = 0;
-  let gt100 = 0;
-  let gt120 = 0;
-  let gt140 = 0;
-  let h180 = 0;
+    bestStep = Math.max(
+      bestStep,
+      currentStep
+    );
 
-  let misses = 0;
-  let neutral60 = 0;
-
-  events.forEach(
-    (event) => {
-      totalPoints +=
-        event.points;
-
-      /*
-       * BASE60 is neutral:
-       *
-       * - no ladder points
-       * - not counted as a miss
-       * - does not increase scoringThrows
-       * - does not break the current consistency streak
-       */
-      if (
-        event.kind ===
-        "BASE60"
-      ) {
-        neutral60 += 1;
-      } else if (
-        event.points > 0
-      ) {
-        scoringThrows +=
-          1;
-
-        currentStreak +=
-          1;
-
-        if (
-          currentStreak >
-          bestStreak
-        ) {
-          bestStreak =
-            currentStreak;
-        }
-      } else {
-        currentStreak = 0;
-        misses += 1;
-      }
-
-      switch (
-        event.kind
-      ) {
-        case "GT60":
-          gt60 += 1;
-          break;
-
-        case "GT80":
-          gt80 += 1;
-          break;
-
-        case "GT100":
-          gt100 += 1;
-          break;
-
-        case "GT120":
-          gt120 += 1;
-          break;
-
-        case "GT140":
-          gt140 += 1;
-          break;
-
-        case "H180":
-          h180 += 1;
-          break;
-
-        default:
-          break;
-      }
+    switch (event.band) {
+      case "DOWN":
+        down += 1;
+        break;
+      case "STAY":
+        stay += 1;
+        break;
+      case "UP_1":
+        up1 += 1;
+        break;
+      case "UP_2":
+        up2 += 1;
+        break;
+      case "UP_3":
+        up3 += 1;
+        break;
     }
-  );
-
-  const throwsUsed =
-    events.length;
-
-  /*
-   * Neutral 60s are excluded from the accuracy denominator
-   * because they are neither a positive scoring result
-   * nor a miss.
-   */
-  const accuracyAttempts =
-    scoringThrows +
-    misses;
-
-  const accuracy =
-    accuracyAttempts > 0
-      ? Math.round(
-          (
-            scoringThrows /
-            accuracyAttempts
-          ) * 100
-        )
-      : 0;
-
-  const avgPointsPerThrow =
-    throwsUsed > 0
-      ? +(
-          totalPoints /
-          throwsUsed
-        ).toFixed(2)
-      : 0;
+  });
 
   return {
-    totalPoints,
-    throwsUsed,
-    scoringThrows,
-    accuracy,
-    bestStreak,
-    avgPointsPerThrow,
-    gt60,
-    gt80,
-    gt100,
-    gt120,
-    gt140,
-    h180,
-    misses,
-    neutral60,
+    throwsUsed: events.length,
+    currentStep,
+    bestStep,
+    down,
+    stay,
+    up1,
+    up2,
+    up3,
   };
 }
 
-const T20_SEGMENTS =
-  tokensToSegments([
-    "20",
-    "D20",
-    "T20",
-  ]);
-
-/* ---------- COMPONENT ---------- */
-
-export default function T20Scoring({
+export default function ScoringLadder({
   onFinish,
   disabled,
   tier,
@@ -275,173 +208,139 @@ export default function T20Scoring({
   onDartsUsed,
   externalUndo,
 }: Props) {
-  const [
-    throwHistory,
-    setThrowHistory,
-  ] = useState<
-    ThrowEvent[]
-  >([]);
+  const [history, setHistory] =
+    useState<LadderEvent[]>([]);
 
-  const [
-    finished,
-    setFinished,
-  ] = useState(false);
+  const [finished, setFinished] =
+    useState(false);
 
-  const rankConfig =
-    useMemo(
-      () =>
-        getRankConfigScoring(
-          tier,
-          level
-        ),
-      [
+  const rankConfig = useMemo(
+    () =>
+      getRankConfig(
         tier,
-        level,
-      ]
-    );
+        level
+      ),
+    [tier, level]
+  );
 
-  const stats =
-    useMemo(
-      () =>
-        computeStats(
-          throwHistory
-        ),
-      [
-        throwHistory,
-      ]
-    );
-
-  const throwsUsed =
-    stats.throwsUsed;
+  const stats = useMemo(
+    () =>
+      computeStats(
+        history
+      ),
+    [history]
+  );
 
   const throwsLeft =
-    rankConfig.maxThrows -
-    throwsUsed;
+    MAX_THROWS -
+    stats.throwsUsed;
 
   const progressPct =
-    rankConfig.targetPoints >
-    0
-      ? Math.min(
-          100,
-          Math.round(
-            (
-              stats.totalPoints /
-              rankConfig.targetPoints
-            ) * 100
-          )
-        )
-      : 0;
-
-  /* ---------- FINISH LOGIC ---------- */
+    Math.min(
+      100,
+      Math.round(
+        (
+          stats.currentStep /
+          rankConfig.goalSteps
+        ) * 100
+      )
+    );
 
   function finishGame(
     win: boolean,
-    history: ThrowEvent[]
+    finalHistory: LadderEvent[]
   ) {
     if (finished) {
       return;
     }
 
-    setFinished(
-      true
-    );
+    setFinished(true);
 
     const finalStats =
       computeStats(
-        history
+        finalHistory
       );
 
     const payload = {
-      game_key:
-        "t20_scoring",
-
+      game_key: "scoring_ladder",
       tier,
       level,
-
       win,
 
-      points:
-        finalStats.totalPoints,
+      current_step:
+        finalStats.currentStep,
 
-      target_points:
-        rankConfig.targetPoints,
+      best_step:
+        finalStats.bestStep,
+
+      goal_steps:
+        rankConfig.goalSteps,
 
       throws_used:
         finalStats.throwsUsed,
 
       max_throws:
-        rankConfig.maxThrows,
+        MAX_THROWS,
 
-      accuracy:
-        finalStats.accuracy,
+      thresholds: {
+        down_below:
+          rankConfig.low,
+        stay_from:
+          rankConfig.low,
+        up_1_from:
+          rankConfig.mid,
+        up_2_from:
+          rankConfig.high,
+        up_3_from:
+          rankConfig.up3At,
+      },
 
-      best_streak:
-        finalStats.bestStreak,
-
-      avg_points_per_throw:
-        finalStats.avgPointsPerThrow,
-
-      scoring_throws:
-        finalStats.scoringThrows,
-
-      hit_counts: {
-        gt60:
-          finalStats.gt60,
-
-        gt80:
-          finalStats.gt80,
-
-        gt100:
-          finalStats.gt100,
-
-        gt120:
-          finalStats.gt120,
-
-        gt140:
-          finalStats.gt140,
-
-        h180:
-          finalStats.h180,
-
-        misses:
-          finalStats.misses,
-
-        neutral_60:
-          finalStats.neutral60,
+      band_counts: {
+        down:
+          finalStats.down,
+        stay:
+          finalStats.stay,
+        up_1:
+          finalStats.up1,
+        up_2:
+          finalStats.up2,
+        up_3:
+          finalStats.up3,
       },
 
       objective: {
         label:
-          rankConfig.objectiveShort,
+          "Reach ladder step",
 
         target:
-          rankConfig.targetPoints,
+          rankConfig.goalSteps,
 
         progress:
           Math.min(
-            finalStats.totalPoints,
-            rankConfig.targetPoints
+            finalStats.currentStep,
+            rankConfig.goalSteps
           ),
       },
 
       stats: {
-        accuracy:
-          finalStats.accuracy,
-
-        avg_points_per_throw:
-          finalStats.avgPointsPerThrow,
-
-        best_streak:
-          finalStats.bestStreak,
-
-        scoring_throws:
-          finalStats.scoringThrows,
-
-        points:
-          finalStats.totalPoints,
-
-        neutral_60:
-          finalStats.neutral60,
+        current_step:
+          finalStats.currentStep,
+        best_step:
+          finalStats.bestStep,
+        goal_steps:
+          rankConfig.goalSteps,
+        throws_used:
+          finalStats.throwsUsed,
+        down:
+          finalStats.down,
+        stay:
+          finalStats.stay,
+        up_1:
+          finalStats.up1,
+        up_2:
+          finalStats.up2,
+        up_3:
+          finalStats.up3,
       },
     };
 
@@ -451,37 +350,27 @@ export default function T20Scoring({
     });
   }
 
-  function recordThrow(
-    kind: ThrowKind,
-    points: number
+  function recordBand(
+    band: LadderBand
   ) {
     if (
       disabled ||
-      finished
+      finished ||
+      history.length >= MAX_THROWS
     ) {
       return;
     }
 
-    if (
-      throwHistory.length >=
-      rankConfig.maxThrows
-    ) {
-      return;
-    }
-
-    /*
-     * One scoring entry equals one
-     * 3-dart visit.
-     */
-    onDartsUsed?.(
-      3
-    );
+    onDartsUsed?.(3);
 
     const newHistory = [
-      ...throwHistory,
+      ...history,
       {
-        kind,
-        points,
+        band,
+        delta:
+          getDelta(
+            band
+          ),
       },
     ];
 
@@ -490,17 +379,17 @@ export default function T20Scoring({
         newHistory
       );
 
-    setThrowHistory(
+    setHistory(
       newHistory
     );
 
+    const goalReached =
+      newStats.currentStep >=
+      rankConfig.goalSteps;
+
     const outOfThrows =
       newStats.throwsUsed >=
-      rankConfig.maxThrows;
-
-    const goalReached =
-      newStats.totalPoints >=
-      rankConfig.targetPoints;
+      MAX_THROWS;
 
     if (
       goalReached ||
@@ -513,123 +402,17 @@ export default function T20Scoring({
     }
   }
 
-  /* ---------- INPUT HANDLERS ---------- */
-
-  function handleMiss() {
-    recordThrow(
-      "MISS",
-      0
-    );
-  }
-
-  /*
-   * Exact 60 is tier-dependent:
-   *
-   * Bronze:
-   *   +1 point
-   *
-   * Silver / Gold:
-   *   neutral
-   *
-   * Platinum / Diamond:
-   *   miss
-   */
-  function handle60() {
-    if (
-      tier ===
-      "Bronze"
-    ) {
-      recordThrow(
-        "GT60",
-        1
-      );
-
-      return;
-    }
-
-    if (
-      tier ===
-        "Silver" ||
-      tier ===
-        "Gold"
-    ) {
-      recordThrow(
-        "BASE60",
-        0
-      );
-
-      return;
-    }
-
-    recordThrow(
-      "MISS",
-      0
-    );
-  }
-
-  function handleGt60() {
-    recordThrow(
-      "GT60",
-      1
-    );
-  }
-
-  function handleGt80() {
-    recordThrow(
-      "GT80",
-      2
-    );
-  }
-
-  function handleGt100() {
-    recordThrow(
-      "GT100",
-      3
-    );
-  }
-
-  function handleGt120() {
-    recordThrow(
-      "GT120",
-      5
-    );
-  }
-
-  function handleGt140() {
-    recordThrow(
-      "GT140",
-      7
-    );
-  }
-
-  function handle180() {
-    recordThrow(
-      "H180",
-      10
-    );
-  }
-
-  /* ---------- UNDO ---------- */
-
   function handleUndo() {
     if (
       disabled ||
-      finished
+      finished ||
+      history.length === 0
     ) {
       return;
     }
 
-    if (
-      throwHistory.length ===
-      0
-    ) {
-      return;
-    }
-
-    setThrowHistory(
-      (
-        current
-      ) =>
+    setHistory(
+      (current) =>
         current.slice(
           0,
           -1
@@ -641,8 +424,7 @@ export default function T20Scoring({
     () => {
       if (
         !externalUndo ||
-        externalUndo.steps <=
-          0
+        externalUndo.steps <= 0
       ) {
         return;
       }
@@ -650,10 +432,8 @@ export default function T20Scoring({
       const timeout =
         window.setTimeout(
           () => {
-            setThrowHistory(
-              (
-                current
-              ) => {
+            setHistory(
+              (current) => {
                 const remove =
                   Math.min(
                     externalUndo.steps,
@@ -662,8 +442,7 @@ export default function T20Scoring({
 
                 return current.slice(
                   0,
-                  current.length -
-                    remove
+                  current.length - remove
                 );
               }
             );
@@ -685,34 +464,54 @@ export default function T20Scoring({
   const canPress =
     !disabled &&
     !finished &&
-    throwHistory.length <
-      rankConfig.maxThrows;
+    history.length <
+      MAX_THROWS;
 
   const canUndo =
     !disabled &&
     !finished &&
-    throwHistory.length >
+    history.length >
       0;
 
-  const sixtyLabel =
-    tier === "Bronze"
-      ? "60 (1 pt)"
-      : tier ===
-          "Silver" ||
-        tier ===
-          "Gold"
-      ? "60 (neutral)"
-      : "60 (miss)";
+  const downLabel =
+    `< ${rankConfig.low}`;
 
-  /* ---------- RENDER ---------- */
+  const stayLabel =
+    `${rankConfig.low}–${
+      rankConfig.mid - 1
+    }`;
+
+  const up1Label =
+    `${rankConfig.mid}–${
+      rankConfig.high - 1
+    }`;
+
+  const up2Label =
+    `${rankConfig.high}–${
+      rankConfig.up3At - 1
+    }`;
+
+  const up3Label =
+    `≥ ${rankConfig.up3At}`;
 
   return (
     <div className="bullout">
-      {/* Header */}
       <div className="bullout-header game-objective-sticky">
         <div>
           <div className="muted">
-            T20 Scoring · 100 throws
+            Scoring Ladder ·{" "}
+            {MAX_THROWS} visits
+          </div>
+
+          <div
+            className="small muted"
+            style={{
+              marginTop: 3,
+            }}
+          >
+            Score a 3-dart visit,
+            then move up or down
+            the ladder.
           </div>
         </div>
 
@@ -722,400 +521,239 @@ export default function T20Scoring({
           </div>
 
           <div className="objective-value">
+            Step{" "}
             {
-              rankConfig.objectiveShort
+              rankConfig.goalSteps
             }
           </div>
         </div>
       </div>
 
-      <DartboardHighlight
-        segments={
-          T20_SEGMENTS
-        }
-      />
-
       <div
+        className="bullout-main"
         style={{
-          marginTop: 12,
-          textAlign:
-            "center",
+          marginTop: 14,
         }}
       >
         <div
-          className="muted small hidden-sm"
+          className="bull-board-wrapper card"
           style={{
-            marginTop: 8,
-            marginBottom: 20,
+            flex: 1,
           }}
         >
-          Any stray dart counts, other section can be used if blocked.
-        </div>
-
-        {/* Main row */}
-        <div className="bullout-main">
-          {/* Controls */}
           <div
-            className="bull-board-wrapper card"
+            data-hotkeys="drill"
             style={{
-              flex: 1,
-              display:
-                "flex",
-              flexDirection:
-                "column",
-              justifyContent:
-                "center",
+              display: "grid",
+              gap: 10,
             }}
           >
-            <div
-              className="t20scoring-controls"
-              data-hotkeys="drill"
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={!canPress}
+              data-hotkey="1"
+              onClick={() =>
+                recordBand(
+                  "DOWN"
+                )
+              }
             >
-              <div
-                className="row"
-                style={{
-                  gap: 8,
-                  flexWrap:
-                    "wrap",
-                }}
-              >
-                <button
-                  className="btn outline"
-                  style={{
-                    flex: 1,
-                    minWidth: 140,
-                  }}
-                  disabled={
-                    !canPress
-                  }
-                  data-hotkey="1"
-                  onClick={
-                    handle60
-                  }
-                >
-                  {
-                    sixtyLabel
-                  }
-                </button>
+              {downLabel} · −1 step
+            </button>
 
-                <button
-                  className="btn outline"
-                  style={{
-                    flex: 1,
-                    minWidth: 140,
-                  }}
-                  disabled={
-                    !canPress
-                  }
-                  data-hotkey="2"
-                  onClick={
-                    handleGt60
-                  }
-                >
-                  &gt; 60 (1 pt)
-                </button>
+            <button
+              type="button"
+              className="btn outline"
+              disabled={!canPress}
+              data-hotkey="2"
+              onClick={() =>
+                recordBand(
+                  "STAY"
+                )
+              }
+            >
+              {stayLabel} · stay
+            </button>
 
-                <button
-                  className="btn outline"
-                  style={{
-                    flex: 1,
-                    minWidth: 140,
-                  }}
-                  disabled={
-                    !canPress
-                  }
-                  data-hotkey="3"
-                  onClick={
-                    handleGt80
-                  }
-                >
-                  &gt; 80 (2 pts)
-                </button>
+            <button
+              type="button"
+              className="btn outline"
+              disabled={!canPress}
+              data-hotkey="3"
+              onClick={() =>
+                recordBand(
+                  "UP_1"
+                )
+              }
+            >
+              {up1Label} · +1 step
+            </button>
 
-                <button
-                  className="btn outline"
-                  style={{
-                    flex: 1,
-                    minWidth: 140,
-                  }}
-                  disabled={
-                    !canPress
-                  }
-                  data-hotkey="4"
-                  onClick={
-                    handleGt100
-                  }
-                >
-                  &gt; 100 (3 pts)
-                </button>
+            <button
+              type="button"
+              className="btn outline"
+              disabled={!canPress}
+              data-hotkey="4"
+              onClick={() =>
+                recordBand(
+                  "UP_2"
+                )
+              }
+            >
+              {up2Label} · +2 steps
+            </button>
 
-                <button
-                  className="btn outline"
-                  style={{
-                    flex: 1,
-                    minWidth: 140,
-                  }}
-                  disabled={
-                    !canPress
-                  }
-                  data-hotkey="5"
-                  onClick={
-                    handleGt120
-                  }
-                >
-                  &gt; 120 (5 pts)
-                </button>
+            <button
+              type="button"
+              className="btn outline"
+              disabled={!canPress}
+              data-hotkey="5"
+              onClick={() =>
+                recordBand(
+                  "UP_3"
+                )
+              }
+            >
+              {up3Label} · +3 steps
+            </button>
 
-                <button
-                  className="btn outline"
-                  style={{
-                    flex: 1,
-                    minWidth: 140,
-                  }}
-                  disabled={
-                    !canPress
-                  }
-                  data-hotkey="6"
-                  onClick={
-                    handleGt140
-                  }
-                >
-                  &gt; 140 (7 pts)
-                </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={!canUndo}
+              data-hotkey="0"
+              onClick={handleUndo}
+            >
+              Undo
+            </button>
+          </div>
+        </div>
 
-                <button
-                  className="btn outline"
-                  style={{
-                    flex: 1,
-                    minWidth: 140,
-                  }}
-                  disabled={
-                    !canPress
-                  }
-                  data-hotkey="7"
-                  onClick={
-                    handle180
-                  }
-                >
-                  180 (10 pts)
-                </button>
+        <div
+          className="bullout-stats card"
+          style={{
+            flex: "0 0 280px",
+            maxWidth: "100%",
+            alignSelf: "stretch",
+          }}
+        >
+          <div
+            className="row"
+            style={{
+              justifyContent:
+                "space-between",
+            }}
+          >
+            <div>
+              <div className="small muted">
+                Current step
+              </div>
 
-                <button
-                  className="btn secondary"
-                  style={{
-                    flex: 1,
-                    minWidth: 140,
-                  }}
-                  disabled={
-                    !canPress
-                  }
-                  data-hotkey="8"
-                  onClick={
-                    handleMiss
-                  }
-                >
-                  &lt; 60
-                </button>
+              <div className="title-lg">
+                {
+                  stats.currentStep
+                }
+              </div>
+            </div>
 
-                <button
-                  className="btn"
-                  style={{
-                    flex: 1,
-                    minWidth: 140,
-                  }}
-                  disabled={
-                    !canUndo
-                  }
-                  onClick={
-                    handleUndo
-                  }
-                  data-hotkey="0"
-                >
-                  Undo
-                </button>
+            <div>
+              <div className="small muted">
+                Goal
+              </div>
+
+              <div className="title-lg">
+                {
+                  rankConfig.goalSteps
+                }
+              </div>
+            </div>
+
+            <div>
+              <div className="small muted">
+                Visits left
+              </div>
+
+              <div className="title-lg">
+                {
+                  throwsLeft
+                }
               </div>
             </div>
           </div>
 
-          {/* Stats */}
           <div
-            className="bullout-stats card"
+            className="row bullout-stat-row"
             style={{
-              flex:
-                "0 0 280px",
-              maxWidth:
-                "100%",
-              alignSelf:
-                "stretch",
-              display:
-                "flex",
-              flexDirection:
-                "column",
+              marginTop: 12,
             }}
           >
-            <div
-              className="row"
-              style={{
-                justifyContent:
-                  "space-between",
-              }}
-            >
-              <div>
-                <div className="small muted">
-                  Points total
-                </div>
-
-                <div className="title-lg">
-                  {
-                    stats.totalPoints
-                  }
-                </div>
+            <div className="pill pill-stat">
+              <div className="pill-label">
+                Best step
               </div>
 
-              <div>
-                <div className="small muted">
-                  Throws left
-                </div>
+              <div className="pill-value">
+                {
+                  stats.bestStep
+                }
+              </div>
+            </div>
 
-                <div className="title-lg">
-                  {
-                    throwsLeft
-                  }
-                </div>
+            <div className="pill pill-stat">
+              <div className="pill-label">
+                +2 / +3
               </div>
 
-              <div>
-                <div className="small muted">
-                  Avg pts / throw
-                </div>
-
-                <div className="title-lg">
-                  {
-                    stats.avgPointsPerThrow
-                  }
-                </div>
+              <div className="pill-value">
+                {
+                  stats.up2 +
+                  stats.up3
+                }
               </div>
+            </div>
+
+            <div className="pill pill-stat">
+              <div className="pill-label">
+                Drops
+              </div>
+
+              <div className="pill-value">
+                {
+                  stats.down
+                }
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              marginTop: 14,
+            }}
+          >
+            <div className="small muted">
+              Objective progress
             </div>
 
             <div
               style={{
-                marginTop: 12,
+                height: 6,
+                borderRadius: 999,
+                overflow: "hidden",
+                background:
+                  "rgba(127,127,127,0.2)",
+                marginTop: 6,
               }}
             >
-              <div className="row bullout-stat-row">
-                <div className="pill pill-stat">
-                  <div className="pill-label">
-                    Accuracy
-                  </div>
-
-                  <div className="pill-value">
-                    {
-                      stats.accuracy
-                    }
-                    %
-                  </div>
-                </div>
-
-                <div className="pill pill-stat">
-                  <div className="pill-label">
-                    Scoring throws
-                  </div>
-
-                  <div className="pill-value">
-                    {
-                      stats.scoringThrows
-                    }
-                  </div>
-                </div>
-
-                <div className="pill pill-stat">
-                  <div className="pill-label">
-                    &gt; 60
-                  </div>
-
-                  <div className="pill-value">
-                    {
-                      stats.gt60
-                    }
-                  </div>
-                </div>
-              </div>
-
-              <div
-                className="row bullout-stat-row"
-                style={{
-                  marginTop: 8,
-                }}
-              >
-                <div className="pill pill-stat">
-                  <div className="pill-label">
-                    &gt; 100
-                  </div>
-
-                  <div className="pill-value">
-                    {
-                      stats.gt100
-                    }
-                  </div>
-                </div>
-
-                <div className="pill pill-stat">
-                  <div className="pill-label">
-                    &gt; 140
-                  </div>
-
-                  <div className="pill-value">
-                    {
-                      stats.gt140
-                    }
-                  </div>
-                </div>
-
-                <div className="pill pill-stat">
-                  <div className="pill-label">
-                    180
-                  </div>
-
-                  <div className="pill-value">
-                    {
-                      stats.h180
-                    }
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: 14,
-              }}
-            >
-              <div className="small muted">
-                Objective progress
-              </div>
-
               <div
                 style={{
-                  height: 6,
-                  borderRadius: 999,
-                  overflow:
-                    "hidden",
+                  height: "100%",
+                  width:
+                    `${progressPct}%`,
                   background:
-                    "rgba(127,127,127,0.2)",
-                  marginTop: 6,
+                    "currentColor",
                 }}
-              >
-                <div
-                  style={{
-                    height:
-                      "100%",
-                    width:
-                      `${progressPct}%`,
-                    background:
-                      "currentColor",
-                  }}
-                />
-              </div>
+              />
             </div>
           </div>
         </div>
