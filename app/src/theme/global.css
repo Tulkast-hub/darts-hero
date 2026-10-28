@@ -185,7 +185,7 @@ article:has(#dt-app) > * {
       0,
       0.08
     );
-}}
+}
 
 :root[data-theme="dark"]
 .app-footer {
