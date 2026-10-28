@@ -1,26 +1,50 @@
 // src/shell/Shell.tsx
-import React, { useMemo, useState } from "react";
+
+import React, {
+  useMemo,
+  useState,
+} from "react";
+
 import {
   Outlet,
   useLocation,
   useNavigation,
 } from "react-router-dom";
+
 import NavBar from "../ui/NavBar";
+
 import XPBar from "../ui/XPBar";
+
 import MenuOverlay from "../ui/MenuOverlay";
-import { useXpStore } from "../xp/useXpStore";
+
+import {
+  useXpStore,
+} from "../xp/useXpStore";
+
 import type {
   Tier,
   XpCategory,
 } from "../xp/types";
-import { XP_CAPS } from "../xp/rank";
-import { useI18n } from "../i18n/I18nProvider";
-import { getDrillDef } from "../drills/registry";
+
+import {
+  XP_CAPS,
+} from "../xp/rank";
+
+import {
+  useI18n,
+} from "../i18n/I18nProvider";
+
+import {
+  getDrillDef,
+} from "../drills/registry";
+
 
 function slugToCategory(
   slug: string
 ): XpCategory {
-  switch (slug) {
+  switch (
+    slug
+  ) {
     case "scoring":
       return "scoring";
 
@@ -36,10 +60,13 @@ function slugToCategory(
   }
 }
 
+
 function prettyCategoryName(
   slug: string
 ) {
-  switch (slug) {
+  switch (
+    slug
+  ) {
     case "scoring":
       return "Scoring";
 
@@ -55,19 +82,26 @@ function prettyCategoryName(
   }
 }
 
+
 function shouldIgnoreKeyTarget(
-  target: EventTarget | null
+  target:
+    EventTarget | null
 ): boolean {
   const el =
-    target as HTMLElement | null;
+    target as
+      HTMLElement | null;
 
-  if (!el) {
+  if (
+    !el
+  ) {
     return false;
   }
 
   const tag =
-    (el.tagName || "")
-      .toLowerCase();
+    (
+      el.tagName ||
+      ""
+    ).toLowerCase();
 
   if (
     tag === "input" ||
@@ -78,7 +112,9 @@ function shouldIgnoreKeyTarget(
   }
 
   if (
-    (el as any).isContentEditable
+    (
+      el as any
+    ).isContentEditable
   ) {
     return true;
   }
@@ -86,20 +122,33 @@ function shouldIgnoreKeyTarget(
   return false;
 }
 
-export default function Shell() {
-  const [menuOpen, setMenuOpen] =
-    useState(false);
 
-  const { t, isDesktop } =
+export default function Shell() {
+  const [
+    menuOpen,
+    setMenuOpen,
+  ] =
+    useState(
+      false
+    );
+
+  const {
+    t,
+    isDesktop,
+  } =
     useI18n();
 
-  const loc = useLocation();
+  const loc =
+    useLocation();
+
   const navigation =
     useNavigation();
 
-  const xpState = useXpStore(
-    (s) => s.state
-  );
+  const xpState =
+    useXpStore(
+      (s) =>
+        s.state
+    );
 
   const isRouting =
     navigation.state ===
@@ -107,7 +156,13 @@ export default function Shell() {
     navigation.state ===
       "submitting";
 
-  const path = loc.pathname;
+  const path =
+    loc.pathname;
+
+
+  /* --------------------------------------------------
+     ROUTE STATE
+  -------------------------------------------------- */
 
   const isResultPage =
     path.startsWith(
@@ -119,9 +174,16 @@ export default function Shell() {
       "/versus"
     );
 
+  const isDrillPage =
+    path.startsWith(
+      "/drill/"
+    );
+
+
   /*
    * Skills Assessment routes.
    */
+
   const isAssessmentLanding =
     path ===
     "/skills-assessment";
@@ -130,251 +192,352 @@ export default function Shell() {
     path ===
     "/skills-assessment/results";
 
-  const assessmentGameNumber =
-    useMemo(() => {
-      const games: Record<
-        string,
-        number
-      > = {
-        "/skills-assessment/doubles": 1,
-        "/skills-assessment/101": 2,
-        "/skills-assessment/170": 3,
-        "/skills-assessment/scoring": 4,
-        "/skills-assessment/501": 5,
-      };
 
-      return (
-        games[path] ?? null
-      );
-    }, [path]);
+  const assessmentGameNumber =
+    useMemo(
+      () => {
+        const games:
+          Record<
+            string,
+            number
+          > = {
+          "/skills-assessment/doubles":
+            1,
+
+          "/skills-assessment/101":
+            2,
+
+          "/skills-assessment/170":
+            3,
+
+          "/skills-assessment/scoring":
+            4,
+
+          "/skills-assessment/501":
+            5,
+        };
+
+        return (
+          games[path] ??
+          null
+        );
+      },
+      [
+        path,
+      ]
+    );
+
 
   const isAssessmentGame =
     assessmentGameNumber !==
     null;
 
-  const footer = useMemo(() => {
-    /*
-     * Default: overall XP
-     */
-    let label =
-      t("Overall XP");
 
-    let value: number =
-      xpState.totalXp ?? 0;
+  /* --------------------------------------------------
+     FOOTER XP
+  -------------------------------------------------- */
 
-    let max: number =
-      XP_CAPS.overallTierMax;
+  const footer =
+    useMemo(
+      () => {
+        /*
+         * Default:
+         * overall XP.
+         */
+        let label =
+          t(
+            "Overall XP"
+          );
 
-    /*
-     * Base tier for display in
-     * the footer bar.
-     *
-     * Tier promotion is derived
-     * by XPBar.
-     */
-    const baseTier: Tier =
-      "Bronze";
+        let value:
+          number =
+          xpState.totalXp ??
+          0;
 
-    /*
-     * Category XP
-     */
-    if (
-      path.startsWith(
-        "/category/"
-      )
-    ) {
-      const slug =
-        path.split("/")[2] ||
-        "";
+        let max:
+          number =
+          XP_CAPS
+            .overallTierMax;
 
-      const cat =
-        slugToCategory(
-          slug
-        );
 
-      label =
-        `${t(
-          prettyCategoryName(
-            slug
+        /*
+         * Base tier for
+         * XPBar visuals.
+         *
+         * XPBar derives the
+         * actual promoted tier.
+         */
+        const baseTier:
+          Tier =
+          "Bronze";
+
+
+        /*
+         * Category pages.
+         */
+        if (
+          path.startsWith(
+            "/category/"
           )
-        )} XP`;
+        ) {
+          const slug =
+            path.split(
+              "/"
+            )[2] ||
+            "";
 
-      value =
-        xpState.categoryXp?.[
-          cat
-        ] ?? 0;
+          const cat =
+            slugToCategory(
+              slug
+            );
 
-      max =
-        XP_CAPS.categoryTierMax;
-    }
+          label =
+            `${t(
+              prettyCategoryName(
+                slug
+              )
+            )} XP`;
 
-    /*
-     * Drill XP
-     */
-/*
- * Drill pages use the XP of the
- * category the drill belongs to.
- *
- * This is also the XP track that
- * determines the drill's tier/level.
- */
-else if (
-  path.startsWith(
-    "/drill/"
-  )
-) {
-  const drillKey =
-    path.split("/")[2] ||
-    "";
+          value =
+            xpState
+              .categoryXp?.[
+                cat
+              ] ??
+            0;
 
-  const drillDef =
-    getDrillDef(
-      drillKey
+          max =
+            XP_CAPS
+              .categoryTierMax;
+        }
+
+
+        /*
+         * Drill pages use
+         * CATEGORY XP.
+         *
+         * This is the same
+         * XP track that drives
+         * the drill tier/level.
+         */
+        else if (
+          path.startsWith(
+            "/drill/"
+          )
+        ) {
+          const drillKey =
+            path.split(
+              "/"
+            )[2] ||
+            "";
+
+          const drillDef =
+            getDrillDef(
+              drillKey
+            );
+
+          const category:
+            XpCategory =
+            drillDef
+              ?.category ??
+            "other";
+
+          const categorySlug =
+            category ===
+            "doubles"
+              ? "doubling"
+              : category;
+
+          label =
+            `${t(
+              prettyCategoryName(
+                categorySlug
+              )
+            )} XP`;
+
+          value =
+            xpState
+              .categoryXp?.[
+                category
+              ] ??
+            0;
+
+          max =
+            XP_CAPS
+              .categoryTierMax;
+        }
+
+
+        return {
+          label,
+          value,
+          max,
+          baseTier,
+        };
+      },
+      [
+        path,
+        xpState,
+        t,
+      ]
     );
 
-  const category =
-    drillDef?.category ??
-    "other";
 
-  label =
-    `${t(
-      prettyCategoryName(
-        category === "doubles"
-          ? "doubling"
-          : category
-      )
-    )} XP`;
+  /* --------------------------------------------------
+     DESKTOP NUMERIC HOTKEYS
+  -------------------------------------------------- */
 
-  value =
-    xpState.categoryXp?.[
-      category
-    ] ?? 0;
-
-  max =
-    XP_CAPS.categoryTierMax;
-}
-
-    return {
-      label,
-      value,
-      max,
-      baseTier,
-    };
-  }, [
-    path,
-    xpState,
-    t,
-  ]);
-
-  React.useEffect(() => {
-    if (!isDesktop) {
-      return;
-    }
-
-    const onKeyDown = (
-      e: KeyboardEvent
-    ) => {
-      if (!isDesktop) {
-        return;
-      }
-
+  React.useEffect(
+    () => {
       if (
-        e.defaultPrevented
+        !isDesktop
       ) {
         return;
       }
 
-      if (
-        shouldIgnoreKeyTarget(
-          e.target
-        )
-      ) {
-        return;
-      }
+      const onKeyDown =
+        (
+          e:
+            KeyboardEvent
+        ) => {
+          if (
+            !isDesktop
+          ) {
+            return;
+          }
 
-      /*
-       * Only handle numeric
-       * hotkeys when a drill
-       * hotkey root exists.
-       */
-      const activeRoot =
-        document.querySelector<
-          HTMLElement
-        >(
-          "[data-hotkeys='drill']"
-        );
+          if (
+            e.defaultPrevented
+          ) {
+            return;
+          }
 
-      if (!activeRoot) {
-        return;
-      }
+          if (
+            shouldIgnoreKeyTarget(
+              e.target
+            )
+          ) {
+            return;
+          }
 
-      const k = e.key;
 
-      if (
-        !/^[0-9]$/.test(k)
-      ) {
-        return;
-      }
+          /*
+           * Only handle numeric
+           * hotkeys when a drill
+           * hotkey root exists.
+           */
+          const activeRoot =
+            document.querySelector<
+              HTMLElement
+            >(
+              "[data-hotkeys='drill']"
+            );
 
-      const el =
-        activeRoot.querySelector<
-          HTMLElement
-        >(
-          `[data-hotkey="${k}"]`
-        );
+          if (
+            !activeRoot
+          ) {
+            return;
+          }
 
-      if (!el) {
-        return;
-      }
 
-      e.preventDefault();
-      el.click();
-    };
+          const k =
+            e.key;
 
-    window.addEventListener(
-      "keydown",
-      onKeyDown
-    );
+          if (
+            !/^[0-9]$/.test(
+              k
+            )
+          ) {
+            return;
+          }
 
-    return () =>
-      window.removeEventListener(
+
+          const el =
+            activeRoot.querySelector<
+              HTMLElement
+            >(
+              `[data-hotkey="${k}"]`
+            );
+
+          if (
+            !el
+          ) {
+            return;
+          }
+
+
+          e.preventDefault();
+
+          el.click();
+        };
+
+
+      window.addEventListener(
         "keydown",
         onKeyDown
       );
-  }, [
-    isDesktop,
-    menuOpen,
-    loc.pathname,
-  ]);
+
+
+      return () =>
+        window.removeEventListener(
+          "keydown",
+          onKeyDown
+        );
+    },
+    [
+      isDesktop,
+      menuOpen,
+      loc.pathname,
+    ]
+  );
+
+
+  /* --------------------------------------------------
+     FOOTER VISIBILITY
+  -------------------------------------------------- */
 
   /*
    * Don't show the normal XP
    * footer on assessment landing
    * or assessment results.
    *
-   * During the five assessment
-   * games, show the thin progress
-   * footer instead.
+   * During assessment games,
+   * show the thin progress footer.
    */
   const showFooter =
     !isResultPage &&
     !isAssessmentLanding &&
     !isAssessmentResults;
 
+
+  /* --------------------------------------------------
+     RENDER
+  -------------------------------------------------- */
+
   return (
     <div className="app-root">
       <div
-        className={`app-frame ${
+        className={[
+          "app-frame",
+
           isVersus
             ? "app-frame--versus"
-            : ""
-        }`.trim()}
+            : "",
+        ]
+          .filter(
+            Boolean
+          )
+          .join(
+            " "
+          )}
       >
         <NavBar
           onMenu={() =>
-            setMenuOpen(true)
+            setMenuOpen(
+              true
+            )
           }
         />
+
 
         <main
           className="app-main"
@@ -392,54 +555,104 @@ else if (
           <Outlet />
         </main>
 
+
+        {/* ------------------------------------------
+            SHARED STICKY BOTTOM AREA
+
+            On mobile drill pages:
+            mobile objective
+            ↓
+            XP footer
+
+            They move together.
+        ------------------------------------------- */}
+
         {showFooter && (
-          <footer className="app-footer">
-            {isAssessmentGame ? (
-              <div
-                className="assessment-footer-progress"
-                style={{
-                  minHeight: 28,
-                  padding:
-                    "4px 12px",
-                  display: "flex",
-                  alignItems:
-                    "center",
-                  justifyContent:
-                    "center",
-                  fontSize: 13,
-                  fontWeight: 800,
-                }}
-              >
-                {t("Assessment - Game")}{" "}
-                {
-                  assessmentGameNumber
-                }{" "}
-                {t("of")} 5
-              </div>
-            ) : (
-              <XPBar
-                label={
-                  footer.label
-                }
-                value={
-                  footer.value
-                }
-                max={
-                  footer.max
-                }
-                baseTier={
-                  footer.baseTier
-                }
-              />
-            )}
-          </footer>
+          <div className="app-bottom-stack">
+            {isDrillPage &&
+              !isAssessmentGame && (
+                <div
+                  id="mobile-objective-slot"
+                  className="mobile-objective-slot"
+                />
+              )}
+
+
+            <footer className="app-footer">
+              {isAssessmentGame ? (
+                <div
+                  className="assessment-footer-progress"
+                  style={{
+                    minHeight:
+                      28,
+
+                    padding:
+                      "4px 12px",
+
+                    display:
+                      "flex",
+
+                    alignItems:
+                      "center",
+
+                    justifyContent:
+                      "center",
+
+                    fontSize:
+                      13,
+
+                    fontWeight:
+                      800,
+                  }}
+                >
+                  {
+                    t(
+                      "Assessment - Game"
+                    )
+                  }{" "}
+
+                  {
+                    assessmentGameNumber
+                  }{" "}
+
+                  {
+                    t(
+                      "of"
+                    )
+                  }{" "}
+
+                  5
+                </div>
+              ) : (
+                <XPBar
+                  label={
+                    footer.label
+                  }
+                  value={
+                    footer.value
+                  }
+                  max={
+                    footer.max
+                  }
+                  baseTier={
+                    footer.baseTier
+                  }
+                />
+              )}
+            </footer>
+          </div>
         )}
       </div>
 
+
       <MenuOverlay
-        open={menuOpen}
+        open={
+          menuOpen
+        }
         onClose={() =>
-          setMenuOpen(false)
+          setMenuOpen(
+            false
+          )
         }
       />
     </div>

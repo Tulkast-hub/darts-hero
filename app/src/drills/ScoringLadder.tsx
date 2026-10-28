@@ -1,7 +1,16 @@
 // src/drills/ScoringLadder.tsx
 
-import React, { useMemo, useState } from "react";
-import type { Tier } from "../xp/types";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import { createPortal } from "react-dom";
+
+import type {
+  Tier,
+} from "../xp/types";
 
 type FinishResult = {
   payload: any;
@@ -9,11 +18,20 @@ type FinishResult = {
 };
 
 type Props = {
-  onFinish: (result: FinishResult) => void;
+  onFinish: (
+    result: FinishResult
+  ) => void;
+
   disabled?: boolean;
+
   tier: Tier;
+
   level: number;
-  onDartsUsed?: (count: number) => void;
+
+  onDartsUsed?: (
+    count: number
+  ) => void;
+
   externalUndo?: {
     token: number;
     steps: number;
@@ -53,34 +71,56 @@ type LadderStats = {
 
 const MAX_THROWS = 30;
 
+
+/* --------------------------------------------------
+   RANK CONFIG
+-------------------------------------------------- */
+
 function getRankConfig(
   tier: Tier,
   level: number
 ): RankConfig {
-  const highLevel = level >= 4;
+  const highLevel =
+    level >= 4;
 
-  if (tier === "Bronze") {
+  if (
+    tier === "Bronze"
+  ) {
     return {
       low: 45,
       mid: 60,
       high: 80,
       up3At: 100,
-      goalSteps: highLevel ? 5 : 3,
+
+      goalSteps:
+        highLevel
+          ? 5
+          : 3,
     };
   }
 
-  if (tier === "Silver") {
+  if (
+    tier === "Silver"
+  ) {
     return {
       low: 60,
       mid: 80,
       high: 100,
       up3At: 120,
-      goalSteps: highLevel ? 11 : 9,
+
+      goalSteps:
+        highLevel
+          ? 11
+          : 9,
     };
   }
 
-  if (tier === "Gold") {
-    if (highLevel) {
+  if (
+    tier === "Gold"
+  ) {
+    if (
+      highLevel
+    ) {
       return {
         low: 80,
         mid: 100,
@@ -99,17 +139,29 @@ function getRankConfig(
     };
   }
 
-  if (tier === "Platinum") {
+  if (
+    tier ===
+    "Platinum"
+  ) {
     return {
       low: 80,
       mid: 100,
       high: 120,
       up3At: 140,
-      goalSteps: highLevel ? 11 : 9,
+
+      goalSteps:
+        highLevel
+          ? 11
+          : 9,
     };
   }
 
-  if (highLevel) {
+  /*
+   * Diamond 4–5
+   */
+  if (
+    highLevel
+  ) {
     return {
       low: 100,
       mid: 120,
@@ -119,6 +171,9 @@ function getRankConfig(
     };
   }
 
+  /*
+   * Diamond 1–3
+   */
   return {
     low: 80,
     mid: 100,
@@ -128,77 +183,113 @@ function getRankConfig(
   };
 }
 
+
+/* --------------------------------------------------
+   HELPERS
+-------------------------------------------------- */
+
 function getDelta(
   band: LadderBand
 ): number {
-  switch (band) {
+  switch (
+    band
+  ) {
     case "DOWN":
       return -1;
+
     case "STAY":
       return 0;
+
     case "UP_1":
       return 1;
+
     case "UP_2":
       return 2;
+
     case "UP_3":
       return 3;
+
     default:
       return 0;
   }
 }
+
 
 function computeStats(
   events: LadderEvent[]
 ): LadderStats {
   let currentStep = 0;
   let bestStep = 0;
+
   let down = 0;
   let stay = 0;
+
   let up1 = 0;
   let up2 = 0;
   let up3 = 0;
 
-  events.forEach((event) => {
-    currentStep = Math.max(
-      0,
-      currentStep + event.delta
-    );
+  events.forEach(
+    (event) => {
+      currentStep =
+        Math.max(
+          0,
+          currentStep +
+            event.delta
+        );
 
-    bestStep = Math.max(
-      bestStep,
-      currentStep
-    );
+      bestStep =
+        Math.max(
+          bestStep,
+          currentStep
+        );
 
-    switch (event.band) {
-      case "DOWN":
-        down += 1;
-        break;
-      case "STAY":
-        stay += 1;
-        break;
-      case "UP_1":
-        up1 += 1;
-        break;
-      case "UP_2":
-        up2 += 1;
-        break;
-      case "UP_3":
-        up3 += 1;
-        break;
+      switch (
+        event.band
+      ) {
+        case "DOWN":
+          down += 1;
+          break;
+
+        case "STAY":
+          stay += 1;
+          break;
+
+        case "UP_1":
+          up1 += 1;
+          break;
+
+        case "UP_2":
+          up2 += 1;
+          break;
+
+        case "UP_3":
+          up3 += 1;
+          break;
+      }
     }
-  });
+  );
 
   return {
-    throwsUsed: events.length,
+    throwsUsed:
+      events.length,
+
     currentStep,
+
     bestStep,
+
     down,
     stay,
+
     up1,
     up2,
     up3,
   };
 }
+
+
+/* --------------------------------------------------
+   COMPONENT
+-------------------------------------------------- */
 
 export default function ScoringLadder({
   onFinish,
@@ -208,53 +299,138 @@ export default function ScoringLadder({
   onDartsUsed,
   externalUndo,
 }: Props) {
-  const [history, setHistory] =
-    useState<LadderEvent[]>([]);
+  const [
+    history,
+    setHistory,
+  ] =
+    useState<
+      LadderEvent[]
+    >([]);
 
-  const [finished, setFinished] =
+  const [
+    finished,
+    setFinished,
+  ] =
     useState(false);
 
-  const rankConfig = useMemo(
-    () =>
-      getRankConfig(
-        tier,
-        level
-      ),
-    [tier, level]
+  /*
+   * Shell owns this element.
+   *
+   * The mobile objective is
+   * portalled into it.
+   */
+  const [
+    mobileObjectiveRoot,
+    setMobileObjectiveRoot,
+  ] =
+    useState<
+      HTMLElement | null
+    >(null);
+
+
+  useEffect(
+    () => {
+      setMobileObjectiveRoot(
+        document.getElementById(
+          "mobile-objective-slot"
+        )
+      );
+    },
+    []
   );
 
-  const stats = useMemo(
-    () =>
-      computeStats(
-        history
-      ),
-    [history]
-  );
+
+  const rankConfig =
+    useMemo(
+      () =>
+        getRankConfig(
+          tier,
+          level
+        ),
+      [
+        tier,
+        level,
+      ]
+    );
+
+
+  const stats =
+    useMemo(
+      () =>
+        computeStats(
+          history
+        ),
+      [
+        history,
+      ]
+    );
+
 
   const throwsLeft =
     MAX_THROWS -
     stats.throwsUsed;
 
+
   const progressPct =
     Math.min(
       100,
+
       Math.round(
         (
           stats.currentStep /
           rankConfig.goalSteps
-        ) * 100
+        ) *
+          100
       )
     );
 
+
+  /*
+   * Ladder is rendered from
+   * goal at the top to 0 at
+   * the bottom.
+   */
+  const ladderSteps =
+    useMemo(
+      () =>
+        Array.from(
+          {
+            length:
+              rankConfig.goalSteps +
+              1,
+          },
+
+          (
+            _,
+            index
+          ) =>
+            rankConfig.goalSteps -
+            index
+        ),
+      [
+        rankConfig.goalSteps,
+      ]
+    );
+
+
+  /* --------------------------------------------------
+     FINISH
+  -------------------------------------------------- */
+
   function finishGame(
     win: boolean,
-    finalHistory: LadderEvent[]
+    finalHistory:
+      LadderEvent[]
   ) {
-    if (finished) {
+    if (
+      finished
+    ) {
       return;
     }
 
-    setFinished(true);
+    setFinished(
+      true
+    );
 
     const finalStats =
       computeStats(
@@ -262,9 +438,12 @@ export default function ScoringLadder({
       );
 
     const payload = {
-      game_key: "scoring_ladder",
+      game_key:
+        "scoring_ladder",
+
       tier,
       level,
+
       win,
 
       current_step:
@@ -285,12 +464,16 @@ export default function ScoringLadder({
       thresholds: {
         down_below:
           rankConfig.low,
+
         stay_from:
           rankConfig.low,
+
         up_1_from:
           rankConfig.mid,
+
         up_2_from:
           rankConfig.high,
+
         up_3_from:
           rankConfig.up3At,
       },
@@ -298,12 +481,16 @@ export default function ScoringLadder({
       band_counts: {
         down:
           finalStats.down,
+
         stay:
           finalStats.stay,
+
         up_1:
           finalStats.up1,
+
         up_2:
           finalStats.up2,
+
         up_3:
           finalStats.up3,
       },
@@ -325,20 +512,28 @@ export default function ScoringLadder({
       stats: {
         current_step:
           finalStats.currentStep,
+
         best_step:
           finalStats.bestStep,
+
         goal_steps:
           rankConfig.goalSteps,
+
         throws_used:
           finalStats.throwsUsed,
+
         down:
           finalStats.down,
+
         stay:
           finalStats.stay,
+
         up_1:
           finalStats.up1,
+
         up_2:
           finalStats.up2,
+
         up_3:
           finalStats.up3,
       },
@@ -350,23 +545,37 @@ export default function ScoringLadder({
     });
   }
 
+
+  /* --------------------------------------------------
+     ACTIONS
+  -------------------------------------------------- */
+
   function recordBand(
     band: LadderBand
   ) {
     if (
       disabled ||
       finished ||
-      history.length >= MAX_THROWS
+      history.length >=
+        MAX_THROWS
     ) {
       return;
     }
 
-    onDartsUsed?.(3);
+    /*
+     * One scoring selection
+     * represents a 3-dart visit.
+     */
+    onDartsUsed?.(
+      3
+    );
 
     const newHistory = [
       ...history,
+
       {
         band,
+
         delta:
           getDelta(
             band
@@ -402,17 +611,25 @@ export default function ScoringLadder({
     }
   }
 
+
+  /* --------------------------------------------------
+     UNDO
+  -------------------------------------------------- */
+
   function handleUndo() {
     if (
       disabled ||
       finished ||
-      history.length === 0
+      history.length ===
+        0
     ) {
       return;
     }
 
     setHistory(
-      (current) =>
+      (
+        current
+      ) =>
         current.slice(
           0,
           -1
@@ -420,11 +637,13 @@ export default function ScoringLadder({
     );
   }
 
-  React.useEffect(
+
+  useEffect(
     () => {
       if (
         !externalUndo ||
-        externalUndo.steps <= 0
+        externalUndo.steps <=
+          0
       ) {
         return;
       }
@@ -433,7 +652,9 @@ export default function ScoringLadder({
         window.setTimeout(
           () => {
             setHistory(
-              (current) => {
+              (
+                current
+              ) => {
                 const remove =
                   Math.min(
                     externalUndo.steps,
@@ -442,7 +663,8 @@ export default function ScoringLadder({
 
                 return current.slice(
                   0,
-                  current.length - remove
+                  current.length -
+                    remove
                 );
               }
             );
@@ -461,11 +683,13 @@ export default function ScoringLadder({
     ]
   );
 
+
   const canPress =
     !disabled &&
     !finished &&
     history.length <
       MAX_THROWS;
+
 
   const canUndo =
     !disabled &&
@@ -473,29 +697,66 @@ export default function ScoringLadder({
     history.length >
       0;
 
+
+  /* --------------------------------------------------
+     LABELS
+  -------------------------------------------------- */
+
   const downLabel =
     `< ${rankConfig.low}`;
 
   const stayLabel =
     `${rankConfig.low}–${
-      rankConfig.mid - 1
+      rankConfig.mid -
+      1
     }`;
 
   const up1Label =
     `${rankConfig.mid}–${
-      rankConfig.high - 1
+      rankConfig.high -
+      1
     }`;
 
   const up2Label =
     `${rankConfig.high}–${
-      rankConfig.up3At - 1
+      rankConfig.up3At -
+      1
     }`;
 
   const up3Label =
     `≥ ${rankConfig.up3At}`;
 
+
+  /* --------------------------------------------------
+     OBJECTIVE
+  -------------------------------------------------- */
+
+  const objectiveContent = (
+    <>
+      <div className="objective-label">
+        OBJECTIVE
+      </div>
+
+      <div className="objective-value">
+        Step{" "}
+        {
+          rankConfig.goalSteps
+        }
+      </div>
+    </>
+  );
+
+
+  /* --------------------------------------------------
+     RENDER
+  -------------------------------------------------- */
+
   return (
     <div className="bullout">
+      {/* --------------------------------------------
+          DESKTOP HEADER
+      --------------------------------------------- */}
+
       <div className="bullout-header game-objective-sticky">
         <div>
           <div className="muted">
@@ -506,35 +767,132 @@ export default function ScoringLadder({
           <div
             className="small muted"
             style={{
-              marginTop: 3,
+              marginTop:
+                3,
             }}
           >
-            Score a 3-dart visit,
-            then move up or down
-            the ladder.
+            Score a 3-dart
+            visit, then move up
+            or down the ladder.
           </div>
         </div>
 
-        <div className="objective-pill">
-          <div className="objective-label">
-            OBJECTIVE
-          </div>
-
-          <div className="objective-value">
-            Step{" "}
-            {
-              rankConfig.goalSteps
-            }
-          </div>
+        <div className="objective-pill objective-pill--desktop">
+          {
+            objectiveContent
+          }
         </div>
       </div>
+
+
+      {/* --------------------------------------------
+          MOBILE OBJECTIVE
+
+          Shell places this immediately
+          above the shared XP footer.
+      --------------------------------------------- */}
+
+      {mobileObjectiveRoot &&
+        createPortal(
+          <div className="objective-pill objective-pill--mobile">
+            {
+              objectiveContent
+            }
+          </div>,
+
+          mobileObjectiveRoot
+        )}
+
+
+      {/* --------------------------------------------
+          LADDER GRAPHIC
+      --------------------------------------------- */}
+
+      <div className="scoring-ladder-visual card">
+        <div className="scoring-ladder-graphic">
+          <div className="scoring-ladder-rail scoring-ladder-rail--left" />
+
+          <div className="scoring-ladder-rail scoring-ladder-rail--right" />
+
+          {ladderSteps.map(
+            (
+              step
+            ) => {
+              const isCurrent =
+                step ===
+                stats.currentStep;
+
+              const isReached =
+                step <
+                stats.currentStep;
+
+              const isGoal =
+                step ===
+                rankConfig.goalSteps;
+
+              return (
+                <div
+                  key={
+                    step
+                  }
+                  className={[
+                    "scoring-ladder-rung",
+
+                    isReached
+                      ? "is-reached"
+                      : "",
+
+                    isCurrent
+                      ? "is-current"
+                      : "",
+
+                    isGoal
+                      ? "is-goal"
+                      : "",
+                  ]
+                    .filter(
+                      Boolean
+                    )
+                    .join(
+                      " "
+                    )}
+                >
+                  <span className="scoring-ladder-rung__number">
+                    {
+                      step
+                    }
+                  </span>
+
+                  <span className="scoring-ladder-rung__bar" />
+
+                  <span className="scoring-ladder-rung__status">
+                    {isCurrent
+                      ? "YOU"
+                      : isGoal
+                      ? "GOAL"
+                      : ""}
+                  </span>
+                </div>
+              );
+            }
+          )}
+        </div>
+      </div>
+
+
+      {/* --------------------------------------------
+          GAME CONTROLS + STATS
+      --------------------------------------------- */}
 
       <div
         className="bullout-main"
         style={{
-          marginTop: 14,
+          marginTop:
+            14,
         }}
       >
+        {/* Controls */}
+
         <div
           className="bull-board-wrapper card"
           style={{
@@ -544,14 +902,19 @@ export default function ScoringLadder({
           <div
             data-hotkeys="drill"
             style={{
-              display: "grid",
-              gap: 10,
+              display:
+                "grid",
+
+              gap:
+                10,
             }}
           >
             <button
               type="button"
               className="btn secondary"
-              disabled={!canPress}
+              disabled={
+                !canPress
+              }
               data-hotkey="1"
               onClick={() =>
                 recordBand(
@@ -559,13 +922,19 @@ export default function ScoringLadder({
                 )
               }
             >
-              {downLabel} · −1 step
+              {
+                downLabel
+              }{" "}
+              · −1 step
             </button>
+
 
             <button
               type="button"
               className="btn outline"
-              disabled={!canPress}
+              disabled={
+                !canPress
+              }
               data-hotkey="2"
               onClick={() =>
                 recordBand(
@@ -573,13 +942,19 @@ export default function ScoringLadder({
                 )
               }
             >
-              {stayLabel} · stay
+              {
+                stayLabel
+              }{" "}
+              · stay
             </button>
+
 
             <button
               type="button"
               className="btn outline"
-              disabled={!canPress}
+              disabled={
+                !canPress
+              }
               data-hotkey="3"
               onClick={() =>
                 recordBand(
@@ -587,13 +962,19 @@ export default function ScoringLadder({
                 )
               }
             >
-              {up1Label} · +1 step
+              {
+                up1Label
+              }{" "}
+              · +1 step
             </button>
+
 
             <button
               type="button"
               className="btn outline"
-              disabled={!canPress}
+              disabled={
+                !canPress
+              }
               data-hotkey="4"
               onClick={() =>
                 recordBand(
@@ -601,13 +982,19 @@ export default function ScoringLadder({
                 )
               }
             >
-              {up2Label} · +2 steps
+              {
+                up2Label
+              }{" "}
+              · +2 steps
             </button>
+
 
             <button
               type="button"
               className="btn outline"
-              disabled={!canPress}
+              disabled={
+                !canPress
+              }
               data-hotkey="5"
               onClick={() =>
                 recordBand(
@@ -615,27 +1002,43 @@ export default function ScoringLadder({
                 )
               }
             >
-              {up3Label} · +3 steps
+              {
+                up3Label
+              }{" "}
+              · +3 steps
             </button>
+
 
             <button
               type="button"
               className="btn"
-              disabled={!canUndo}
+              disabled={
+                !canUndo
+              }
               data-hotkey="0"
-              onClick={handleUndo}
+              onClick={
+                handleUndo
+              }
             >
               Undo
             </button>
           </div>
         </div>
 
+
+        {/* Stats */}
+
         <div
           className="bullout-stats card"
           style={{
-            flex: "0 0 280px",
-            maxWidth: "100%",
-            alignSelf: "stretch",
+            flex:
+              "0 0 280px",
+
+            maxWidth:
+              "100%",
+
+            alignSelf:
+              "stretch",
           }}
         >
           <div
@@ -657,6 +1060,7 @@ export default function ScoringLadder({
               </div>
             </div>
 
+
             <div>
               <div className="small muted">
                 Goal
@@ -668,6 +1072,7 @@ export default function ScoringLadder({
                 }
               </div>
             </div>
+
 
             <div>
               <div className="small muted">
@@ -682,10 +1087,12 @@ export default function ScoringLadder({
             </div>
           </div>
 
+
           <div
             className="row bullout-stat-row"
             style={{
-              marginTop: 12,
+              marginTop:
+                12,
             }}
           >
             <div className="pill pill-stat">
@@ -700,6 +1107,7 @@ export default function ScoringLadder({
               </div>
             </div>
 
+
             <div className="pill pill-stat">
               <div className="pill-label">
                 +2 / +3
@@ -712,6 +1120,7 @@ export default function ScoringLadder({
                 }
               </div>
             </div>
+
 
             <div className="pill pill-stat">
               <div className="pill-label">
@@ -726,9 +1135,11 @@ export default function ScoringLadder({
             </div>
           </div>
 
+
           <div
             style={{
-              marginTop: 14,
+              marginTop:
+                14,
             }}
           >
             <div className="small muted">
@@ -737,19 +1148,30 @@ export default function ScoringLadder({
 
             <div
               style={{
-                height: 6,
-                borderRadius: 999,
-                overflow: "hidden",
+                height:
+                  6,
+
+                borderRadius:
+                  999,
+
+                overflow:
+                  "hidden",
+
                 background:
                   "rgba(127,127,127,0.2)",
-                marginTop: 6,
+
+                marginTop:
+                  6,
               }}
             >
               <div
                 style={{
-                  height: "100%",
+                  height:
+                    "100%",
+
                   width:
                     `${progressPct}%`,
+
                   background:
                     "currentColor",
                 }}
