@@ -5,7 +5,9 @@ import React, {
   useState,
 } from "react";
 
-import { useI18n } from "../i18n/I18nProvider";
+import {
+  useI18n,
+} from "../i18n/I18nProvider";
 
 import {
   useNavigate,
@@ -46,8 +48,8 @@ import type {
 } from "../xp/types";
 
 import {
-  useAbortStore,
-} from "../session/useAbortStore";
+  useGameExitStore,
+} from "../session/useGameExitStore";
 
 import {
   useAuthStore,
@@ -59,57 +61,105 @@ type FinishResult = {
   win: boolean;
 };
 
-const CATEGORY_LABELS: Record<
-  string,
-  string
-> = {
-  scoring: "Scoring",
-  finishing: "Finishing",
-  doubles: "Doubling",
-  other: "Other",
+
+const CATEGORY_LABELS:
+  Record<
+    string,
+    string
+  > = {
+  scoring:
+    "Scoring",
+
+  finishing:
+    "Finishing",
+
+  doubles:
+    "Doubling",
+
+  other:
+    "Other",
 };
 
+
+/* --------------------------------------------------
+   COMPONENT
+-------------------------------------------------- */
+
 export default function DrillPage() {
-  const { t } =
+  const {
+    t,
+  } =
     useI18n();
 
-  const { key } =
+
+  const {
+    key,
+  } =
     useParams();
+
 
   const nav =
     useNavigate();
 
+
   const setXpState =
     useXpStore(
-      (s) => s.setState
+      (s) =>
+        s.setState
     );
+
 
   const xpState =
     useXpStore(
-      (s) => s.state
+      (s) =>
+        s.state
     );
+
 
   const [
     sessionId,
     setSessionId,
-  ] = useState<
-    number | null
-  >(null);
+  ] =
+    useState<
+      number | null
+    >(
+      null
+    );
+
 
   const [
     loading,
     setLoading,
-  ] = useState(false);
+  ] =
+    useState(
+      false
+    );
+
 
   const [
     showRules,
     setShowRules,
-  ] = useState(true);
+  ] =
+    useState(
+      true
+    );
 
+
+  /*
+   * Still used by the drill's
+   * own Abort Game button.
+   *
+   * Top-nav navigation now uses
+   * the shared NavBar modal.
+   */
   const [
     showAbortConfirm,
     setShowAbortConfirm,
-  ] = useState(false);
+  ] =
+    useState(
+      false
+    );
+
 
   const [
     scoringSection,
@@ -119,24 +169,37 @@ export default function DrillPage() {
       20
     );
 
-  const setAbortHandler =
-    useAbortStore(
-      (s) =>
-        s.setHandler
-    );
 
   const status =
     useAuthStore(
-      (s) => s.status
+      (s) =>
+        s.status
     );
+
+
+  const setGameExit =
+    useGameExitStore(
+      (s) =>
+        s.setGameExit
+    );
+
+
+  const clearGameExit =
+    useGameExitStore(
+      (s) =>
+        s.clearGameExit
+    );
+
 
   const drillKey =
     key || "";
+
 
   const drillDef =
     getDrillDef(
       drillKey
     );
+
 
   /* --------------------------------------------------
      GAME SETUP
@@ -145,10 +208,14 @@ export default function DrillPage() {
   useEffect(
     () => {
       const setup =
-        drillDef?.setup
+        drillDef
+          ?.setup
           ?.scoringSection;
 
-      if (setup) {
+
+      if (
+        setup
+      ) {
         setScoringSection(
           setup.default
         );
@@ -164,6 +231,7 @@ export default function DrillPage() {
     ]
   );
 
+
   /* --------------------------------------------------
      SESSION START
   -------------------------------------------------- */
@@ -175,6 +243,7 @@ export default function DrillPage() {
       ) {
         return;
       }
+
 
       if (
         status !==
@@ -191,34 +260,45 @@ export default function DrillPage() {
         return;
       }
 
+
       setSessionId(
         null
       );
+
 
       setShowRules(
         true
       );
 
+
       setLoading(
         true
       );
+
 
       startSession(
         drillKey
       )
         .then(
-          ({ id }) =>
+          (
+            {
+              id,
+            }
+          ) =>
             setSessionId(
               id
             )
         )
         .catch(
-          (e) => {
+          (
+            e
+          ) => {
             const msg =
               String(
                 e?.message ||
-                  ""
+                ""
               );
+
 
             if (
               msg
@@ -251,49 +331,66 @@ export default function DrillPage() {
     ]
   );
 
+
   /* --------------------------------------------------
      CATEGORY XP / RANK
   -------------------------------------------------- */
 
-  const category: XpCategory =
-    drillDef?.category ??
+  const category:
+    XpCategory =
+    drillDef
+      ?.category ??
     "other";
+
 
   const categoryXp =
     Math.max(
       0,
-      xpState.categoryXp?.[
-        category
-      ] ?? 0
+
+      xpState
+        .categoryXp
+        ?.[
+          category
+        ] ??
+      0
     );
+
 
   const categoryRank =
     getRankStateFromXp(
       categoryXp,
-      XP_CAPS.categoryTierMax,
+      XP_CAPS
+        .categoryTierMax,
       "Bronze"
     );
 
-  const currentTier: Tier =
+
+  const currentTier:
+    Tier =
     categoryRank.tier;
 
-  const currentLevel: number =
+
+  const currentLevel:
+    number =
     categoryRank.level;
+
 
   const categoryLabel =
     t(
       CATEGORY_LABELS[
         category
       ] ??
-        category
+      category
     );
+
 
   /* --------------------------------------------------
      FINISH
   -------------------------------------------------- */
 
   async function handleFinish(
-    resultIn: FinishResult
+    resultIn:
+      FinishResult
   ) {
     if (
       !sessionId ||
@@ -302,13 +399,26 @@ export default function DrillPage() {
       return;
     }
 
+
+    /*
+     * Game is complete.
+     *
+     * Prevent navbar navigation
+     * from treating the result
+     * transition as an abort.
+     */
+    clearGameExit();
+
+
     setLoading(
       true
     );
 
+
     try {
       const xpBeforeState =
         loadXpState();
+
 
       const drillResult =
         toDrillResult(
@@ -316,6 +426,7 @@ export default function DrillPage() {
           resultIn.win,
           resultIn.payload
         );
+
 
       const res =
         await endSession(
@@ -325,29 +436,41 @@ export default function DrillPage() {
           drillResult
         );
 
+
       const xpAfterState =
         res.xpState;
+
 
       saveXpState(
         xpAfterState as any
       );
 
+
       setXpState(
         xpAfterState as any
       );
 
+
       const cat =
         drillResult.category;
+
 
       const xpAward = {
         total:
           res.xp,
 
         byCategory: {
-          scoring: 0,
-          finishing: 0,
-          doubles: 0,
-          other: 0,
+          scoring:
+            0,
+
+          finishing:
+            0,
+
+          doubles:
+            0,
+
+          other:
+            0,
 
           [cat]:
             res.xp,
@@ -367,9 +490,20 @@ export default function DrillPage() {
           1,
       };
 
+
+      /*
+       * Replace the game route.
+       *
+       * This means browser history
+       * will not naturally return
+       * to the completed drill.
+       */
       nav(
         `/result/${drillKey}`,
         {
+          replace:
+            true,
+
           state: {
             win:
               resultIn.win,
@@ -398,6 +532,7 @@ export default function DrillPage() {
       );
     }
 
+
     // eslint-disable-next-line no-console
     console.log(
       "DRILL PAYLOAD",
@@ -405,8 +540,175 @@ export default function DrillPage() {
     );
   }
 
+
   /* --------------------------------------------------
-     ABORT
+     DRILL EXIT / ABORT
+  -------------------------------------------------- */
+
+  /*
+   * This performs ONLY the
+   * drill-specific cleanup.
+   *
+   * It deliberately does not
+   * navigate anywhere.
+   *
+   * NavBar decides where to go
+   * after this resolves.
+   */
+  async function leaveDrill() {
+    if (
+      !sessionId ||
+      !drillKey
+    ) {
+      return;
+    }
+
+
+    setLoading(
+      true
+    );
+
+
+    try {
+      /*
+       * Keep the actual current
+       * rank in the saved aborted
+       * result.
+       *
+       * Sending only:
+       *
+       * { aborted: true }
+       *
+       * could otherwise fall back
+       * to Bronze I during result
+       * normalisation.
+       */
+      const abortPayload = {
+        aborted:
+          true,
+
+        tier:
+          currentTier,
+
+        level:
+          currentLevel,
+      };
+
+
+      const drillResult =
+        toDrillResult(
+          drillKey,
+          false,
+          abortPayload
+        );
+
+
+      /*
+       * Backend remains the source
+       * of truth for the XP loss.
+       */
+      const res =
+        await endSession(
+          sessionId,
+          drillKey,
+          abortPayload,
+          drillResult
+        );
+
+
+      const xpAfterState =
+        res.xpState;
+
+
+      saveXpState(
+        xpAfterState as any
+      );
+
+
+      setXpState(
+        xpAfterState as any
+      );
+
+
+      /*
+       * Session has now been ended.
+       */
+      setSessionId(
+        null
+      );
+
+
+      clearGameExit();
+    } finally {
+      setLoading(
+        false
+      );
+    }
+  }
+
+
+  /* --------------------------------------------------
+     REGISTER ACTIVE GAME
+  -------------------------------------------------- */
+
+  useEffect(
+    () => {
+      /*
+       * Rules/setup screen is NOT
+       * yet considered an active
+       * game.
+       *
+       * Therefore leaving before
+       * clicking Start Game does
+       * not count as a loss.
+       */
+      if (
+        showRules ||
+        !sessionId ||
+        !drillKey
+      ) {
+        clearGameExit();
+
+        return;
+      }
+
+
+      setGameExit({
+        active:
+          true,
+
+        /*
+         * Training drills are the
+         * only current game type
+         * where abandoning may
+         * reduce XP.
+         */
+        xpPenalty:
+          true,
+
+        handler:
+          leaveDrill,
+      });
+
+
+      return () => {
+        clearGameExit();
+      };
+    },
+    [
+      showRules,
+      sessionId,
+      drillKey,
+      currentTier,
+      currentLevel,
+      setGameExit,
+      clearGameExit,
+    ]
+  );
+
+
+  /* --------------------------------------------------
+     LOCAL ABORT BUTTON
   -------------------------------------------------- */
 
   function requestAbort() {
@@ -415,142 +717,29 @@ export default function DrillPage() {
     );
   }
 
-  useEffect(
-    () => {
-      setAbortHandler(
-        () =>
-          requestAbort
-      );
-
-      return () =>
-        setAbortHandler(
-          null
-        );
-    },
-    [
-      setAbortHandler,
-      drillKey,
-    ]
-  );
 
   async function handleAbortConfirm() {
     setShowAbortConfirm(
       false
     );
 
-    if (
-      !sessionId ||
-      !drillKey
-    ) {
-      nav(-1);
 
-      return;
-    }
+    await leaveDrill();
 
-    setLoading(
-      true
+
+    /*
+     * Explicit Abort Game button
+     * returns home.
+     */
+    nav(
+      "/",
+      {
+        replace:
+          true,
+      }
     );
-
-    try {
-      const xpBeforeState =
-        loadXpState();
-
-      const drillResult =
-        toDrillResult(
-          drillKey,
-          false,
-          {
-            aborted:
-              true,
-          }
-        );
-
-      const res =
-        await endSession(
-          sessionId,
-          drillKey,
-          {
-            aborted:
-              true,
-          },
-          drillResult
-        );
-
-      const xpAfterState =
-        res.xpState;
-
-      saveXpState(
-        xpAfterState as any
-      );
-
-      setXpState(
-        xpAfterState as any
-      );
-
-      const cat =
-        drillResult.category;
-
-      const xpAward = {
-        total:
-          res.xp,
-
-        byCategory: {
-          scoring: 0,
-          finishing: 0,
-          doubles: 0,
-          other: 0,
-
-          [cat]:
-            res.xp,
-        } as any,
-
-        breakdown: [
-          {
-            label:
-              "Session XP",
-
-            xp:
-              res.xp,
-          },
-        ],
-
-        multiplier:
-          1,
-      };
-
-      nav(
-        `/result/${drillKey}`,
-        {
-          state: {
-            win:
-              false,
-
-            xp:
-              res.xp,
-
-            xpAward,
-
-            xpBeforeState,
-
-            xpAfterState,
-
-            drillResult,
-
-            payload: {
-              aborted:
-                true,
-            },
-
-            drillKey,
-          },
-        }
-      );
-    } finally {
-      setLoading(
-        false
-      );
-    }
   }
+
 
   /* --------------------------------------------------
      RESULT NORMALISATION
@@ -569,27 +758,32 @@ export default function DrillPage() {
       return v;
     }
 
+
     return "Bronze";
   }
 
+
   function getCategoryPath(
-    category: XpCategory
+    category:
+      XpCategory
   ) {
-    switch (category) {
+    switch (
+      category
+    ) {
       case "scoring":
         return "/category/scoring";
-  
+
       case "doubles":
         return "/category/doubling";
-  
+
       case "finishing":
         return "/category/finishing";
-  
+
       default:
         return "/";
     }
   }
-  
+
 
   function toDrillResult(
     k: string,
@@ -601,11 +795,13 @@ export default function DrillPage() {
         payload?.tier
       );
 
+
     const level =
       typeof payload?.level ===
       "number"
         ? payload.level
         : 1;
+
 
     const throws_used =
       payload?.throws_used ??
@@ -614,12 +810,14 @@ export default function DrillPage() {
       payload?.darts_used ??
       undefined;
 
+
     const max_throws =
       payload?.max_throws ??
       payload?.maxThrows ??
       payload?.max_throws_total ??
       payload?.maxThrowsTotal ??
       undefined;
+
 
     let progress:
       | number
@@ -629,99 +827,141 @@ export default function DrillPage() {
         ? payload.progress
         : undefined;
 
+
     let objective:
       | {
-          label: string;
-          current?: number;
-          target?: number;
-          unit?: string;
+          label:
+            string;
+
+          current?:
+            number;
+
+          target?:
+            number;
+
+          unit?:
+            string;
         }
       | undefined;
 
+
+    /* ----------------------------------------------
+       DERIVE PROGRESS
+    ----------------------------------------------- */
+
     if (
-      progress == null
+      progress ==
+      null
     ) {
       if (
         k ===
         "checkouts_popular_leaves"
       ) {
         const cur =
-          payload?.total_checkouts ??
-          payload?.totalCheckouts;
+          payload
+            ?.total_checkouts ??
+          payload
+            ?.totalCheckouts;
+
 
         const req =
-          payload?.required_checkouts ??
-          payload?.requiredCheckouts;
+          payload
+            ?.required_checkouts ??
+          payload
+            ?.requiredCheckouts;
+
 
         if (
           typeof cur ===
             "number" &&
           typeof req ===
             "number" &&
-          req > 0
+          req >
+            0
         ) {
           progress =
-            cur / req;
+            cur /
+            req;
         }
       }
+
 
       if (
         k ===
         "scoring_ladder"
       ) {
         const cur =
-          payload?.current_step;
+          payload
+            ?.current_step;
+
 
         const goal =
-          payload?.goal_steps;
+          payload
+            ?.goal_steps;
+
 
         if (
           typeof cur ===
             "number" &&
           typeof goal ===
             "number" &&
-          goal > 0
+          goal >
+            0
         ) {
           progress =
-            cur / goal;
+            cur /
+            goal;
         }
       }
+
 
       if (
         k ===
         "scoring_bingo"
       ) {
         const cc =
-          payload?.completed_count;
+          payload
+            ?.completed_count;
+
 
         if (
           typeof cc ===
           "number"
         ) {
           progress =
-            cc / 9;
+            cc /
+            9;
         }
       }
+
 
       if (
         k ===
         "t20_scoring"
       ) {
         const points =
-          payload?.total_points ??
-          payload?.points ??
-          payload?.total;
+          payload
+            ?.total_points ??
+          payload
+            ?.points ??
+          payload
+            ?.total;
+
 
         const target =
-          payload?.target_points ??
-          payload?.target;
+          payload
+            ?.target_points ??
+          payload
+            ?.target;
+
 
         if (
           typeof points ===
             "number" &&
           typeof target ===
             "number" &&
-          target > 0
+          target >
+            0
         ) {
           progress =
             points /
@@ -730,17 +970,28 @@ export default function DrillPage() {
       }
     }
 
+
+    /* ----------------------------------------------
+       OBJECTIVE SUMMARY
+    ----------------------------------------------- */
+
     if (
       k ===
       "checkouts_popular_leaves"
     ) {
       const current =
-        payload?.total_checkouts ??
-        payload?.totalCheckouts;
+        payload
+          ?.total_checkouts ??
+        payload
+          ?.totalCheckouts;
+
 
       const target =
-        payload?.required_checkouts ??
-        payload?.requiredCheckouts;
+        payload
+          ?.required_checkouts ??
+        payload
+          ?.requiredCheckouts;
+
 
       if (
         typeof current ===
@@ -765,10 +1016,14 @@ export default function DrillPage() {
       "scoring_ladder"
     ) {
       const current =
-        payload?.current_step;
+        payload
+          ?.current_step;
+
 
       const target =
-        payload?.goal_steps;
+        payload
+          ?.goal_steps;
+
 
       if (
         typeof current ===
@@ -793,11 +1048,13 @@ export default function DrillPage() {
       "scoring_bingo"
     ) {
       const current =
-        payload?.completed_count;
+        payload
+          ?.completed_count;
+
 
       if (
         typeof current ===
-        "number"
+          "number"
       ) {
         objective = {
           label:
@@ -817,13 +1074,20 @@ export default function DrillPage() {
       "t20_scoring"
     ) {
       const current =
-        payload?.total_points ??
-        payload?.points ??
-        payload?.total;
+        payload
+          ?.total_points ??
+        payload
+          ?.points ??
+        payload
+          ?.total;
+
 
       const target =
-        payload?.target_points ??
-        payload?.target;
+        payload
+          ?.target_points ??
+        payload
+          ?.target;
+
 
       if (
         typeof current ===
@@ -845,12 +1109,15 @@ export default function DrillPage() {
       }
     }
 
+
     const forcedCategory:
       | XpCategory
       | undefined =
-      k === "bull_out"
+      k ===
+      "bull_out"
         ? "doubles"
         : undefined;
+
 
     return {
       game_key:
@@ -858,7 +1125,8 @@ export default function DrillPage() {
 
       category:
         forcedCategory ??
-        drillDef?.category ??
+        drillDef
+          ?.category ??
         "other",
 
       tier,
@@ -869,7 +1137,8 @@ export default function DrillPage() {
 
       aborted:
         Boolean(
-          payload?.aborted
+          payload
+            ?.aborted
         ),
 
       throws_used:
@@ -898,38 +1167,6 @@ export default function DrillPage() {
     };
   }
 
-  /* --------------------------------------------------
-     NAVBAR BACK
-  -------------------------------------------------- */
-
-  useEffect(
-    () => {
-      function onDrillBack() {
-        if (
-          showRules
-        ) {
-          nav(-1);
-        } else {
-          requestAbort();
-        }
-      }
-
-      window.addEventListener(
-        "dt-drill-back",
-        onDrillBack
-      );
-
-      return () =>
-        window.removeEventListener(
-          "dt-drill-back",
-          onDrillBack
-        );
-    },
-    [
-      showRules,
-      nav,
-    ]
-  );
 
   /* --------------------------------------------------
      INVALID DRILL
@@ -952,15 +1189,20 @@ export default function DrillPage() {
     );
   }
 
+
   const Component =
     drillDef.Component;
+
 
   const Rules =
     drillDef.Rules;
 
+
   const scoringSectionSetup =
-    drillDef.setup
+    drillDef
+      .setup
       ?.scoringSection;
+
 
   /* --------------------------------------------------
      RENDER
@@ -988,25 +1230,40 @@ export default function DrillPage() {
         }
       />
 
-      {/* Abort button */}
-      <div
-        style={{
-          marginTop: 12,
-        }}
-      >
-        <button
-          className="btn danger"
-          onClick={
-            requestAbort
-          }
-        >
-          {t(
-            "Abort game"
-          )}
-        </button>
-      </div>
 
-      {/* Rules / setup modal */}
+      {/* ------------------------------------------------
+          ABORT GAME
+      ------------------------------------------------- */}
+
+      {!showRules && (
+        <div
+          style={{
+            marginTop:
+              12,
+          }}
+        >
+          <button
+            type="button"
+            className="btn danger"
+            onClick={
+              requestAbort
+            }
+            disabled={
+              loading
+            }
+          >
+            {t(
+              "Abort game"
+            )}
+          </button>
+        </div>
+      )}
+
+
+      {/* ------------------------------------------------
+          RULES / SETUP MODAL
+      ------------------------------------------------- */}
+
       {showRules && (
         <div className="overlay open">
           <div className="overlay-inner">
@@ -1024,6 +1281,7 @@ export default function DrillPage() {
                     )}
                   </h3>
 
+
                   <div
                     className="muted"
                     style={{
@@ -1037,12 +1295,14 @@ export default function DrillPage() {
                   </div>
                 </div>
 
+
                 <div className="pill pill-stat overlay-badge">
                   <div className="pill-label">
                     {t(
                       "Category"
                     )}
                   </div>
+
 
                   <div className="pill-value">
                     {
@@ -1051,6 +1311,7 @@ export default function DrillPage() {
                   </div>
                 </div>
               </div>
+
 
               {/* Rules */}
               <div
@@ -1062,6 +1323,7 @@ export default function DrillPage() {
               >
                 <Rules />
               </div>
+
 
               {/* Registry-driven setup */}
               {scoringSectionSetup && (
@@ -1083,6 +1345,7 @@ export default function DrillPage() {
                     )}
                   </div>
 
+
                   <div
                     className="row"
                     style={{
@@ -1093,39 +1356,42 @@ export default function DrillPage() {
                         "wrap",
                     }}
                   >
-                    {scoringSectionSetup.options.map(
-                      (
-                        section
-                      ) => (
-                        <button
-                          key={
-                            section
-                          }
-                          type="button"
-                          className={
-                            scoringSection ===
-                            section
-                              ? "btn"
-                              : "btn outline"
-                          }
-                          onClick={() =>
-                            setScoringSection(
+                    {scoringSectionSetup
+                      .options
+                      .map(
+                        (
+                          section
+                        ) => (
+                          <button
+                            key={
                               section
-                            )
-                          }
-                        >
-                          {
-                            section
-                          }
-                          s
-                        </button>
-                      )
-                    )}
+                            }
+                            type="button"
+                            className={
+                              scoringSection ===
+                              section
+                                ? "btn"
+                                : "btn outline"
+                            }
+                            onClick={() =>
+                              setScoringSection(
+                                section
+                              )
+                            }
+                          >
+                            {
+                              section
+                            }
+                            s
+                          </button>
+                        )
+                      )}
                   </div>
                 </div>
               )}
 
-              {/* Modal actions */}
+
+              {/* Actions */}
               <div
                 className="row"
                 style={{
@@ -1137,12 +1403,17 @@ export default function DrillPage() {
                 }}
               >
                 <button
+                  type="button"
                   className="btn outline"
                   onClick={() =>
                     nav(
                       getCategoryPath(
                         category
-                      )
+                      ),
+                      {
+                        replace:
+                          true,
+                      }
                     )
                   }
                 >
@@ -1151,7 +1422,9 @@ export default function DrillPage() {
                   )}
                 </button>
 
+
                 <button
+                  type="button"
                   className="btn"
                   style={{
                     marginLeft:
@@ -1177,7 +1450,18 @@ export default function DrillPage() {
         </div>
       )}
 
-      {/* Abort confirm modal */}
+
+      {/* ------------------------------------------------
+          LOCAL ABORT CONFIRMATION
+
+          Used by the red Abort Game
+          button inside the page.
+
+          Navbar navigation uses the
+          shared generic leave-game
+          modal instead.
+      ------------------------------------------------- */}
+
       {showAbortConfirm && (
         <div className="overlay open">
           <div className="overlay-panel">
@@ -1187,11 +1471,13 @@ export default function DrillPage() {
               )}
             </h3>
 
+
             <p className="muted">
               {t(
-                "Are you sure you want to abort? This counts as a loss and you will lose XP."
+                "Are you sure you want to abort this game? This will count as a loss and XP will be deducted according to the drill rules."
               )}
             </p>
+
 
             <div
               className="row"
@@ -1201,7 +1487,11 @@ export default function DrillPage() {
               }}
             >
               <button
+                type="button"
                 className="btn outline"
+                disabled={
+                  loading
+                }
                 onClick={() =>
                   setShowAbortConfirm(
                     false
@@ -1213,8 +1503,13 @@ export default function DrillPage() {
                 )}
               </button>
 
+
               <button
+                type="button"
                 className="btn danger"
+                disabled={
+                  loading
+                }
                 style={{
                   marginLeft:
                     8,

@@ -20,6 +20,12 @@ import {
 
 import {
 
+  useGameExitStore,
+
+} from "../../session/useGameExitStore";
+
+import {
+
   getSuggestedRoute,
 
   getValidDoubleDartCounts,
@@ -115,6 +121,80 @@ export default function Assessment170() {
     (state) => state.setFinish170Result
 
   );
+
+  const setCurrentStep = useAssessmentStore(
+
+    (state) => state.setCurrentStep
+
+  );
+
+  const resetAssessment = useAssessmentStore(
+
+    (state) => state.resetAssessment
+
+  );
+
+  const setGameExit = useGameExitStore(
+
+    (state) => state.setGameExit
+
+  );
+
+  const clearGameExit = useGameExitStore(
+
+    (state) => state.clearGameExit
+
+  );
+
+
+
+  /*
+   * This is an active assessment game.
+   *
+   * Leaving through global navigation
+   * shows the shared confirmation modal.
+   *
+   * Assessment games do not have an XP
+   * penalty. Confirming Leave Game
+   * discards the current assessment.
+   *
+   * Simply closing the browser/app does
+   * not run this handler, so the persisted
+   * assessment checkpoint remains available.
+   */
+  React.useEffect(() => {
+
+    setGameExit({
+
+      active: true,
+
+      xpPenalty: false,
+
+      handler: () => {
+
+        resetAssessment();
+
+      },
+
+    });
+
+
+
+    return () => {
+
+      clearGameExit();
+
+    };
+
+  }, [
+
+    setGameExit,
+
+    clearGameExit,
+
+    resetAssessment,
+
+  ]);
 
 
 
@@ -1117,6 +1197,22 @@ export default function Assessment170() {
       ),
 
     });
+
+
+
+    setCurrentStep(
+
+      "scoring"
+
+    );
+
+
+
+    /*
+     * Normal progression to the next
+     * assessment game, not an abandon.
+     */
+    clearGameExit();
 
 
 

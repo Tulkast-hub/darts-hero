@@ -8,6 +8,9 @@ import { useAssessmentStore } from "../../skills-assessment/useAssessmentStore";
 
 import { POSSIBLE_3DART_SCORES } from "../../skills-assessment/checkoutUtils";
 
+import {
+  useGameExitStore,
+} from "../../session/useGameExitStore";
 
 
 const TOTAL_VISITS = 10;
@@ -65,6 +68,40 @@ export default function AssessmentScoring() {
     [visits]
 
   );
+
+  const setCurrentStep = useAssessmentStore(
+    (state) => state.setCurrentStep
+  );
+  
+  const resetAssessment = useAssessmentStore(
+    (state) => state.resetAssessment
+  );
+  
+  const setGameExit = useGameExitStore(
+    (state) => state.setGameExit
+  );
+  
+  const clearGameExit = useGameExitStore(
+    (state) => state.clearGameExit
+  );
+  
+  React.useEffect(() => {
+    setGameExit({
+      active: true,
+      xpPenalty: false,
+      handler: () => {
+        resetAssessment();
+      },
+    });
+  
+    return () => {
+      clearGameExit();
+    };
+  }, [
+    setGameExit,
+    clearGameExit,
+    resetAssessment,
+  ]);
 
 
 
@@ -165,43 +202,35 @@ export default function AssessmentScoring() {
 
 
   function continueAssessment() {
-
     if (visits.length !== TOTAL_VISITS) {
-
       return;
-
     }
-
-
-
+  
     const finalTotal = visits.reduce(
-
       (sum, score) => sum + score,
-
       0
-
     );
-
-
-
+  
     setScoringResult({
-
       visits,
-
       totalScore: finalTotal,
-
       averageScore: Number(
-
-        (finalTotal / TOTAL_VISITS).toFixed(1)
-
+        (
+          finalTotal /
+          TOTAL_VISITS
+        ).toFixed(1)
       ),
-
     });
-
-
-
-    nav("/skills-assessment/501");
-
+  
+    setCurrentStep(
+      "501"
+    );
+  
+    clearGameExit();
+  
+    nav(
+      "/skills-assessment/501"
+    );
   }
 
 

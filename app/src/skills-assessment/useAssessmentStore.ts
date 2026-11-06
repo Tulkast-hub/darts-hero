@@ -1,17 +1,26 @@
+// src/skills-assessment/useAssessmentStore.ts
 
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import {
+  create,
+} from "zustand";
+
+import {
+  persist,
+} from "zustand/middleware";
+
 
 export type AssessmentVisit = {
   score: number;
   doubleDarts: number;
 };
 
+
 export type DoublesAssessmentResult = {
   dartsThrown: number;
   doublesHit: number;
   percentage: number;
 };
+
 
 export type Checkout101LegResult = {
   darts: number;
@@ -22,11 +31,13 @@ export type Checkout101LegResult = {
   checkoutDoubleDarts: number;
 };
 
+
 export type Checkout101AssessmentResult = {
   legs: Checkout101LegResult[];
   totalDarts: number;
   averageDarts: number;
 };
+
 
 export type Finish170AttemptResult = {
   darts: number;
@@ -37,17 +48,20 @@ export type Finish170AttemptResult = {
   checkoutDoubleDarts: number;
 };
 
+
 export type Finish170AssessmentResult = {
   attempts: Finish170AttemptResult[];
   totalDarts: number;
   averageDarts: number;
 };
 
+
 export type ScoringAssessmentResult = {
   visits: number[];
   totalScore: number;
   averageScore: number;
 };
+
 
 export type Game501LegResult = {
   darts: number;
@@ -58,6 +72,7 @@ export type Game501LegResult = {
   checkoutDoubleDarts: number;
 };
 
+
 export type Game501AssessmentResult = {
   legs: Game501LegResult[];
   totalDarts: number;
@@ -65,161 +80,428 @@ export type Game501AssessmentResult = {
   threeDartAverage: number;
 };
 
+
 export type AssessmentResults = {
-  doubles?: DoublesAssessmentResult;
-  checkout101?: Checkout101AssessmentResult;
-  finish170?: Finish170AssessmentResult;
-  scoring?: ScoringAssessmentResult;
-  game501?: Game501AssessmentResult;
+  doubles?:
+    DoublesAssessmentResult;
+
+  checkout101?:
+    Checkout101AssessmentResult;
+
+  finish170?:
+    Finish170AssessmentResult;
+
+  scoring?:
+    ScoringAssessmentResult;
+
+  game501?:
+    Game501AssessmentResult;
 };
 
+
 /*
- * Generate a unique identifier for each
- * assessment attempt.
+ * Current assessment position.
  *
- * Staging and production use HTTPS, so
- * crypto.randomUUID() is available.
+ * This lets us restore the correct
+ * page after the browser/app closes.
  */
-function createAssessmentUuid(): string {
+export type AssessmentStep =
+  | "doubles"
+  | "101"
+  | "170"
+  | "scoring"
+  | "501"
+  | "results";
+
+
+/*
+ * Generate a unique identifier
+ * for each assessment attempt.
+ */
+function createAssessmentUuid():
+  string {
   return crypto.randomUUID();
 }
 
+
 type AssessmentStore = {
   /*
-   * Identifier for the current assessment.
-   *
-   * null is allowed for assessments saved
-   * before this field was introduced.
+   * Identifier for the current
+   * assessment attempt.
    */
-  assessmentUuid: string | null;
+  assessmentUuid:
+    string | null;
 
-  results: AssessmentResults;
 
   /*
-   * Return the existing assessment UUID
-   * or create one when it is missing.
-   *
-   * This is useful for existing persisted
-   * results and the test results loader.
+   * Last completed assessment
+   * results.
    */
-  ensureAssessmentUuid: () => string;
+  results:
+    AssessmentResults;
 
-  setDoublesResult: (
-    result: DoublesAssessmentResult
-  ) => void;
 
-  setCheckout101Result: (
-    result: Checkout101AssessmentResult
-  ) => void;
+  /*
+   * Current assessment position.
+   *
+   * null means there is currently
+   * no assessment in progress.
+   */
+  currentStep:
+    AssessmentStep | null;
 
-  setFinish170Result: (
-    result: Finish170AssessmentResult
-  ) => void;
 
-  setScoringResult: (
-    result: ScoringAssessmentResult
-  ) => void;
+  /*
+   * Return the existing UUID or
+   * create one if missing.
+   */
+  ensureAssessmentUuid:
+    () => string;
 
-  setGame501Result: (
-    result: Game501AssessmentResult
-  ) => void;
 
-  resetAssessment: () => void;
+  /*
+   * Explicitly set which assessment
+   * game should be resumed.
+   */
+  setCurrentStep:
+    (
+      step:
+        AssessmentStep | null
+    ) => void;
+
+
+  setDoublesResult:
+    (
+      result:
+        DoublesAssessmentResult
+    ) => void;
+
+
+  setCheckout101Result:
+    (
+      result:
+        Checkout101AssessmentResult
+    ) => void;
+
+
+  setFinish170Result:
+    (
+      result:
+        Finish170AssessmentResult
+    ) => void;
+
+
+  setScoringResult:
+    (
+      result:
+        ScoringAssessmentResult
+    ) => void;
+
+
+  setGame501Result:
+    (
+      result:
+        Game501AssessmentResult
+    ) => void;
+
+
+  /*
+   * Start/restart an assessment.
+   */
+  resetAssessment:
+    () => void;
+
+
+  /*
+   * Assessment successfully saved
+   * and completely finished.
+   *
+   * Remove the browser draft.
+   */
+  completeAssessment:
+    () => void;
 };
+
 
 export const useAssessmentStore =
   create<AssessmentStore>()(
     persist(
-      (set, get) => ({
-        assessmentUuid: null,
+      (
+        set,
+        get
+      ) => ({
+        assessmentUuid:
+          null,
 
-        results: {},
 
-        /*
-         * Keep the same UUID for the entire
-         * current assessment.
-         *
-         * Only create one if missing.
-         */
-        ensureAssessmentUuid: () => {
-          const existingUuid =
-            get().assessmentUuid;
+        results:
+          {},
 
-          if (existingUuid) {
-            return existingUuid;
-          }
 
-          const newUuid =
-            createAssessmentUuid();
+        currentStep:
+          null,
 
-          set({
-            assessmentUuid: newUuid,
-          });
 
-          return newUuid;
-        },
+        /* ------------------------------------------
+           UUID
+        ------------------------------------------- */
 
-        setDoublesResult: (result) =>
-          set((state) => ({
-            results: {
-              ...state.results,
-              doubles: result,
-            },
-          })),
+        ensureAssessmentUuid:
+          () => {
+            const existingUuid =
+              get()
+                .assessmentUuid;
 
-        setCheckout101Result: (result) =>
-          set((state) => ({
-            results: {
-              ...state.results,
-              checkout101: result,
-            },
-          })),
 
-        setFinish170Result: (result) =>
-          set((state) => ({
-            results: {
-              ...state.results,
-              finish170: result,
-            },
-          })),
+            if (
+              existingUuid
+            ) {
+              return existingUuid;
+            }
 
-        setScoringResult: (result) =>
-          set((state) => ({
-            results: {
-              ...state.results,
-              scoring: result,
-            },
-          })),
 
-        setGame501Result: (result) =>
-          set((state) => ({
-            results: {
-              ...state.results,
-              game501: result,
-            },
-          })),
+            const newUuid =
+              createAssessmentUuid();
 
-        /*
-         * Start a fresh assessment.
-         *
-         * This clears only the current
-         * browser-stored assessment.
-         *
-         * Previously completed assessments
-         * saved in MariaDB are unaffected.
-         */
-        resetAssessment: () => {
-          set({
-            assessmentUuid:
-              createAssessmentUuid(),
 
-            results: {},
-          });
-        },
+            set({
+              assessmentUuid:
+                newUuid,
+            });
+
+
+            return newUuid;
+          },
+
+
+        /* ------------------------------------------
+           CURRENT STEP
+        ------------------------------------------- */
+
+        setCurrentStep:
+          (
+            step
+          ) =>
+            set({
+              currentStep:
+                step,
+            }),
+
+
+        /* ------------------------------------------
+           RESULTS
+        ------------------------------------------- */
+
+        setDoublesResult:
+          (
+            result
+          ) =>
+            set(
+              (
+                state
+              ) => ({
+                results: {
+                  ...state.results,
+
+                  doubles:
+                    result,
+                },
+              })
+            ),
+
+
+        setCheckout101Result:
+          (
+            result
+          ) =>
+            set(
+              (
+                state
+              ) => ({
+                results: {
+                  ...state.results,
+
+                  checkout101:
+                    result,
+                },
+              })
+            ),
+
+
+        setFinish170Result:
+          (
+            result
+          ) =>
+            set(
+              (
+                state
+              ) => ({
+                results: {
+                  ...state.results,
+
+                  finish170:
+                    result,
+                },
+              })
+            ),
+
+
+        setScoringResult:
+          (
+            result
+          ) =>
+            set(
+              (
+                state
+              ) => ({
+                results: {
+                  ...state.results,
+
+                  scoring:
+                    result,
+                },
+              })
+            ),
+
+
+        setGame501Result:
+          (
+            result
+          ) =>
+            set(
+              (
+                state
+              ) => ({
+                results: {
+                  ...state.results,
+
+                  game501:
+                    result,
+                },
+              })
+            ),
+
+
+        /* ------------------------------------------
+           RESET / START OVER
+        ------------------------------------------- */
+
+        resetAssessment:
+          () => {
+            set({
+              assessmentUuid:
+                createAssessmentUuid(),
+
+              results:
+                {},
+
+              currentStep:
+                "doubles",
+            });
+          },
+
+
+        /* ------------------------------------------
+           COMPLETE
+        ------------------------------------------- */
+
+        completeAssessment:
+          () => {
+            set({
+              assessmentUuid:
+                null,
+
+              results:
+                {},
+
+              currentStep:
+                null,
+            });
+          },
       }),
+
       {
         name:
           "darts-hero-skills-assessment",
+
+        /*
+         * Version the persisted shape
+         * because we're adding
+         * currentStep now.
+         */
+        version:
+          2,
+
+        /*
+         * Existing users may already
+         * have saved results from the
+         * previous store shape.
+         *
+         * Work out the most sensible
+         * next step from those results.
+         */
+        migrate:
+          (
+            persistedState:
+              any
+          ) => {
+            const state =
+              persistedState ??
+              {};
+
+
+            const results:
+              AssessmentResults =
+              state.results ??
+              {};
+
+
+            let currentStep:
+              AssessmentStep | null =
+              state.currentStep ??
+              null;
+
+
+            if (
+              !currentStep
+            ) {
+              if (
+                results.game501
+              ) {
+                currentStep =
+                  "results";
+              } else if (
+                results.scoring
+              ) {
+                currentStep =
+                  "501";
+              } else if (
+                results.finish170
+              ) {
+                currentStep =
+                  "scoring";
+              } else if (
+                results.checkout101
+              ) {
+                currentStep =
+                  "170";
+              } else if (
+                results.doubles
+              ) {
+                currentStep =
+                  "101";
+              }
+            }
+
+
+            return {
+              ...state,
+
+              results,
+
+              currentStep,
+            };
+          },
       }
     )
   );

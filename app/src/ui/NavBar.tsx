@@ -1,3 +1,5 @@
+// src/ui/NavBar.tsx
+
 import React, {
   useMemo,
   useState,
@@ -8,48 +10,284 @@ import {
   useNavigate,
 } from "react-router-dom";
 
-import { useTheme } from "../theme/useTheme";
-import RankBadge from "./RankBadge";
-import { useXpStore } from "../xp/useXpStore";
+import {
+  useTheme,
+} from "../theme/useTheme";
 
-import type {
-  Tier,
-} from "../xp/types";
+import RankBadge from "./RankBadge";
+
+import {
+  useXpStore,
+} from "../xp/useXpStore";
 
 import {
   getRankStateFromXp,
   XP_CAPS,
 } from "../xp/rank";
 
-import { useAuthStore } from "../auth/useAuthStore";
-import { useAbortStore } from "../session/useAbortStore";
+import {
+  useAuthStore,
+} from "../auth/useAuthStore";
 
-import { useAssessmentStore } from "../skills-assessment/useAssessmentStore";
+import {
+  useGameExitStore,
+} from "../session/useGameExitStore";
+
+import {
+  getDrillDef,
+} from "../drills/registry";
 
 import HeroLogo from "../assets/img/hero.png";
 
-import { useI18n } from "../i18n/I18nProvider";
+import {
+  useI18n,
+} from "../i18n/I18nProvider";
+
+
+/* --------------------------------------------------
+   NAVIGATION HELPERS
+-------------------------------------------------- */
+
+function getCategoryPath(
+  category?: string
+) {
+  switch (
+    category
+  ) {
+    case "scoring":
+      return "/category/scoring";
+
+    case "doubles":
+      return "/category/doubling";
+
+    case "finishing":
+      return "/category/finishing";
+
+    default:
+      return "/";
+  }
+}
+
+
+/*
+ * Header Back should follow the
+ * app taxonomy rather than browser
+ * history.
+ *
+ * This prevents:
+ *
+ * result -> finished game
+ * game -> previous result
+ * etc.
+ */
+function getTaxonomyParent(
+  pathname: string
+) {
+  /* Home */
+  if (
+    pathname === "/" ||
+    pathname === ""
+  ) {
+    return "/";
+  }
+
+
+  /* --------------------------------------------
+     DRILL RESULTS
+  --------------------------------------------- */
+
+  if (
+    pathname.startsWith(
+      "/result/"
+    )
+  ) {
+    const drillKey =
+      pathname.split(
+        "/"
+      )[2] || "";
+
+    const drillDef =
+      getDrillDef(
+        drillKey
+      );
+
+    return getCategoryPath(
+      drillDef?.category
+    );
+  }
+
+
+  /* --------------------------------------------
+     DRILL GAME
+  --------------------------------------------- */
+
+  if (
+    pathname.startsWith(
+      "/drill/"
+    )
+  ) {
+    const drillKey =
+      pathname.split(
+        "/"
+      )[2] || "";
+
+    const drillDef =
+      getDrillDef(
+        drillKey
+      );
+
+    return getCategoryPath(
+      drillDef?.category
+    );
+  }
+
+
+  /* --------------------------------------------
+     CATEGORY
+  --------------------------------------------- */
+
+  if (
+    pathname.startsWith(
+      "/category/"
+    )
+  ) {
+    return "/";
+  }
+
+
+  /* --------------------------------------------
+     SKILLS ASSESSMENT
+  --------------------------------------------- */
+
+  if (
+    pathname ===
+    "/skills-assessment/results"
+  ) {
+    return "/skills-assessment";
+  }
+
+
+  if (
+    pathname.startsWith(
+      "/skills-assessment/"
+    )
+  ) {
+    return "/skills-assessment";
+  }
+
+
+  if (
+    pathname ===
+    "/skills-assessment"
+  ) {
+    return "/";
+  }
+
+
+  /* --------------------------------------------
+     VERSUS
+  --------------------------------------------- */
+
+  if (
+    pathname.startsWith(
+      "/versus/"
+    )
+  ) {
+    return "/versus";
+  }
+
+
+  if (
+    pathname ===
+    "/versus"
+  ) {
+    return "/";
+  }
+
+
+  /* --------------------------------------------
+     TOP LEVEL PAGES
+  --------------------------------------------- */
+
+  if (
+    pathname.startsWith(
+      "/profile"
+    ) ||
+    pathname.startsWith(
+      "/stats"
+    )
+  ) {
+    return "/";
+  }
+
+
+  /*
+   * Safe fallback.
+   */
+  return "/";
+}
+
+
+/* --------------------------------------------------
+   COMPONENT
+-------------------------------------------------- */
 
 export default function NavBar({
   onMenu,
 }: {
   onMenu: () => void;
 }) {
-  const nav = useNavigate();
+  const nav =
+    useNavigate();
 
   const loc =
     useLocation();
 
+
   const [
     theme,
     setTheme,
-  ] = useTheme();
+  ] =
+    useTheme();
+
 
   const [
-    showCancelAssessmentModal,
-    setShowCancelAssessmentModal,
+    showLeaveGameModal,
+    setShowLeaveGameModal,
   ] =
-    useState(false);
+    useState(
+      false
+    );
+
+
+  /*
+   * Navigation the user originally
+   * requested before the game-exit
+   * confirmation appeared.
+   */
+  const [
+    pendingNavigation,
+    setPendingNavigation,
+  ] =
+    useState<
+      (() => void) | null
+    >(
+      null
+    );
+
+
+  const [
+    leavingGame,
+    setLeavingGame,
+  ] =
+    useState(
+      false
+    );
+
+
+  /* --------------------------------------------------
+     USER / XP
+  -------------------------------------------------- */
 
   const totalXp =
     useXpStore(
@@ -57,48 +295,65 @@ export default function NavBar({
         s.state.totalXp
     );
 
+
   const me =
     useAuthStore(
-      (s) => s.me
+      (s) =>
+        s.me
     );
 
-  const abortHandler =
-    useAbortStore(
+
+  /* --------------------------------------------------
+     ACTIVE GAME
+  -------------------------------------------------- */
+
+  const gameActive =
+    useGameExitStore(
+      (s) =>
+        s.active
+    );
+
+
+  const gameHasXpPenalty =
+    useGameExitStore(
+      (s) =>
+        s.xpPenalty
+    );
+
+
+  const gameExitHandler =
+    useGameExitStore(
       (s) =>
         s.handler
     );
 
-  const resetAssessment =
-    useAssessmentStore(
-      (state) =>
-        state.resetAssessment
-    );
 
   const {
     t,
     isDesktop,
-  } = useI18n();
+  } =
+    useI18n();
+
+
+  const pathname =
+    loc.pathname;
+
 
   const name =
     me?.display_name ||
     me?.login ||
     t("Player");
 
-  const pathname =
-    loc.pathname;
 
   const isHome =
     pathname === "/" ||
     pathname === "";
 
-  const isDrill =
-    pathname.startsWith(
-      "/drill/"
-    );
 
   const isAssessmentResults =
     pathname ===
     "/skills-assessment/results";
+
 
   const isAssessmentGame =
     pathname.startsWith(
@@ -106,12 +361,28 @@ export default function NavBar({
     ) &&
     !isAssessmentResults;
 
-  const toggleTheme = () =>
-    setTheme(
-      theme === "light"
-        ? "dark"
-        : "light"
-    );
+
+  /* --------------------------------------------------
+     THEME
+  -------------------------------------------------- */
+
+  /*
+   * Theme doesn't leave the page,
+   * so it should ALWAYS remain
+   * available during games.
+   */
+  const toggleTheme =
+    () =>
+      setTheme(
+        theme === "light"
+          ? "dark"
+          : "light"
+      );
+
+
+  /* --------------------------------------------------
+     OVERALL RANK
+  -------------------------------------------------- */
 
   const overallRank =
     useMemo(
@@ -126,137 +397,230 @@ export default function NavBar({
       ]
     );
 
+
   /* --------------------------------------------------
-     ASSESSMENT
+     GAME NAVIGATION GUARD
   -------------------------------------------------- */
 
-  function requestCancelAssessment() {
-    setShowCancelAssessmentModal(
+  function requestNavigation(
+    action: () => void
+  ) {
+    /*
+     * No active game:
+     * navigate normally.
+     */
+    if (
+      !gameActive
+    ) {
+      action();
+
+      return;
+    }
+
+
+    /*
+     * Active game:
+     * remember where the user
+     * wanted to go and ask first.
+     */
+    setPendingNavigation(
+      () =>
+        action
+    );
+
+
+    setShowLeaveGameModal(
       true
     );
   }
 
-  function closeCancelAssessmentModal() {
-    setShowCancelAssessmentModal(
+
+  function closeLeaveGameModal() {
+    if (
+      leavingGame
+    ) {
+      return;
+    }
+
+
+    setShowLeaveGameModal(
       false
+    );
+
+
+    setPendingNavigation(
+      null
     );
   }
 
-  function confirmCancelAssessment() {
-    setShowCancelAssessmentModal(
-      false
+
+  async function confirmLeaveGame() {
+    if (
+      leavingGame
+    ) {
+      return;
+    }
+
+
+    setLeavingGame(
+      true
     );
 
-    resetAssessment();
 
-    nav("/");
+    /*
+     * Keep a local reference.
+     *
+     * The game cleanup may clear
+     * its store while executing.
+     */
+    const navigateAfterExit =
+      pendingNavigation;
+
+
+    try {
+      /*
+       * Drill:
+       * ends session and applies
+       * XP loss.
+       *
+       * Assessment / Versus:
+       * resets/discards current game.
+       */
+      await gameExitHandler?.();
+
+
+      setShowLeaveGameModal(
+        false
+      );
+
+
+      setPendingNavigation(
+        null
+      );
+
+
+      /*
+       * Only after cleanup succeeds
+       * do we perform the navigation
+       * originally requested.
+       */
+      navigateAfterExit?.();
+    } finally {
+      setLeavingGame(
+        false
+      );
+    }
   }
 
-  function finishAssessment() {
-    nav("/");
-  }
 
   /* --------------------------------------------------
-     NAVIGATION
+     NAV ACTIONS
   -------------------------------------------------- */
 
-  function handleBack() {
-    /*
-     * Inside a drill, use the existing
-     * shared abort handler.
-     */
-    if (
-      isDrill &&
-      abortHandler
-    ) {
-      abortHandler();
-
-      return;
-    }
-
-    nav(-1);
-  }
-
   function handleLogoClick() {
-    /*
-     * Clicking the logo while a drill
-     * is open should not silently leave
-     * the active session.
-     *
-     * Use the same abort modal as the
-     * Abort button / back navigation.
-     */
-    if (
-      isDrill &&
-      abortHandler
-    ) {
-      abortHandler();
-
-      return;
-    }
-
-    /*
-     * Everywhere else the logo
-     * behaves as Home.
-     */
-    nav("/");
+    requestNavigation(
+      () =>
+        nav(
+          "/",
+          {
+            replace:
+              true,
+          }
+        )
+    );
   }
+
+
+  function handleBack() {
+    const parent =
+      getTaxonomyParent(
+        pathname
+      );
+
+
+    requestNavigation(
+      () =>
+        nav(
+          parent,
+          {
+            replace:
+              true,
+          }
+        )
+    );
+  }
+
+
+  function handleProfile() {
+    requestNavigation(
+      () =>
+        nav(
+          "/profile"
+        )
+    );
+  }
+
+
+  /*
+   * Keep the Assessment button
+   * for now, but it uses the same
+   * generic leave-game modal.
+   *
+   * Its actual reset will later
+   * come from the Assessment
+   * game's registered handler.
+   */
+  function handleCancelAssessment() {
+    requestNavigation(
+      () =>
+        nav(
+          "/skills-assessment",
+          {
+            replace:
+              true,
+          }
+        )
+    );
+  }
+
+
+  function finishAssessment() {
+    nav(
+      "/",
+      {
+        replace:
+          true,
+      }
+    );
+  }
+
+
+  /* --------------------------------------------------
+     RENDER
+  -------------------------------------------------- */
 
   return (
     <>
-      <header
-        className="nav"
-        style={{
-          display:
-            "block",
-        }}
-      >
+      <header className="nav">
         {/* Main navbar */}
-        <div
-          className="nav-main-row"
-          style={{
-            position:
-              "relative",
+        <div className="nav-main-row">
+          {/* ----------------------------------------
+              LEFT
+          ----------------------------------------- */}
 
-            display:
-              "flex",
-
-            alignItems:
-              "center",
-
-            justifyContent:
-              "space-between",
-
-            width:
-              "100%",
-          }}
-        >
-          {/* Left */}
-          <div
-            className="nav-left"
-            style={{
-              flex:
-                "1 1 0",
-
-              display:
-                "flex",
-
-              justifyContent:
-                "flex-start",
-
-              alignItems:
-                "center",
-            }}
-          >
+          <div className="nav-left">
             {isHome ? (
               <button
+                type="button"
                 className="icon-btn"
                 onClick={
                   onMenu
                 }
-                aria-label={t(
-                  "Open menu"
-                )}
+                aria-label={
+                  t(
+                    "Open menu"
+                  )
+                }
               >
                 ☰
               </button>
@@ -265,7 +629,7 @@ export default function NavBar({
                 type="button"
                 className="btn outline"
                 onClick={
-                  requestCancelAssessment
+                  handleCancelAssessment
                 }
               >
                 {t(
@@ -286,102 +650,75 @@ export default function NavBar({
               </button>
             ) : (
               <button
+                type="button"
                 className="icon-btn"
                 onClick={
                   handleBack
                 }
-                aria-label={t(
-                  "Back"
-                )}
+                aria-label={
+                  t("Back")
+                }
               >
                 ←
               </button>
             )}
           </div>
 
-          {/* Logo */}
-          <div
-            className="nav-center"
-            style={{
-              position:
-                "absolute",
 
-              left:
-                "50%",
+          {/* ----------------------------------------
+              CENTER LOGO
+          ----------------------------------------- */}
 
-              top:
-                "50%",
-
-              transform:
-                "translate(-50%, -50%)",
-            }}
-          >
+          <div className="nav-center">
             <button
               type="button"
+              className="nav-logo-button"
               onClick={
                 handleLogoClick
               }
-              aria-label={t(
-                "Back to Home"
-              )}
-              style={{
-                padding:
-                  0,
-
-                margin:
-                  0,
-
-                border:
-                  0,
-
-                background:
-                  "transparent",
-
-                cursor:
-                  "pointer",
-
-                display:
-                  "block",
-              }}
+              aria-label={
+                gameActive
+                  ? t(
+                      "Leave game and go home"
+                    )
+                  : t(
+                      "Go to home"
+                    )
+              }
             >
               <img
                 src={
                   HeroLogo
                 }
-                alt={t(
-                  "Darts Hero logo"
-                )}
+                alt={
+                  t(
+                    "Darts Hero logo"
+                  )
+                }
                 className="logo-large"
               />
             </button>
           </div>
 
-          {/* Right */}
-          <div
-            className="nav-right"
-            style={{
-              flex:
-                "1 1 0",
 
-              display:
-                "flex",
+          {/* ----------------------------------------
+              RIGHT
+          ----------------------------------------- */}
 
-              justifyContent:
-                "flex-end",
-
-              alignItems:
-                "center",
-            }}
-          >
-            <div>
+          <div className="nav-right">
+            <div className="nav-actions">
+              {/* Theme remains active in games */}
               <button
+                type="button"
                 className="icon-btn"
                 onClick={
                   toggleTheme
                 }
-                aria-label={t(
-                  "Theme"
-                )}
+                aria-label={
+                  t(
+                    "Theme"
+                  )
+                }
               >
                 {theme ===
                 "light"
@@ -389,27 +726,31 @@ export default function NavBar({
                   : "☀️"}
               </button>
 
+
+              {/* Profile is also active;
+                  navigation is guarded */}
               <button
+                type="button"
                 className="icon-btn"
-                onClick={() =>
-                  nav(
-                    "/profile"
+                onClick={
+                  handleProfile
+                }
+                aria-label={
+                  t(
+                    "Profile"
                   )
                 }
-                aria-label={t(
-                  "Profile"
-                )}
               >
                 👤
               </button>
             </div>
 
+
             <div className="profile">
               <div className="nav-title">
-                {
-                  name
-                }
+                {name}
               </div>
+
 
               <div className="nav-subtitle">
                 <RankBadge
@@ -425,42 +766,13 @@ export default function NavBar({
           </div>
         </div>
 
-        {/* Rank progression */}
+
+        {/* ------------------------------------------
+            DESKTOP RANK PROGRESSION
+        ------------------------------------------- */}
+
         {isDesktop && (
-          <div
-            className="nav-rank-steps"
-            style={{
-              width:
-                "100%",
-
-              marginTop:
-                10,
-
-              paddingTop:
-                10,
-
-              paddingBottom:
-                4,
-
-              borderTop:
-                "1px solid rgba(148, 163, 184, 0.25)",
-
-              display:
-                "flex",
-
-              alignItems:
-                "center",
-
-              justifyContent:
-                "center",
-
-              gap:
-                10,
-
-              flexWrap:
-                "wrap",
-            }}
-          >
+          <div className="nav-rank-steps">
             <span
               className="muted small"
               style={{
@@ -474,54 +786,77 @@ export default function NavBar({
               :
             </span>
 
+
             <RankStep
-              label={t(
-                "Bronze"
-              )}
+              label={
+                t(
+                  "Bronze"
+                )
+              }
               tier="Bronze"
             />
 
+
             <RankArrow />
 
+
             <RankStep
-              label={t(
-                "Silver"
-              )}
+              label={
+                t(
+                  "Silver"
+                )
+              }
               tier="Silver"
             />
 
+
             <RankArrow />
 
+
             <RankStep
-              label={t(
-                "Gold"
-              )}
+              label={
+                t(
+                  "Gold"
+                )
+              }
               tier="Gold"
             />
 
+
             <RankArrow />
 
+
             <RankStep
-              label={t(
-                "Platinum"
-              )}
+              label={
+                t(
+                  "Platinum"
+                )
+              }
               tier="Platinum"
             />
 
+
             <RankArrow />
 
+
             <RankStep
-              label={t(
-                "Diamond"
-              )}
+              label={
+                t(
+                  "Diamond"
+                )
+              }
               tier="Diamond"
             />
           </div>
         )}
       </header>
 
-      {/* Cancel assessment modal */}
-      {showCancelAssessmentModal && (
+
+      {/* ------------------------------------------------
+          SHARED LEAVE GAME MODAL
+      ------------------------------------------------- */}
+
+      {showLeaveGameModal && (
         <div
           className="assessment-modal-backdrop"
           role="presentation"
@@ -532,7 +867,7 @@ export default function NavBar({
               event.target ===
               event.currentTarget
             ) {
-              closeCancelAssessmentModal();
+              closeLeaveGameModal();
             }
           }}
         >
@@ -540,29 +875,40 @@ export default function NavBar({
             className="card assessment-modal"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="cancel-assessment-title"
-            aria-describedby="cancel-assessment-description"
+            aria-labelledby="leave-game-title"
+            aria-describedby="leave-game-description"
           >
             <h2
-              id="cancel-assessment-title"
+              id="leave-game-title"
               style={{
                 marginTop:
                   0,
               }}
             >
               {t(
-                "Cancel assessment?"
+                "Leave game?"
               )}
             </h2>
 
+
             <p
-              id="cancel-assessment-description"
+              id="leave-game-description"
               className="muted"
             >
               {t(
-                "Are you sure you want to cancel the assessment? Your current assessment progress will be lost."
+                "Are you sure you want to leave this game? Your current progress will be lost."
               )}
             </p>
+
+
+            {gameHasXpPenalty && (
+              <p className="muted">
+                {t(
+                  "This will count as a loss and XP will be deducted according to the drill rules."
+                )}
+              </p>
+            )}
+
 
             <div
               style={{
@@ -582,8 +928,11 @@ export default function NavBar({
               <button
                 type="button"
                 className="btn outline"
+                disabled={
+                  leavingGame
+                }
                 onClick={
-                  closeCancelAssessmentModal
+                  closeLeaveGameModal
                 }
               >
                 {t(
@@ -591,16 +940,24 @@ export default function NavBar({
                 )}
               </button>
 
+
               <button
                 type="button"
-                className="btn"
+                className="btn danger"
+                disabled={
+                  leavingGame
+                }
                 onClick={
-                  confirmCancelAssessment
+                  confirmLeaveGame
                 }
               >
-                {t(
-                  "Cancel assessment"
-                )}
+                {leavingGame
+                  ? t(
+                      "Leaving..."
+                    )
+                  : t(
+                      "Leave game"
+                    )}
               </button>
             </div>
           </div>
@@ -609,6 +966,11 @@ export default function NavBar({
     </>
   );
 }
+
+
+/* --------------------------------------------------
+   RANK PROGRESSION HELPERS
+-------------------------------------------------- */
 
 function RankStep({
   label,
@@ -646,10 +1008,9 @@ function RankStep({
             "nowrap",
         }}
       >
-        {
-          label
-        }
+        {label}
       </span>
+
 
       <RankBadge
         tier={
@@ -665,6 +1026,7 @@ function RankStep({
     </div>
   );
 }
+
 
 function RankArrow() {
   return (
